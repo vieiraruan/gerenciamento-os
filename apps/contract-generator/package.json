@@ -1,0 +1,22 @@
+{
+  "name": "contract-generator",
+  "version": "1.0.0",
+  "description": "Gera contratos DOCX/PDF a partir de .txt",
+  "main": "src/index.js",
+  "scripts": {
+    "gerar": "node src/index.js",
+    "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "docxtemplater": "^3.71.1",
+    "extenso": "^3.0.0",
+    "pizzip": "^3.3.0"
+  },
+  "bin": {
+    "gerar-contrato": "src/index.js"
+  },
+  "private": true
+}

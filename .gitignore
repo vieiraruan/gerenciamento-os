@@ -1,0 +1,13 @@
+node_modules/
+dist/
+saida/
+*.log
+.env
+.env.*
+!.env.example
+# dados reais da empresa ficam fora do git
+apps/contract-generator/config/empresa.json
+*.pem
+kubeconfig*
+.DS_Store
+~$*.docx

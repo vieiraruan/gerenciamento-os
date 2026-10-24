@@ -1,0 +1,10 @@
+{
+  "assessoria_completa": {
+    "descricao": "Assessoria completa (planejamento + dia do evento)",
+    "arquivo": "assessoria_completa.docx",
+    "obrigatorios": [
+      "contratante_nome", "contratante_cpf", "evento_tipo",
+      "evento_data", "evento_local", "valor_total", "forma_pagamento"
+    ]
+  }
+}

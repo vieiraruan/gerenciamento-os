@@ -1,0 +1,26 @@
+# Dados do contrato — uma informação por linha no formato  chave: valor
+# Linhas com # são ignoradas.
+
+tipo_servico: assessoria_completa
+
+# Contratante (cliente)
+contratante_nome: Maria Fernanda Souza
+contratante_cpf: 123.456.789-00
+contratante_endereco: Av. Paulista, 1000, ap. 52 – São Paulo/SP
+contratante_telefone: (11) 98888-7777
+contratante_email: maria.souza@email.com
+
+# Evento
+evento_tipo: Casamento
+evento_data: 15/05/2027
+evento_local: Espaço Villa Jardim – São Paulo/SP
+evento_convidados: 180
+
+# Financeiro
+valor_total: 18.500,00
+entrada: 5.000,00
+num_parcelas: 6
+primeiro_vencimento: 10/12/2026
+forma_pagamento: PIX ou transferência bancária
+
+observacoes: A CONTRATADA será responsável pelo planejamento, gestão de fornecedores, cronograma e coordenação no dia do evento.
