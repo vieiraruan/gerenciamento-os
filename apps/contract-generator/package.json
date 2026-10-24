@@ -18,5 +18,8 @@
   "bin": {
     "gerar-contrato": "src/index.js"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=22.20"
+  }
 }

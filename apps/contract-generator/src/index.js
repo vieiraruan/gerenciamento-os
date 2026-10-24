@@ -68,16 +68,57 @@ function gerarContrato(arquivoTxt, { saida = path.join(RAIZ, 'saida'), pdf = tru
   return resultado;
 }
 
+/**
+ * Converte para PDF tentando, nesta ordem:
+ *   1. LibreOffice (soffice) no PATH ou na pasta padrão do Windows
+ *   2. Microsoft Word (somente Windows, via automação COM)
+ */
 function converterPdf(docx, saida) {
-  try {
-    execFileSync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', saida, docx], {
-      stdio: 'ignore',
-    });
-    return docx.replace(/\.docx$/, '.pdf');
-  } catch {
-    console.warn('Aviso: LibreOffice (soffice) não encontrado, PDF não gerado.');
-    return undefined;
+  const pdf = path.join(saida, path.basename(docx).replace(/\.docx$/, '.pdf'));
+
+  const soffices = ['soffice'];
+  if (process.platform === 'win32') {
+    soffices.push(
+      'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+      'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+    );
   }
+  for (const bin of soffices) {
+    try {
+      execFileSync(bin, ['--headless', '--convert-to', 'pdf', '--outdir', saida, docx], {
+        stdio: 'ignore',
+      });
+      if (fs.existsSync(pdf)) return pdf;
+    } catch {
+      /* tenta o próximo */
+    }
+  }
+
+  if (process.platform === 'win32') {
+    const script = [
+      '$ErrorActionPreference = "Stop"',
+      '$w = New-Object -ComObject Word.Application',
+      '$w.Visible = $false',
+      'try {',
+      '  $d = $w.Documents.Open($env:DOCX_ORIGEM, $false, $true)',
+      '  $d.ExportAsFixedFormat($env:PDF_DESTINO, 17)',
+      '  $d.Close($false)',
+      '} finally { $w.Quit() }',
+    ].join('; ');
+    try {
+      execFileSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+        { stdio: 'ignore', env: { ...process.env, DOCX_ORIGEM: path.resolve(docx), PDF_DESTINO: path.resolve(pdf) } },
+      );
+      if (fs.existsSync(pdf)) return pdf;
+    } catch {
+      /* Word não disponível */
+    }
+  }
+
+  console.warn('Aviso: nem LibreOffice nem Microsoft Word encontrados, PDF não gerado.');
+  return undefined;
 }
 
 if (require.main === module) {
