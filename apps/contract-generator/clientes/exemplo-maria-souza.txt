@@ -1,0 +1,6 @@
+# Cliente fictício de exemplo
+nome: Maria Fernanda Souza
+cpf_cnpj: 123.456.789-00
+endereco: Av. Paulista, 1000, ap. 52 – São Paulo/SP
+telefone: (11) 98888-7777
+email: maria.souza@email.com

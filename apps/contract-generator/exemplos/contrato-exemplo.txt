@@ -3,12 +3,8 @@
 
 tipo_servico: assessoria_completa
 
-# Contratante (cliente)
-contratante_nome: Maria Fernanda Souza
-contratante_cpf: 123.456.789-00
-contratante_endereco: Av. Paulista, 1000, ap. 52 – São Paulo/SP
-contratante_telefone: (11) 98888-7777
-contratante_email: maria.souza@email.com
+# Cliente: dados vêm do cadastro em clientes/ (busca pelo CPF/CNPJ ou nome do arquivo)
+cliente: 123.456.789-00
 
 # Evento
 evento_tipo: Casamento

@@ -5,7 +5,7 @@
  * Gerador de contratos.
  *
  * Uso:
- *   node src/index.js <dados.txt> [--saida pasta] [--sem-pdf]
+ *   node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf]
  *
  * O campo "tipo_servico" do .txt define qual modelo (templates/modelos.json) será usado.
  */
@@ -16,9 +16,11 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const { parseTxt } = require('./parser');
 const { enriquecer } = require('./calculos');
+const { aplicarCliente } = require('./cadastros');
 
 const RAIZ = path.resolve(__dirname, '..');
 const DIR_TEMPLATES = path.join(RAIZ, 'templates');
+const DIR_CLIENTES = process.env.CONTRATOS_CLIENTES || path.join(RAIZ, 'clientes');
 
 function carregarJson(arquivo, padrao) {
   return fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, 'utf8')) : padrao;
@@ -30,11 +32,14 @@ function slug(texto) {
     .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 }
 
-function gerarContrato(arquivoTxt, { saida = path.join(RAIZ, 'saida'), pdf = true } = {}) {
+function gerarContrato(
+  arquivoTxt,
+  { saida = path.join(RAIZ, 'saida'), pdf = true, clientes = DIR_CLIENTES } = {},
+) {
   const modelos = carregarJson(path.join(DIR_TEMPLATES, 'modelos.json'), {});
   const empresa = carregarJson(path.join(RAIZ, 'config', 'empresa.json'), {});
 
-  const brutos = parseTxt(fs.readFileSync(arquivoTxt, 'utf8'));
+  const brutos = aplicarCliente(parseTxt(fs.readFileSync(arquivoTxt, 'utf8')), clientes);
   const tipo = brutos.tipo_servico;
   const modelo = modelos[tipo];
   if (!modelo) {
@@ -123,15 +128,16 @@ function converterPdf(docx, saida) {
 
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const arquivo = args.find((a) => !a.startsWith('--'));
+  const arquivo = args.filter((a, i) => !a.startsWith('--') && !['--saida', '--clientes'].includes(args[i - 1]))[0];
   if (!arquivo) {
-    console.error('Uso: node src/index.js <dados.txt> [--saida pasta] [--sem-pdf]');
+    console.error('Uso: node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf]');
     process.exit(1);
   }
-  const iSaida = args.indexOf('--saida');
+  const valor = (op) => (args.indexOf(op) > -1 ? args[args.indexOf(op) + 1] : undefined);
   try {
     const r = gerarContrato(arquivo, {
-      saida: iSaida > -1 ? args[iSaida + 1] : undefined,
+      saida: valor('--saida'),
+      clientes: valor('--clientes'),
       pdf: !args.includes('--sem-pdf'),
     });
     console.log(`✔ DOCX: ${r.docx}`);
