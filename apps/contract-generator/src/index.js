@@ -23,7 +23,9 @@ const DIR_TEMPLATES = path.join(RAIZ, 'templates');
 const DIR_CLIENTES = process.env.CONTRATOS_CLIENTES || path.join(RAIZ, 'clientes');
 
 function carregarJson(arquivo, padrao) {
-  return fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, 'utf8')) : padrao;
+  if (!fs.existsSync(arquivo)) return padrao;
+  // remove BOM (o Bloco de Notas do Windows pode salvar com ele)
+  return JSON.parse(fs.readFileSync(arquivo, 'utf8').replace(/^\uFEFF/, ''));
 }
 
 function slug(texto) {
