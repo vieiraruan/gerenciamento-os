@@ -4,17 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Contratos · Tayná Alves Assessoria</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
 <style>
   :root {
-    --marca: #5a3e36; --marca-2: #8a6a5f; --fundo: #f7f3ef; --card: #ffffff;
-    --borda: #e4dad2; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e;
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --card: #ffffff;
+    --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e;
     --raio: 12px;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
-  header { background: var(--marca); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 5; }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
   header h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: .2px; }
-  header .sub { opacity: .75; font-size: 13px; }
+  header .sub { color: var(--suave); font-size: 13px; }
   header .esp { flex: 1; }
   .layout { display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; padding: 20px 24px; align-items: start; }
   @media (max-width: 1200px) { .layout { grid-template-columns: 240px 1fr; } .lateral-dir { grid-column: 1 / -1; } }
@@ -36,16 +39,16 @@
   button { font: inherit; border-radius: 8px; border: 1px solid var(--marca); padding: 9px 14px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; }
   button:hover { background: #f3ece7; }
   button.primario { background: var(--marca); color: #fff; }
-  button.primario:hover { background: #4a322b; }
+  button.primario:hover { background: #6c3a2b; }
   button:disabled { opacity: .5; cursor: default; }
   button.grande { width: 100%; padding: 13px; font-size: 16px; }
-  header button { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
-  header button:hover { background: rgba(255,255,255,.1); }
+  header button { background: var(--marca); color: #fff; }
+  header button:hover { background: #6c3a2b; }
 
   .lista { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
   .lista li { padding: 10px 12px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
   .lista li:hover { background: #f3ece7; }
-  .lista li.ativo { background: #efe4dd; border-color: var(--borda); }
+  .lista li.ativo { background: #f3e6df; border-color: var(--borda); }
   .lista .num { font-size: 12px; font-weight: 700; color: var(--marca); }
   .lista .nome { font-weight: 600; }
   .lista .det { font-size: 12px; color: var(--suave); }
@@ -78,11 +81,13 @@
   .resultado a { color: var(--marca); }
   .linha-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 10px 0; }
   .linha-check input { width: auto; }
-  .sticky { position: sticky; top: 92px; max-height: calc(100vh - 110px); overflow: auto; }
+  .sticky { position: sticky; top: 100px; max-height: calc(100vh - 110px); overflow: auto; }
 </style>
 </head>
 <body>
 <header>
+  <img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <div class="sep"></div>
   <div>
     <h1>Gerador de Contratos</h1>
     <div class="sub" id="empresa">…</div>

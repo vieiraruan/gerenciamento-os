@@ -253,6 +253,11 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       return responder(res, 200, fs.readFileSync(path.join(RAIZ, 'app', 'index.html'), 'utf8'), 'text/html; charset=utf-8');
     }
+    const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
+    if (req.method === 'GET' && marca) {
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=86400' });
+      return res.end(fs.readFileSync(path.join(RAIZ, 'templates', 'marca', `${marca[1]}.png`)));
+    }
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
     const corpo = req.method === 'POST' ? await lerCorpo(req) : {};

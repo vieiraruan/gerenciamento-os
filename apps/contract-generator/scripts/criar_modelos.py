@@ -20,10 +20,13 @@ from pathlib import Path
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor, Cm
 
 DIR = Path(__file__).resolve().parent.parent / "templates"
-COR = RGBColor(0x5A, 0x3E, 0x36)  # marrom suave da marca (ajustável)
+COR = RGBColor(0x82, 0x46, 0x34)  # terracota da identidade visual
+LOGO = DIR / "marca" / "logo.png"
 
 
 def novo_documento():
@@ -38,7 +41,38 @@ def novo_documento():
     normal.font.size = Pt(11)
     normal.paragraph_format.space_after = Pt(6)
     normal.paragraph_format.line_spacing = 1.15
+    # logo da identidade visual no cabeçalho de todas as páginas
+    if LOGO.exists():
+        cab = doc.sections[0].header
+        cab.is_linked_to_previous = False
+        par = cab.paragraphs[0]
+        par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        par.add_run().add_picture(str(LOGO), width=Cm(3.2))
+        doc.sections[0].header_distance = Cm(0.8)
     return doc
+
+
+def sombrear(celula, cor_hex):
+    """Cor de fundo de uma célula de tabela."""
+    tc = celula._tc.get_or_add_tcPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), cor_hex)
+    tc.append(shd)
+
+
+def bordas(tabela, cor_hex="E6D3CA"):
+    """Bordas finas na cor da marca."""
+    tblPr = tabela._tbl.tblPr
+    b = OxmlElement("w:tblBorders")
+    for lado in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        e = OxmlElement(f"w:{lado}")
+        e.set(qn("w:val"), "single")
+        e.set(qn("w:sz"), "4")
+        e.set(qn("w:color"), cor_hex)
+        b.append(e)
+    tblPr.append(b)
 
 
 class Escritor:
@@ -99,7 +133,6 @@ def contrato():
     w = Escritor(doc)
 
     w.p("CONTRATO DE PRESTAÇÃO DE SERVIÇO", negrito=True, centro=True, tamanho=14, cor=COR, depois=0)
-    w.p("{contratada_razao_social}", negrito=True, centro=True, tamanho=12, cor=COR, depois=0)
     w.p("Contrato nº {numero_os}", centro=True, tamanho=10, depois=14)
 
     w.rico([
@@ -437,12 +470,15 @@ def ordem_servico():
     def tabela(titulo, linhas):
         w.titulo(titulo)
         t = doc.add_table(rows=0, cols=2)
-        t.style = "Light Grid Accent 1"
+        bordas(t)
         for rotulo, valor in linhas:
             c = t.add_row().cells
-            c[0].width = Cm(5)
+            c[0].width = Cm(5.5)
+            c[1].width = Cm(10.5)
+            sombrear(c[0], "F6EEE9")
             r = c[0].paragraphs[0].add_run(rotulo)
             r.bold = True
+            r.font.color.rgb = COR
             c[1].paragraphs[0].add_run(valor)
 
     tabela("CLIENTE", [
@@ -465,9 +501,12 @@ def ordem_servico():
 
     w.titulo("SERVIÇOS CONTRATADOS")
     t = doc.add_table(rows=2, cols=3)
-    t.style = "Light Grid Accent 1"
+    bordas(t)
     for j, h in enumerate(["Serviço", "Escopo", "Preço de tabela"]):
-        t.cell(0, j).paragraphs[0].add_run(h).bold = True
+        sombrear(t.cell(0, j), "824634")
+        r = t.cell(0, j).paragraphs[0].add_run(h)
+        r.bold = True
+        r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     for j, v in enumerate(["{#servicos_lista}{nome}", "{descricao}", "{preco_tabela_fmt}{/servicos_lista}"]):
         t.cell(1, j).paragraphs[0].add_run(v)
     w.p("{#tem_cortesia}Cortesia: {cortesia_nomes}.{/tem_cortesia}", tamanho=10)
