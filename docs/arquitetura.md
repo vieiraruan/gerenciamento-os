@@ -57,7 +57,7 @@ Eventos/
 | # | Entrega | Status |
 |---|---|---|
 | 1 | Gerador de contratos (CLI) | ✅ versão inicial |
-| 2 | Base: API NestJS, banco, integração Drive, deploy no OKE | ⏳ |
+| 2 | Base: API NestJS, banco, integração Drive, deploy no OKE (ver ajustes em levantamento-drive.md) | ⏳ |
 | 3 | Financeiro: fornecedores, contratos, parcelas, comprovantes | ⏳ |
 | 4 | Dashboard de evolução e financeiro | ⏳ |
 | 5 | App Flutter (mobile + desktop) | ⏳ |

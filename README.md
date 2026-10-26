@@ -14,6 +14,7 @@ database/
   schema.sql            Modelo de dados PostgreSQL
 docs/
   arquitetura.md        Decisões, fluxos e etapas
+  levantamento-drive.md Estrutura atual do Google Drive e ajustes necessários
 ```
 
 ## Começando
