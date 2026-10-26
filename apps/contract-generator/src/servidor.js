@@ -108,6 +108,11 @@ function previa(campos, cliente) {
     vencimento: c.tem_vencimento ? c.vencimento_saldo : `${Number(campos.prazo_quitacao_dias || 15)} dias antes do evento`,
     parcelas: (d.parcelas || []).map((p) => `${p.numero}ª: ${p.valor_fmt} em ${p.vencimento}`),
     equipe: `${c.equipe_fmt} profissionais`,
+    convidados: `até ${c.convidados_fmt.split(' ')[0]}`,
+    cortejo: `${c.padrinhos_fmt.split(' ')[0]} padrinhos · ${c.madrinhas_fmt.split(' ')[0]} madrinhas · ${c.criancas_fmt.split(' ')[0]} crianças`,
+    duracao: c.tem_duracao ? `${c.evento_duracao_fmt.replace(/ \(.*?\)/, '')}${c.evento_termino ? ` (até ${c.evento_termino})` : ''}` : 'a definir',
+    termino: c.evento_termino || '',
+    alerta_horas: c.alerta_horas,
     horarios: c.tem_horario
       ? [c.secao_supervisao && `Supervisão chega às ${c.supervisao_chegada}`,
         c.secao_cerimonial && `Cerimonial das ${c.cerimonial_inicio} às ${c.cerimonial_fim}`].filter(Boolean)

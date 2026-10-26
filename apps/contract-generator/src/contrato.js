@@ -104,6 +104,7 @@ function montarContrato(d, catalogo) {
   if (d.evento_data) {
     const data = parseData(d.evento_data);
     out.evento_quando = `no dia ${dataExtenso(data)}`;
+    out.evento_quando_curto = dataExtenso(data);
     out.evento_dia_semana = data.toLocaleDateString('pt-BR', { weekday: 'long' });
     const venc = new Date(data);
     venc.setDate(venc.getDate() - prazo);
@@ -111,6 +112,7 @@ function montarContrato(d, catalogo) {
     out.tem_vencimento = true;
   } else {
     out.evento_quando = `em data a ser definida${d.evento_periodo ? `, prevista para ${d.evento_periodo}` : ''}`;
+    out.evento_quando_curto = `a definir${d.evento_periodo ? ` (prevista para ${d.evento_periodo})` : ''}`;
     out.tem_vencimento = false;
   }
 
@@ -126,12 +128,38 @@ function montarContrato(d, catalogo) {
       'Metropolitana do Recife, abrangendo também Aldeia, Porto de Galinhas e Olinda';
   }
 
-  const convidados = Number(d.convidados || 150);
-  const padrinhos = Number(d.casais_padrinhos || 8);
-  const criancas = Number(d.criancas || 4);
+  // ---- Informações variáveis ---------------------------------------------
+  // padrinhos e madrinhas podem ser informados separados; "casais_padrinhos"
+  // continua aceito (vale para os dois quando eles não forem informados).
+  const inteiro = (v, padrao) => {
+    if (v === undefined || v === '') return padrao;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) throw new Error(`Quantidade inválida: ${v}`);
+    return n;
+  };
+  const casaisInf = inteiro(d.casais_padrinhos, undefined);
+  const padrinhos = inteiro(d.padrinhos, casaisInf ?? 8);
+  const madrinhas = inteiro(d.madrinhas, casaisInf ?? 8);
+  const casais = casaisInf ?? Math.max(padrinhos, madrinhas);
+  const convidados = inteiro(d.convidados, 150);
+  const criancas = inteiro(d.criancas, 4);
   out.convidados_fmt = numFmt(convidados);
-  out.casais_padrinhos_fmt = numFmt(padrinhos);
+  out.padrinhos_fmt = numFmt(padrinhos);
+  out.madrinhas_fmt = numFmt(madrinhas, 'female');
+  out.casais_padrinhos_fmt = numFmt(casais);
   out.criancas_fmt = numFmt(criancas, 'female');
+
+  const duracaoEvento = d.evento_duracao_horas
+    ? Number(String(d.evento_duracao_horas).replace(',', '.')) : undefined;
+  if (duracaoEvento !== undefined && !(duracaoEvento > 0 && duracaoEvento <= 24)) {
+    throw new Error(`evento_duracao_horas inválido: ${d.evento_duracao_horas}`);
+  }
+  out.tem_duracao = duracaoEvento !== undefined;
+  if (out.tem_duracao) {
+    const h = Math.floor(duracaoEvento);
+    const min = Math.round((duracaoEvento - h) * 60);
+    out.evento_duracao_fmt = `${numFmt(h, 'female')} horas${min ? ` e ${min} minutos` : ''}`;
+  }
 
   // ---- Equipe e horários --------------------------------------------------
   const equipe = Math.max(2, Number(d.qtd_equipe || 2));
@@ -152,9 +180,18 @@ function montarContrato(d, catalogo) {
     out.cerimonial_fim = horaFmt(ini - 60 + duracao * 60);
     out.supervisao_chegada = horaFmt(ini - antecedencia * 60);
     out.tem_horario = true;
+    if (out.tem_duracao) out.evento_termino = horaFmt(ini + Math.round(duracaoEvento * 60));
   } else {
     out.tem_horario = false;
   }
+  out.tem_termino = Boolean(out.evento_termino);
+
+  // Evento mais longo que o cerimonial contratado: aviso na OS e no aplicativo
+  const cobertura = duracao - 1; // o cerimonial começa 1 h antes da cerimônia
+  out.alerta_horas = out.tem_duracao && out.secao_cerimonial && duracaoEvento > cobertura
+    ? `O evento está estimado em ${String(duracaoEvento).replace('.', ',')} h, mas o cerimonial contratado ` +
+      `(${duracao} h, começando 1 h antes) cobre até ${cobertura} h de evento. Avalie horas adicionais.`
+    : '';
 
   return out;
 }

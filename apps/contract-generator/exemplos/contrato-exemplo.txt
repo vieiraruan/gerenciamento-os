@@ -17,10 +17,14 @@ evento_data: 15/05/2027
 # Sem data definida: apague evento_data e use  evento_periodo: final de julho de 2027
 evento_horario: 16:00
 evento_local: Espaço Villa Jardim – Recife/PE
-convidados: 150
-casais_padrinhos: 8
-criancas: 4
 destination: nao
+
+# Informações variáveis (vazio = padrão: 150 convidados, 8 padrinhos, 8 madrinhas, 4 crianças)
+convidados: 150
+padrinhos: 8
+madrinhas: 8
+criancas: 4
+evento_duracao_horas: 6
 
 # Equipe e horários (padrões: 2 pessoas, supervisão 3h antes, cerimonial 6h)
 qtd_equipe: 3

@@ -28,7 +28,7 @@ const DIR_CLIENTES = process.env.CONTRATOS_CLIENTES || path.join(RAIZ, 'clientes
 const ARQ_SEQUENCIAS = process.env.CONTRATOS_SEQUENCIAS || path.join(RAIZ, 'config', 'sequencias.json');
 
 // Campos opcionais: se ficarem vazios no documento, não aparecem como "NÃO INFORMADO".
-const OPCIONAIS = new Set(['observacoes', 'desconto_fmt']);
+const OPCIONAIS = new Set(['observacoes', 'desconto_fmt', 'alerta_horas']);
 
 function carregarJson(arquivo, padrao) {
   if (!fs.existsSync(arquivo)) return padrao;

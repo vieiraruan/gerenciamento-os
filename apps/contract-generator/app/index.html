@@ -141,15 +141,25 @@
           <div class="c8"><label>…ou período previsto (sem data definida)</label><input data-con="evento_periodo" placeholder="outubro ou novembro de 2027"></div>
           <div class="c4"><label>Horário da cerimônia</label><input data-con="evento_horario" type="time"></div>
           <div class="c8"><label>Local (vazio = a definir)</label><input data-con="evento_local"></div>
-          <div class="c3"><label>Convidados</label><input data-con="convidados" type="number" min="0" placeholder="150"></div>
-          <div class="c3"><label>Casais de padrinhos</label><input data-con="casais_padrinhos" type="number" min="0" placeholder="8"></div>
-          <div class="c3"><label>Crianças no cortejo</label><input data-con="criancas" type="number" min="0" placeholder="4"></div>
-          <div class="c3"><label>Destination?</label><select data-con="destination"><option value="nao">Não</option><option value="sim">Sim</option></select></div>
+          <div class="c4"><label>Destination?</label><select data-con="destination"><option value="nao">Não</option><option value="sim">Sim</option></select></div>
         </div>
       </div>
 
       <div class="card">
-        <h2><span class="n">4</span> Equipe e horários</h2>
+        <h2><span class="n">4</span> Informações variáveis</h2>
+        <div class="dica" style="margin:-6px 0 12px">Base para o dimensionamento da equipe e para os acréscimos do contrato. Campos vazios usam o padrão indicado.</div>
+        <div class="grade">
+          <div class="c4"><label>Convidados</label><input data-con="convidados" type="number" min="0" placeholder="150"></div>
+          <div class="c4"><label>Padrinhos</label><input data-con="padrinhos" type="number" min="0" placeholder="8"></div>
+          <div class="c4"><label>Madrinhas</label><input data-con="madrinhas" type="number" min="0" placeholder="8"></div>
+          <div class="c4"><label>Crianças no cortejo</label><input data-con="criancas" type="number" min="0" placeholder="4"><div class="dica">damas e pajens</div></div>
+          <div class="c4"><label>Tempo estimado de evento (h)</label><input data-con="evento_duracao_horas" type="number" min="0.5" max="24" step="0.5" placeholder="ex.: 7"><div class="dica">da cerimônia ao encerramento</div></div>
+          <div class="c4"><label>Término previsto</label><input id="termino" disabled placeholder="calculado"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">5</span> Equipe e horários</h2>
         <div class="grade">
           <div class="c4"><label>Profissionais no evento</label><input data-con="qtd_equipe" type="number" min="2" placeholder="2"><div class="dica">1 coordenador + assistentes</div></div>
           <div class="c4"><label>Supervisão: horas antes</label><input data-con="supervisao_antecedencia_horas" type="number" min="1" placeholder="3"></div>
@@ -158,7 +168,7 @@
       </div>
 
       <div class="card">
-        <h2><span class="n">5</span> Financeiro</h2>
+        <h2><span class="n">6</span> Financeiro</h2>
         <div class="grade">
           <div class="c4"><label>Valor fechado (R$)</label><input data-con="valor_total" placeholder="vazio = preço de tabela"></div>
           <div class="c4"><label>Entrada (%)</label><input data-con="entrada_percentual" type="number" min="0" max="100" step="0.5" placeholder="30"></div>
@@ -231,6 +241,10 @@ function preencher(campos = {}, cliente = {}) {
     if (el.dataset.con === 'destination') v = /^(s|sim|true|1)$/i.test(v) ? 'sim' : 'nao';
     el.value = v;
   });
+  if (campos.casais_padrinhos) {
+    if (!campos.padrinhos) $('[data-con="padrinhos"]').value = campos.casais_padrinhos;
+    if (!campos.madrinhas) $('[data-con="madrinhas"]').value = campos.casais_padrinhos;
+  }
   estado.servicos = {};
   (campos.servicos || '').split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => { estado.servicos[s] = 'contratado'; });
   (campos.servicos_cortesia || '').split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => { estado.servicos[s] = 'cortesia'; });
@@ -275,6 +289,7 @@ function atualizarPrevia() {
     }
     try {
       const p = await api('/api/previa', { cliente, contrato });
+      $('#termino').value = p.termino || '';
       $('#previa').innerHTML = `
         <div><span class="tag">${esc(p.linha_nome)}</span></div>
         <div class="num-os">${esc(p.proximo_numero)}</div>
@@ -287,7 +302,11 @@ function atualizarPrevia() {
           <dt>Saldo</dt><dd>${esc(p.saldo)}</dd>
           <dt>Quitação até</dt><dd>${esc(p.vencimento)}</dd>
           <dt>Equipe</dt><dd>${esc(p.equipe)}</dd>
+          <dt>Convidados</dt><dd>${esc(p.convidados)}</dd>
+          <dt>Cortejo</dt><dd>${esc(p.cortejo)}</dd>
+          <dt>Duração</dt><dd>${esc(p.duracao)}</dd>
         </dl>
+        ${p.alerta_horas ? `<div class="aviso erro">${esc(p.alerta_horas)}</div>` : ''}
         <div class="dica">${esc(p.valor_extenso)}</div>
         ${p.parcelas.length ? `<ul>${p.parcelas.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
         ${p.horarios.length ? `<ul>${p.horarios.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;

@@ -124,14 +124,30 @@ def contrato():
     # ---- Objeto -------------------------------------------------------------
     w.titulo("DO OBJETO DO CONTRATO")
     w.p("O presente contrato tem por OBJETO a prestação dos serviços de {servicos_descricao}, destinados ao "
-        "{evento_tipo} de {evento_nomes}, a realizar-se {evento_quando}{#tem_horario}, com início previsto às "
-        "{evento_horario}{/tem_horario}, {evento_local_frase}, para até {convidados_fmt} convidados, até "
-        "{casais_padrinhos_fmt} casais de padrinhos e até {criancas_fmt} crianças no cortejo, no valor total de "
-        "{valor_total_fmt} ({valor_total_extenso}), a ser pago na forma estabelecida neste contrato.")
+        "{evento_tipo} de {evento_nomes}, a realizar-se {evento_quando}, {evento_local_frase}, conforme as "
+        "informações do evento descritas na cláusula seguinte, no valor total de {valor_total_fmt} "
+        "({valor_total_extenso}), a ser pago na forma estabelecida neste contrato.")
     w.tag("{#tem_cortesia}")
     w.p("Como cortesia, a CONTRATADA incluirá o serviço {cortesia_nomes}, sem ônus à CONTRATANTE, "
         "preservando-se todas as demais condições, prazos e responsabilidades previstas neste instrumento.")
     w.tag("{/tem_cortesia}")
+
+    # ---- Informações variáveis do evento -----------------------------------
+    w.titulo("DAS INFORMAÇÕES DO EVENTO")
+    w.p("Para fins deste contrato, o evento terá as seguintes características, que servem de base para o "
+        "dimensionamento da equipe e para os valores ajustados:")
+    for t in [
+        "Data: {evento_quando_curto};",
+        "Horário de início da cerimônia: {#tem_horario}{evento_horario}{/tem_horario}{^tem_horario}a definir{/tem_horario};",
+        "Tempo estimado de evento: {#tem_duracao}{evento_duracao_fmt}{#tem_termino}, com término previsto às {evento_termino}{/tem_termino}{/tem_duracao}{^tem_duracao}a definir{/tem_duracao};",
+        "Quantidade de convidados: até {convidados_fmt};",
+        "Padrinhos e madrinhas no cortejo: até {padrinhos_fmt} padrinhos e {madrinhas_fmt} madrinhas;",
+        "Crianças no cortejo (damas e pajens): até {criancas_fmt};",
+        "Equipe da CONTRATADA no dia do evento: {equipe_fmt} profissionais.",
+    ]:
+        w.item(t)
+    w.p("Alterações nessas informações deverão ser comunicadas à CONTRATADA em até 20 (vinte) dias antes do "
+        "evento e poderão gerar reajuste, conforme as cláusulas de acréscimo deste contrato.")
 
     # ---- Empurrãozinho ------------------------------------------------------
     w.tag("{#secao_empurraozinho}")
@@ -307,8 +323,8 @@ def contrato():
              "que será necessário acrescentar para cumprir a nova demanda. A mudança deverá ser comunicada em até "
              "20 (vinte) dias antes do evento.", False)])
     w.rico([("DO ACRÉSCIMO DE PADRINHOS E CRIANÇAS NO CORTEJO: ", True),
-            ("o valor estabelecido neste contrato é para um evento com até {casais_padrinhos_fmt} casais de "
-             "padrinhos e até {criancas_fmt} crianças no cortejo. Caso ocorra aumento neste quantitativo, será "
+            ("o valor estabelecido neste contrato é para um evento com até {padrinhos_fmt} padrinhos, "
+             "{madrinhas_fmt} madrinhas e {criancas_fmt} crianças no cortejo. Caso ocorra aumento neste quantitativo, será "
              "procedido um reajuste de {adicional_fmt} ({adicional_extenso}) a cada 02 (dois) casais de padrinhos "
              "ou 02 (duas) crianças acrescentados, valor correspondente ao integrante da equipe que será "
              "necessário acrescentar. A mudança deverá ser comunicada em até 20 (vinte) dias antes do evento.",
@@ -440,7 +456,10 @@ def ordem_servico():
         ("Data", "{evento_quando}"),
         ("Horário da cerimônia", "{#tem_horario}{evento_horario}{/tem_horario}{^tem_horario}a definir{/tem_horario}"),
         ("Local", "{evento_local_frase}"),
-        ("Convidados / padrinhos / crianças", "{convidados_fmt} / {casais_padrinhos_fmt} / {criancas_fmt}"),
+        ("Tempo estimado", "{#tem_duracao}{evento_duracao_fmt}{#tem_termino} (término às {evento_termino}){/tem_termino}{/tem_duracao}{^tem_duracao}a definir{/tem_duracao}"),
+        ("Convidados", "até {convidados_fmt}"),
+        ("Padrinhos / madrinhas", "{padrinhos_fmt} padrinhos / {madrinhas_fmt} madrinhas"),
+        ("Crianças no cortejo", "{criancas_fmt}"),
         ("Destination", "{#destination}Sim{/destination}{^destination}Não{/destination}"),
     ])
 
@@ -467,6 +486,7 @@ def ordem_servico():
         ("Quitação até", "{#tem_vencimento}{vencimento_saldo}{/tem_vencimento}{^tem_vencimento}{prazo_quitacao_fmt} dias antes do evento{/tem_vencimento}"),
     ])
     w.titulo("OBSERVAÇÕES")
+    w.p("{#alerta_horas}ATENÇÃO: {alerta_horas}{/alerta_horas}", negrito=True)
     w.p("{observacoes}")
     w.p("")
     w.p("______________________________", centro=True, depois=0)

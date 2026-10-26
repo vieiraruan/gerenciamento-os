@@ -27,9 +27,11 @@ evento_nomes: Maria e João
 evento_data: 15/05/2027                 # ou  evento_periodo: final de julho de 2027
 evento_horario: 16:00
 evento_local: Espaço Villa Jardim       # vazio = "local a definir na Região Metropolitana…"
-convidados: 150
-casais_padrinhos: 8
+convidados: 150                         # informações variáveis do evento
+padrinhos: 8
+madrinhas: 8
 criancas: 4
+evento_duracao_horas: 7                 # tempo estimado; calcula o término
 valor_total: 7.500,00                   # vazio = soma da tabela de preços
 entrada_percentual: 30
 prazo_quitacao_dias: 15
@@ -54,7 +56,14 @@ Veja todos os campos em `exemplos/contrato-exemplo.txt`.
 - Data de vencimento do saldo (data do evento − prazo de quitação).
 - Equipe: "03 (três) profissionais, sendo 01 (um) coordenador e 02 (dois) assistentes".
 - Horários: chegada da supervisão e início/fim do cerimonial a partir do horário da cerimônia.
-- Contagens no padrão do contrato: "150 (cento e cinquenta) convidados", "08 (oito) casais".
+- Contagens no padrão do contrato: "150 (cento e cinquenta) convidados", "08 (oito) padrinhos".
+- Cláusula **"Das informações do evento"**: data, horário, tempo estimado e término, convidados, padrinhos,
+  madrinhas, crianças e equipe. Se o evento for mais longo que o cerimonial contratado, a OS e o aplicativo avisam.
+
+## Aplicativo gráfico
+
+`node src/servidor.js <pasta-de-dados>` (ou `abrir-aplicativo.cmd`) abre o formulário no navegador
+(`http://localhost:3210`), com resumo em tempo real e geração do contrato e da OS.
 
 ## Numeração (ordem de serviço)
 
