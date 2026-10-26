@@ -29,11 +29,16 @@ CREATE TYPE status_evento AS ENUM
 CREATE TABLE evento (
     id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     cliente_id         uuid NOT NULL REFERENCES cliente(id),
-    nome               text NOT NULL,              -- ex.: "Casamento Maria & João"
-    tipo               text NOT NULL,              -- casamento, 15 anos, corporativo...
-    data_evento        date NOT NULL,
+    nome               text NOT NULL,              -- ex.: "Maria e João"
+    tipo               text NOT NULL,              -- casamento, 15 anos, bodas, formatura...
+    data_evento        date,                       -- NULL enquanto a data não estiver definida
+    periodo_previsto   text,                       -- ex.: "final de julho de 2027" (sem data)
+    horario            time,                       -- horário da cerimônia (convite)
     local              text,
     convidados         integer,
+    casais_padrinhos   integer,
+    criancas           integer,
+    destination        boolean NOT NULL DEFAULT false,
     status             status_evento NOT NULL DEFAULT 'orcamento',
     orcamento_previsto numeric(12,2),              -- teto de gastos com fornecedores
     drive_pasta_id     text,                       -- ID da pasta do evento no Google Drive
@@ -42,12 +47,26 @@ CREATE TABLE evento (
 );
 
 -- ---------------------------------------------------------------------
+-- Categorias de fornecedor = subpastas do evento no Drive ("003- BUFFET")
+-- ---------------------------------------------------------------------
+CREATE TABLE categoria_fornecedor (
+    codigo  char(3) PRIMARY KEY,                   -- '003'
+    nome    text NOT NULL UNIQUE                   -- 'Buffet'
+);
+INSERT INTO categoria_fornecedor (codigo, nome) VALUES
+    ('001','Assessoria'), ('002','Local'), ('003','Buffet'), ('004','Drinks'), ('005','Bandas'),
+    ('006','Foto e filme'), ('007','Som e estrutura'), ('008','Gerador'), ('009','Celebrante'),
+    ('010','Vestido'), ('011','Cabelo e make'), ('012','Iluminação'), ('013','Bolo'), ('014','Doces'),
+    ('015','Chopp'), ('016','Bem casados'), ('017','Cadeiras'), ('018','Cobertas / grid'),
+    ('019','Foto lembrança'), ('020','Mesa buffet'), ('021','Decoração');
+
+-- ---------------------------------------------------------------------
 -- Fornecedores (cadastro geral, reaproveitado entre eventos)
 -- ---------------------------------------------------------------------
 CREATE TABLE fornecedor (
     id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     nome           text NOT NULL,
-    categoria      text NOT NULL,                  -- buffet, decoração, foto, DJ...
+    categoria      char(3) NOT NULL REFERENCES categoria_fornecedor(codigo),
     cpf_cnpj       text,
     contato_nome   text,
     telefone       text,
@@ -67,6 +86,24 @@ CREATE TABLE fornecedor (
 --   lado = 'fornecedor' → contrato do evento com um fornecedor (despesa)
 -- ---------------------------------------------------------------------
 CREATE TYPE lado_contrato AS ENUM ('cliente', 'fornecedor');
+CREATE TYPE linha_servico AS ENUM ('AS', 'CE');   -- Assessoria | Cerimonial
+
+-- Catálogo de serviços da assessoria (tabela de preços)
+CREATE TABLE servico (
+    id          text PRIMARY KEY,                  -- 'dia_d', 'so_vou_pra_casar'...
+    nome        text NOT NULL,                     -- nome comercial
+    descricao   text NOT NULL,                     -- texto usado no contrato
+    linha       linha_servico NOT NULL,
+    preco       numeric(12,2) NOT NULL,
+    ativo       boolean NOT NULL DEFAULT true
+);
+
+-- Sequência de numeração por linha: AS-0001, CE-0001...
+CREATE TABLE numeracao (
+    linha   linha_servico PRIMARY KEY,
+    ultimo  integer NOT NULL DEFAULT 0
+);
+INSERT INTO numeracao VALUES ('AS', 0), ('CE', 0);
 CREATE TYPE status_contrato AS ENUM
     ('negociacao', 'enviado', 'assinado', 'quitado', 'cancelado');
 
@@ -74,19 +111,44 @@ CREATE TABLE contrato (
     id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     evento_id         uuid NOT NULL REFERENCES evento(id) ON DELETE CASCADE,
     lado              lado_contrato NOT NULL,
+    -- Contrato com o cliente: número da ordem de serviço (chave de negócio)
+    numero_os         text UNIQUE CHECK (numero_os ~ '^(AS|CE)-[0-9]{4}$'),
+    linha             linha_servico,
+    numero_legado     text,                        -- número antigo da planilha (ex.: '0090')
     fornecedor_id     uuid REFERENCES fornecedor(id),
     servico           text NOT NULL,               -- descrição do que foi contratado
+    preco_tabela      numeric(12,2),               -- soma da tabela na data do fechamento
     valor_total       numeric(12,2) NOT NULL CHECK (valor_total >= 0),
+    entrada_percentual numeric(5,2),
     entrada           numeric(12,2) NOT NULL DEFAULT 0 CHECK (entrada >= 0),
     num_parcelas      integer NOT NULL DEFAULT 0,
+    prazo_quitacao_dias integer,                   -- saldo vence N dias antes do evento
+    qtd_equipe        integer,
     forma_pagamento   text,
     status            status_contrato NOT NULL DEFAULT 'negociacao',
     data_assinatura   date,
     drive_pasta_id    text,                        -- subpasta do fornecedor no Drive
     criado_em         timestamptz NOT NULL DEFAULT now(),
     CHECK (entrada <= valor_total),
-    CHECK ((lado = 'fornecedor') = (fornecedor_id IS NOT NULL))
+    CHECK ((lado = 'fornecedor') = (fornecedor_id IS NOT NULL)),
+    CHECK ((lado = 'cliente') = (numero_os IS NOT NULL AND linha IS NOT NULL)),
+    CHECK (numero_os IS NULL OR left(numero_os, 2) = linha::text)
 );
+
+-- Serviços incluídos no contrato com o cliente
+CREATE TABLE contrato_servico (
+    contrato_id  uuid NOT NULL REFERENCES contrato(id) ON DELETE CASCADE,
+    servico_id   text NOT NULL REFERENCES servico(id),
+    cortesia     boolean NOT NULL DEFAULT false,
+    preco_tabela numeric(12,2) NOT NULL,           -- congelado no fechamento
+    PRIMARY KEY (contrato_id, servico_id)
+);
+
+-- Reserva o próximo número da linha de forma atômica
+CREATE FUNCTION proximo_numero_os(l linha_servico) RETURNS text AS $$
+    UPDATE numeracao SET ultimo = ultimo + 1 WHERE linha = l
+    RETURNING l::text || '-' || lpad(ultimo::text, 4, '0');
+$$ LANGUAGE sql;
 
 -- ---------------------------------------------------------------------
 -- Parcelas previstas (a entrada é a parcela número 0)
@@ -144,6 +206,34 @@ CREATE TABLE evento_historico (
     descricao   text NOT NULL,
     criado_por  text,
     criado_em   timestamptz NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------
+-- Checklist do evento (substitui a aba ASSESSORIA da planilha)
+-- ---------------------------------------------------------------------
+CREATE TYPE status_checklist AS ENUM
+    ('pendente', 'em_cotacao', 'em_andamento', 'finalizado', 'nao_se_aplica', 'nao_desejo');
+
+CREATE TABLE checklist_modelo (
+    id          serial PRIMARY KEY,
+    ordem       integer NOT NULL,
+    fase        text NOT NULL,                     -- '6 meses antes', '5 meses antes'...
+    item        text NOT NULL
+);
+
+CREATE TABLE evento_checklist (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    evento_id     uuid NOT NULL REFERENCES evento(id) ON DELETE CASCADE,
+    modelo_id     integer REFERENCES checklist_modelo(id),
+    ordem         integer NOT NULL,
+    fase          text NOT NULL,
+    item          text NOT NULL,
+    status        status_checklist NOT NULL DEFAULT 'pendente',
+    observacao    text,
+    estimativa    numeric(12,2),
+    valor_final   numeric(12,2),
+    contrato_id   uuid REFERENCES contrato(id) ON DELETE SET NULL,
+    atualizado_em timestamptz NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------

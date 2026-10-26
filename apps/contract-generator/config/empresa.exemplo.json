@@ -1,8 +1,18 @@
 {
   "razao_social": "Nome da Assessoria LTDA",
+  "nome_fantasia": "Nome da Assessoria",
   "cnpj": "00.000.000/0001-00",
-  "endereco": "Rua Exemplo, 123 – Bairro – Cidade/UF",
-  "cidade": "São Paulo",
+  "endereco": "Rua Exemplo, nº 123, Bairro, Cidade – UF",
+  "cidade": "Cidade",
+  "uf": "UF",
+  "foro": "Comarca de Cidade",
   "representante": "Nome do Representante",
-  "pix": "financeiro@assessoria.com.br"
+  "representante_nacionalidade": "brasileira",
+  "representante_cargo": "administradora da empresa",
+  "representante_estado_civil": "solteira",
+  "representante_rg": "0000000 SSP/UF",
+  "representante_cpf": "000.000.000-00",
+  "telefone": "(00) 00000-0000",
+  "email": "contato@assessoria.com.br",
+  "pix": ""
 }

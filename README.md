@@ -9,12 +9,13 @@ documentos (Google Drive) e acompanhamento da produção de cada evento.
 apps/
   contract-generator/   Gerador de contratos (.txt → DOCX/PDF)   ✅
   api/                  API NestJS                                ⏳
-  mobile/               App Flutter (mobile + desktop)            ⏳
+  app/                  App Flutter (web + mobile)                ⏳
 database/
   schema.sql            Modelo de dados PostgreSQL
 docs/
   arquitetura.md        Decisões, fluxos e etapas
   levantamento-drive.md Estrutura atual do Google Drive e ajustes necessários
+  tabela-precos.md      Tabela de preços sugerida por serviço
 ```
 
 ## Começando

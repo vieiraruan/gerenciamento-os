@@ -1,22 +1,37 @@
 # Dados do contrato — uma informação por linha no formato  chave: valor
 # Linhas com # são ignoradas.
 
-tipo_servico: assessoria_completa
-
-# Cliente: dados vêm do cadastro em clientes/ (busca pelo CPF/CNPJ ou nome do arquivo)
+# Cliente (dados vêm de clientes/, pelo CPF/CNPJ ou nome do arquivo)
 cliente: 123.456.789-00
 
+# Serviços (ver templates/servicos.json):
+#   te_deixa_tranquila, necessario, sai_na_vassoura, dia_d,
+#   empurraozinho, essencial, so_vou_pra_casar
+servicos: empurraozinho, dia_d
+# servicos_cortesia: te_deixa_tranquila
+
 # Evento
-evento_tipo: Casamento
+evento_tipo: casamento
+evento_nomes: Maria e João
 evento_data: 15/05/2027
-evento_local: Espaço Villa Jardim – São Paulo/SP
-evento_convidados: 180
+# Sem data definida: apague evento_data e use  evento_periodo: final de julho de 2027
+evento_horario: 16:00
+evento_local: Espaço Villa Jardim – Recife/PE
+convidados: 150
+casais_padrinhos: 8
+criancas: 4
+destination: nao
 
-# Financeiro
-valor_total: 18.500,00
-entrada: 5.000,00
-num_parcelas: 6
-primeiro_vencimento: 10/12/2026
-forma_pagamento: PIX ou transferência bancária
+# Equipe e horários (padrões: 2 pessoas, supervisão 3h antes, cerimonial 6h)
+qtd_equipe: 3
+supervisao_antecedencia_horas: 3
 
-observacoes: A CONTRATADA será responsável pelo planejamento, gestão de fornecedores, cronograma e coordenação no dia do evento.
+# Financeiro (sem valor_total = soma da tabela de preços)
+valor_total: 7.500,00
+entrada_percentual: 30
+prazo_quitacao_dias: 15
+# Saldo parcelado (opcional):
+# num_parcelas: 3
+# primeiro_vencimento: 10/01/2027
+
+observacoes: Casal prefere contato por WhatsApp. Cerimônia ao ar livre.

@@ -6,7 +6,7 @@ documentos e acompanhamento da produção de cada evento.
 ## Visão geral
 
 ```
- App Flutter (Android / iOS / Windows / macOS / Web)
+ App Flutter: Web (navegador) + Mobile (Android / iOS)
                     │  HTTPS (JWT)
                     ▼
         API NestJS  ── namespace k8s "eventos-api"
@@ -26,22 +26,29 @@ documentos e acompanhamento da produção de cada evento.
 | Banco | PostgreSQL, schema `eventos`, usuário próprio | Isolado do PMI dentro do mesmo servidor |
 | Arquivos | Google Drive (continua sendo o repositório de arquivos) | A equipe já usa; o sistema cria pastas e sobe os arquivos sozinho |
 | Fonte da verdade | Banco de dados (não mais a planilha) | Cálculos automáticos, sem fórmula manual; planilha pode virar espelho gerado |
-| App | Flutter | Um único código para mobile e desktop |
+| App | Flutter (web + Android + iOS) | Um único código: a equipe usa no navegador do computador e no celular; clientes podem ter acesso só de leitura |
+| Numeração | `AS-NNNN` (Assessoria) e `CE-NNNN` (Cerimonial), sequência por linha | Chave do contrato e da ordem de serviço; o número antigo fica em `numero_legado` |
+| Preços | Catálogo de serviços com preço de tabela e valor fechado por contrato | Base do contrato, da OS e do dashboard de descontos (ver tabela-precos.md) |
 | Contratos | Modelos `.docx` com campos `{campo}` + `.txt` de dados | Equipe edita os modelos no Word/Docs sem programar |
 | Segredos | Kubernetes Secrets / OCI Vault | Nunca em código, commits ou comandos |
 
-## Estrutura de pastas no Drive (mantida)
+## Estrutura de pastas no Drive (padrão atual, com o novo número)
 
 ```
-Eventos/
-└── 2027-05-15 Casamento Maria Souza/
-    ├── Acompanhamento (gerado pelo sistema)
-    ├── _Contrato Cliente/
-    ├── Buffet - Sabor & Arte/
-    │   ├── contrato.pdf
-    │   └── comprovantes/
-    └── Decoração - Flor de Lis/
+CONTRATOS/
+├── ASSESSORIA/
+│   └── (AS-0040) ASSESSORIA NOIVA E NOIVO/
+│       ├── Acompanhamento (planilha espelho, gerada pelo sistema)
+│       ├── 001. Tayná Alves Assessoria/   contrato + ordem de serviço
+│       ├── 003- BUFFET/
+│       │   ├── contrato.pdf
+│       │   └── COMPROVANTES/
+│       └── 021- DECORAÇÃO/
+└── CERIMONIAL/
+    └── (CE-0066) CERIMONIAL NOIVA E NOIVO/
 ```
+
+Detalhes do levantamento em [levantamento-drive.md](levantamento-drive.md).
 
 ## Fluxos principais
 
@@ -56,8 +63,9 @@ Eventos/
 
 | # | Entrega | Status |
 |---|---|---|
-| 1 | Gerador de contratos (CLI) | ✅ versão inicial |
+| 1 | Gerador de contratos (CLI) | ✅ contrato modular + ordem de serviço + numeração AS/CE |
+| 1b | Migração: nova numeração dos 107 contratos e relatório de inconsistências | 🔄 proposta pronta, aguardando revisão |
 | 2 | Base: API NestJS, banco, integração Drive, deploy no OKE (ver ajustes em levantamento-drive.md) | ⏳ |
 | 3 | Financeiro: fornecedores, contratos, parcelas, comprovantes | ⏳ |
-| 4 | Dashboard de evolução e financeiro | ⏳ |
-| 5 | App Flutter (mobile + desktop) | ⏳ |
+| 4 | Dashboard: visão geral (todos os contratos, por linha) e por evento | ⏳ |
+| 5 | App Flutter: web + mobile | ⏳ |

@@ -1,81 +1,78 @@
-# Gerador de contratos
+# Gerador de contratos e ordens de serviço
 
-Lê um arquivo `.txt` com os dados do negócio fechado e gera o contrato em **DOCX** e **PDF**
-a partir do modelo correspondente ao tipo de serviço.
+Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <NOMES>`:
+
+- `contrato.docx` / `.pdf`: contrato modular, só com as seções dos serviços contratados;
+- `ordem-servico.docx` / `.pdf`: ordem de serviço do evento (cliente, evento, serviços, escala e financeiro).
 
 ## Uso
 
-```bash
-npm install
-node src/index.js exemplos/contrato-exemplo.txt            # gera em ./saida
-node src/index.js dados.txt --saida "C:\contratos" --sem-pdf
+```powershell
+npm.cmd install
+copy config\empresa.exemplo.json config\empresa.json      # dados da contratada
+copy config\sequencias.exemplo.json config\sequencias.json  # numeração atual
+node src\index.js exemplos\contrato-exemplo.txt
 ```
 
-O PDF usa o LibreOffice (`soffice`). Sem ele, só o DOCX é gerado.
+Opções: `--saida pasta`, `--clientes pasta`, `--sem-pdf`, `--sem-os`.
+O PDF usa o LibreOffice ou, no Windows, o Microsoft Word.
 
-## Arquivo de dados (.txt)
+## Arquivo do contrato (.txt)
 
 ```
-tipo_servico: assessoria_completa
-cliente: 123.456.789-00
-evento_data: 15/05/2027
-valor_total: 18.500,00
-entrada: 5.000,00
-num_parcelas: 6
-primeiro_vencimento: 10/12/2026
+cliente: 123.456.789-00                 # cadastro em clientes/
+servicos: empurraozinho, dia_d          # catálogo em templates/servicos.json
+servicos_cortesia: te_deixa_tranquila   # opcional
+evento_nomes: Maria e João
+evento_data: 15/05/2027                 # ou  evento_periodo: final de julho de 2027
+evento_horario: 16:00
+evento_local: Espaço Villa Jardim       # vazio = "local a definir na Região Metropolitana…"
+convidados: 150
+casais_padrinhos: 8
+criancas: 4
+valor_total: 7.500,00                   # vazio = soma da tabela de preços
+entrada_percentual: 30
+prazo_quitacao_dias: 15
 ```
 
-- Formato `chave: valor`, uma por linha; `#` é comentário.
-- Valores aceitam `18.500,00`, `18500.00` ou `R$ 18.500`.
-- Datas em `DD/MM/AAAA`.
+Veja todos os campos em `exemplos/contrato-exemplo.txt`.
+
+### Serviços
+
+| id | Serviço | Linha | Seções do contrato |
+|---|---|---|---|
+| `te_deixa_tranquila` | Te Deixa Tranquila | CE | supervisão |
+| `necessario` | O Necessário | CE | cerimonial |
+| `sai_na_vassoura` | Sai na Vassoura | CE | finalização |
+| `dia_d` | Dia D Completo | CE | supervisão, cerimonial, finalização |
+| `empurraozinho` | Empurrãozinho | AS | assessoria estratégica |
+| `essencial` | O Essencial | AS | assessoria completa, supervisão |
+| `so_vou_pra_casar` | Só Vou Pra Casar | AS | assessoria completa, palco, supervisão, cerimonial, finalização |
+
+### Calculado automaticamente
+- Valores e percentuais por extenso; entrada, saldo e parcelas (com os centavos na última).
+- Data de vencimento do saldo (data do evento − prazo de quitação).
+- Equipe: "03 (três) profissionais, sendo 01 (um) coordenador e 02 (dois) assistentes".
+- Horários: chegada da supervisão e início/fim do cerimonial a partir do horário da cerimônia.
+- Contagens no padrão do contrato: "150 (cento e cinquenta) convidados", "08 (oito) casais".
+
+## Numeração (ordem de serviço)
+
+Formato **`AS-0001`** (Assessoria) ou **`CE-0001`** (Cerimonial). Cada linha tem sequência própria.
+Se tiver qualquer serviço de assessoria, o contrato é AS.
+
+Se o `.txt` não tiver `numero_os`, o gerador reserva o próximo número em `config/sequencias.json` e grava
+`numero_os: XX-NNNN` no final do `.txt`. Gerar de novo usa o mesmo número. Erros são detectados **antes** da reserva,
+então nenhum número é desperdiçado.
 
 ## Cadastro de clientes
 
-Os dados do cliente ficam num arquivo próprio em `clientes/`, preenchido uma única vez:
+Um arquivo por cliente em `clientes/`, a partir de `clientes/_modelo.txt`. No contrato, use
+`cliente: <CPF/CNPJ>` ou `cliente: <nome-do-arquivo>`. Os campos viram `{contratante_*}`.
+Um `contratante_*` escrito no próprio contrato tem prioridade. Os arquivos reais **não vão para o git** (LGPD).
 
-1. Copie `clientes/_modelo.txt` para, por exemplo, `clientes/maria-souza.txt` e preencha.
-2. No `.txt` do contrato, escreva só a referência, pelo CPF/CNPJ (com ou sem pontuação)
-   ou pelo nome do arquivo:
-   ```
-   cliente: 123.456.789-00
-   cliente: maria-souza
-   ```
-3. Os campos do cadastro viram `{contratante_nome}`, `{contratante_cpf}`, `{contratante_endereco}`…
-   Qualquer campo extra (ex.: `profissao`) vira `{contratante_profissao}`.
+## Editar os modelos
 
-Um `contratante_*` escrito direto no contrato tem prioridade sobre o cadastro, para ajustes pontuais.
-A pasta pode ficar em outro lugar (ex.: Google Drive) com `--clientes "G:\Meu Drive\Clientes"`
-ou a variável de ambiente `CONTRATOS_CLIENTES`.
-
-> Os arquivos de clientes têm dados pessoais e **não vão para o git**. Só `_modelo.txt` e
-> `exemplo-*.txt` são versionados.
-
-### Campos calculados automaticamente
-
-| Campo | Exemplo |
-|---|---|
-| `{valor_total_fmt}` / `{valor_total_extenso}` | R$ 18.500,00 / dezoito mil e quinhentos reais |
-| `{entrada_fmt}`, `{saldo_fmt}` (+ `_extenso`) | |
-| `{#parcelas}…{/parcelas}` com `{numero}`, `{valor_fmt}`, `{vencimento}` | divide o saldo; centavos vão na última |
-| `{num_parcelas_extenso}` | seis |
-| `{<qualquer>_data_extenso}` | 15 de maio de 2027 |
-| `{data_assinatura_extenso}` | data de hoje, se não informada |
-| `{contratada_*}` | vem de `config/empresa.json` |
-
-Campos esquecidos aparecem no documento como `[[campo NÃO INFORMADO]]`.
-
-## Adicionar um modelo
-
-1. Copie o contrato para `templates/<tipo>.docx` e troque os dados variáveis por `{campo}`.
-   Escreva cada `{campo}` de uma vez (sem formatação no meio) para o Word não quebrar o texto.
-2. Registre em `templates/modelos.json`:
-   ```json
-   "decoracao": {
-     "descricao": "Contrato de decoração",
-     "arquivo": "decoracao.docx",
-     "obrigatorios": ["contratante_nome", "valor_total"]
-   }
-   ```
-3. Use `tipo_servico: decoracao` no `.txt`.
-
-> `templates/assessoria_completa.docx` é um **modelo de exemplo** — substitua pelos modelos reais.
+`templates/contrato_casamento.docx` e `templates/ordem_servico.docx` podem ser abertos no Word para trocar
+logo, fontes e texto. Mantenha os campos `{assim}` e as marcações `{#secao_x}` … `{/secao_x}` intactos, sem
+formatação no meio. Para recriar os modelos do zero: `python scripts/criar_modelos.py`.

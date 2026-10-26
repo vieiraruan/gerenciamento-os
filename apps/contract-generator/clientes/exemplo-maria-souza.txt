@@ -1,6 +1,9 @@
 # Cliente fictício de exemplo
 nome: Maria Fernanda Souza
+profissao: advogada
+estado_civil: solteira
+rg: 1.234.567 SDS/PE
 cpf_cnpj: 123.456.789-00
-endereco: Av. Paulista, 1000, ap. 52 – São Paulo/SP
-telefone: (11) 98888-7777
+endereco: Av. Boa Viagem, 1000, ap. 52, Boa Viagem, Recife – PE, CEP 51020-000
+telefone: (81) 98888-7777
 email: maria.souza@email.com

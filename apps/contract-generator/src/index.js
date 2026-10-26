@@ -2,12 +2,14 @@
 'use strict';
 
 /**
- * Gerador de contratos.
+ * Gerador de contratos e ordens de serviço.
  *
  * Uso:
- *   node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf]
+ *   node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf] [--sem-os]
  *
- * O campo "tipo_servico" do .txt define qual modelo (templates/modelos.json) será usado.
+ * Gera, numa pasta "<numero_os> - <nomes>":
+ *   contrato.docx/.pdf       contrato modular com as seções dos serviços contratados
+ *   ordem-servico.docx/.pdf  ordem de serviço do evento
  */
 const fs = require('fs');
 const path = require('path');
@@ -17,10 +19,16 @@ const Docxtemplater = require('docxtemplater');
 const { parseTxt } = require('./parser');
 const { enriquecer } = require('./calculos');
 const { aplicarCliente } = require('./cadastros');
+const { montarContrato } = require('./contrato');
+const { obterNumero } = require('./numeracao');
 
 const RAIZ = path.resolve(__dirname, '..');
 const DIR_TEMPLATES = path.join(RAIZ, 'templates');
 const DIR_CLIENTES = process.env.CONTRATOS_CLIENTES || path.join(RAIZ, 'clientes');
+const ARQ_SEQUENCIAS = process.env.CONTRATOS_SEQUENCIAS || path.join(RAIZ, 'config', 'sequencias.json');
+
+// Campos opcionais: se ficarem vazios no documento, não aparecem como "NÃO INFORMADO".
+const OPCIONAIS = new Set(['observacoes', 'desconto_fmt']);
 
 function carregarJson(arquivo, padrao) {
   if (!fs.existsSync(arquivo)) return padrao;
@@ -29,25 +37,40 @@ function carregarJson(arquivo, padrao) {
 }
 
 function slug(texto) {
-  return String(texto || 'contrato')
+  return String(texto || '')
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+    .replace(/[^a-zA-Z0-9]+/g, ' ').trim().toUpperCase();
+}
+
+function renderizar(modelo, dados, destino) {
+  const zip = new PizZip(fs.readFileSync(path.join(DIR_TEMPLATES, modelo)));
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: (parte) => {
+      if (parte.module) return '';
+      return OPCIONAIS.has(parte.value) ? '' : `[[${parte.value} NÃO INFORMADO]]`;
+    },
+  });
+  doc.render(dados);
+  fs.writeFileSync(destino, doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
+  return destino;
 }
 
 function gerarContrato(
   arquivoTxt,
-  { saida = path.join(RAIZ, 'saida'), pdf = true, clientes = DIR_CLIENTES } = {},
+  { saida = path.join(RAIZ, 'saida'), pdf = true, os: comOs = true, clientes = DIR_CLIENTES,
+    sequencias = ARQ_SEQUENCIAS } = {},
 ) {
   const modelos = carregarJson(path.join(DIR_TEMPLATES, 'modelos.json'), {});
+  const catalogo = carregarJson(path.join(DIR_TEMPLATES, 'servicos.json'), {});
   const empresa = carregarJson(path.join(RAIZ, 'config', 'empresa.json'), {});
 
   const brutos = aplicarCliente(parseTxt(fs.readFileSync(arquivoTxt, 'utf8')), clientes);
-  const tipo = brutos.tipo_servico;
-  const modelo = modelos[tipo];
+  const nomeModelo = brutos.modelo || 'casamento';
+  const modelo = modelos[nomeModelo];
   if (!modelo) {
-    throw new Error(
-      `tipo_servico "${tipo || ''}" não encontrado. Disponíveis: ${Object.keys(modelos).join(', ')}`,
-    );
+    throw new Error(`modelo "${nomeModelo}" não encontrado. Disponíveis: ${Object.keys(modelos).join(', ')}`);
   }
 
   const faltando = (modelo.obrigatorios || []).filter((c) => !brutos[c]);
@@ -55,24 +78,26 @@ function gerarContrato(
     throw new Error(`Campos obrigatórios ausentes no .txt: ${faltando.join(', ')}`);
   }
 
-  const dados = enriquecer(brutos, empresa);
+  // Valida tudo antes de reservar número, para não "queimar" numeração com erro.
+  const contrato = montarContrato(brutos, catalogo);
+  enriquecer({ ...brutos, ...contrato }, empresa);
 
-  const zip = new PizZip(fs.readFileSync(path.join(DIR_TEMPLATES, modelo.arquivo)));
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    nullGetter: (parte) => `[[${parte.value} NÃO INFORMADO]]`,
+  const numero = obterNumero({
+    informado: brutos.numero_os,
+    linha: contrato.linha,
+    arquivoSequencias: sequencias,
+    arquivoTxt,
   });
-  doc.render(dados);
+  const dados = enriquecer({ ...brutos, ...contrato, numero_os: numero }, empresa);
 
-  fs.mkdirSync(saida, { recursive: true });
-  const nome = `contrato-${slug(tipo)}-${slug(dados.contratante_nome)}-${slug(dados.evento_data)}`;
-  const docx = path.join(saida, `${nome}.docx`);
-  fs.writeFileSync(docx, doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
+  const pasta = path.join(saida, `${numero} - ${slug(brutos.evento_nomes)}`);
+  fs.mkdirSync(pasta, { recursive: true });
 
-  const resultado = { docx, dados };
-  if (pdf) resultado.pdf = converterPdf(docx, saida);
-  return resultado;
+  const arquivos = [renderizar(modelo.arquivo, dados, path.join(pasta, 'contrato.docx'))];
+  if (comOs) arquivos.push(renderizar('ordem_servico.docx', dados, path.join(pasta, 'ordem-servico.docx')));
+
+  const pdfs = pdf ? arquivos.map((a) => converterPdf(a, pasta)).filter(Boolean) : [];
+  return { numero, pasta, arquivos: [...arquivos, ...pdfs], dados };
 }
 
 /**
@@ -130,9 +155,10 @@ function converterPdf(docx, saida) {
 
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const arquivo = args.filter((a, i) => !a.startsWith('--') && !['--saida', '--clientes'].includes(args[i - 1]))[0];
+  const comValor = ['--saida', '--clientes'];
+  const arquivo = args.filter((a, i) => !a.startsWith('--') && !comValor.includes(args[i - 1]))[0];
   if (!arquivo) {
-    console.error('Uso: node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf]');
+    console.error('Uso: node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf] [--sem-os]');
     process.exit(1);
   }
   const valor = (op) => (args.indexOf(op) > -1 ? args[args.indexOf(op) + 1] : undefined);
@@ -141,9 +167,10 @@ if (require.main === module) {
       saida: valor('--saida'),
       clientes: valor('--clientes'),
       pdf: !args.includes('--sem-pdf'),
+      os: !args.includes('--sem-os'),
     });
-    console.log(`✔ DOCX: ${r.docx}`);
-    if (r.pdf) console.log(`✔ PDF:  ${r.pdf}`);
+    console.log(`✔ Contrato ${r.numero}`);
+    r.arquivos.forEach((a) => console.log(`  ${a}`));
   } catch (e) {
     const detalhes = e.properties?.errors?.map((x) => x.properties.explanation).join('\n  ');
     console.error(`✖ ${e.message}${detalhes ? `\n  ${detalhes}` : ''}`);

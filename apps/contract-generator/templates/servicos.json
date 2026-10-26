@@ -1,0 +1,53 @@
+{
+  "_comentario": "Catálogo de serviços. 'secoes' = seções do contrato incluídas; 'linha' define a numeração (AS = assessoria, CE = cerimonial). Preços = tabela sugerida 2027 (ver docs/tabela-precos.md).",
+
+  "te_deixa_tranquila": {
+    "nome": "Te Deixa Tranquila",
+    "descricao": "supervisão da montagem",
+    "linha": "CE",
+    "preco": 900,
+    "secoes": ["supervisao"]
+  },
+  "necessario": {
+    "nome": "O Necessário",
+    "descricao": "cerimonial",
+    "linha": "CE",
+    "preco": 3000,
+    "secoes": ["cerimonial"]
+  },
+  "sai_na_vassoura": {
+    "nome": "Sai na Vassoura",
+    "descricao": "finalização do evento",
+    "linha": "CE",
+    "preco": 800,
+    "secoes": ["finalizacao"]
+  },
+  "dia_d": {
+    "nome": "Dia D Completo",
+    "descricao": "supervisão da montagem, cerimonial e finalização do evento",
+    "linha": "CE",
+    "preco": 4200,
+    "secoes": ["supervisao", "cerimonial", "finalizacao"]
+  },
+  "empurraozinho": {
+    "nome": "Empurrãozinho",
+    "descricao": "assessoria estratégica \"Empurrãozinho\"",
+    "linha": "AS",
+    "preco": 3800,
+    "secoes": ["empurraozinho"]
+  },
+  "essencial": {
+    "nome": "O Essencial",
+    "descricao": "assessoria completa \"O Essencial\" com supervisão da montagem",
+    "linha": "AS",
+    "preco": 8000,
+    "secoes": ["assessoria_completa", "supervisao"]
+  },
+  "so_vou_pra_casar": {
+    "nome": "Só Vou Pra Casar",
+    "descricao": "assessoria completa \"Só Vou Pra Casar\" com supervisão da montagem, cerimonial, produção de palco e finalização do evento",
+    "linha": "AS",
+    "preco": 12000,
+    "secoes": ["assessoria_completa", "producao_palco", "supervisao", "cerimonial", "finalizacao"]
+  }
+}

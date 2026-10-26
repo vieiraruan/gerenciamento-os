@@ -15,3 +15,5 @@ kubeconfig*
 apps/contract-generator/clientes/*
 !apps/contract-generator/clientes/_modelo.txt
 !apps/contract-generator/clientes/exemplo-*.txt
+# numeração real dos contratos fica só na máquina da empresa
+apps/contract-generator/config/sequencias.json
