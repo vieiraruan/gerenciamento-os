@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "gerar": "node src/index.js",
-    "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py"
+    "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py",
+    "app": "node src/servidor.js"
   },
   "keywords": [],
   "author": "",

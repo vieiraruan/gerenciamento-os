@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contratos · Tayná Alves Assessoria</title>
+<style>
+  :root {
+    --marca: #5a3e36; --marca-2: #8a6a5f; --fundo: #f7f3ef; --card: #ffffff;
+    --borda: #e4dad2; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e;
+    --raio: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: var(--marca); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header .sub { opacity: .75; font-size: 13px; }
+  header .esp { flex: 1; }
+  .layout { display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; padding: 20px 24px; align-items: start; }
+  @media (max-width: 1200px) { .layout { grid-template-columns: 240px 1fr; } .lateral-dir { grid-column: 1 / -1; } }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; padding: 12px; } }
+
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 14px; color: var(--marca); display: flex; align-items: center; gap: 8px; }
+  .card h2 .n { background: var(--marca); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; }
+
+  .grade { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px 14px; }
+  .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+  @media (max-width: 800px) { .c3, .c4, .c6, .c8 { grid-column: span 12; } }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; }
+  input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; background: #fffdfb; color: var(--texto); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #c9b2a6; border-color: var(--marca-2); }
+  textarea { min-height: 70px; resize: vertical; }
+  .dica { font-size: 12px; color: var(--suave); margin-top: 3px; }
+
+  button { font: inherit; border-radius: 8px; border: 1px solid var(--marca); padding: 9px 14px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; }
+  button:hover { background: #f3ece7; }
+  button.primario { background: var(--marca); color: #fff; }
+  button.primario:hover { background: #4a322b; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.grande { width: 100%; padding: 13px; font-size: 16px; }
+  header button { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+  header button:hover { background: rgba(255,255,255,.1); }
+
+  .lista { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
+  .lista li { padding: 10px 12px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .lista li:hover { background: #f3ece7; }
+  .lista li.ativo { background: #efe4dd; border-color: var(--borda); }
+  .lista .num { font-size: 12px; font-weight: 700; color: var(--marca); }
+  .lista .nome { font-weight: 600; }
+  .lista .det { font-size: 12px; color: var(--suave); }
+  .vazio { color: var(--suave); font-size: 13px; padding: 8px 4px; }
+
+  .servicos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .serv { border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .serv.sel { border-color: var(--marca); background: #faf5f1; }
+  .serv.cort { border-color: var(--ok); background: #f2f8f4; }
+  .serv .t { font-weight: 700; }
+  .serv .d { font-size: 12px; color: var(--suave); min-height: 32px; }
+  .serv .p { font-size: 13px; font-weight: 600; }
+  .serv .linha { font-size: 11px; font-weight: 700; color: var(--marca-2); }
+  .seg { display: flex; border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; white-space: nowrap; border-radius: 0; padding: 6px 4px; font-size: 12px; font-weight: 600; color: var(--suave); background: #fff; }
+  .seg button[data-m=""] { flex: 0 0 30px; }
+  .seg button.on { background: var(--marca); color: #fff; }
+  .seg button.on.cortesia { background: var(--ok); }
+
+  .previa .num-os { font-size: 26px; font-weight: 800; color: var(--marca); letter-spacing: .5px; }
+  .previa .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #efe4dd; color: var(--marca); }
+  .previa dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 14px 0; font-size: 14px; }
+  .previa dt { color: var(--suave); }
+  .previa dd { margin: 0; font-weight: 600; text-align: right; }
+  .previa .total { font-size: 20px; }
+  .previa ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--suave); }
+  .aviso { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 10px; }
+  .aviso.erro { background: #fbeceb; color: var(--erro); }
+  .aviso.ok { background: #edf6f0; color: var(--ok); }
+  .resultado a { color: var(--marca); }
+  .linha-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 10px 0; }
+  .linha-check input { width: auto; }
+  .sticky { position: sticky; top: 92px; max-height: calc(100vh - 110px); overflow: auto; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Gerador de Contratos</h1>
+    <div class="sub" id="empresa">…</div>
+  </div>
+  <div class="esp"></div>
+  <button id="btnNovo" title="Começar um contrato em branco">+ Novo contrato</button>
+</header>
+
+<div class="layout">
+  <!-- ===== Lista de contratos ===== -->
+  <aside>
+    <div class="card">
+      <h2>Contratos</h2>
+      <input id="busca" placeholder="Buscar por nome ou número…" style="margin-bottom:10px">
+      <ul class="lista" id="listaContratos"></ul>
+    </div>
+  </aside>
+
+  <!-- ===== Formulário ===== -->
+  <main>
+    <form id="form" autocomplete="off" onsubmit="return false">
+      <div class="card">
+        <h2><span class="n">1</span> Contratante</h2>
+        <div class="grade">
+          <div class="c12">
+            <label for="cliente_sel">Cliente cadastrado</label>
+            <select id="cliente_sel"><option value="">— Novo cliente —</option></select>
+          </div>
+          <div class="c8"><label>Nome completo *</label><input data-cli="nome" required></div>
+          <div class="c4"><label>CPF / CNPJ</label><input data-cli="cpf_cnpj" placeholder="000.000.000-00"></div>
+          <div class="c4"><label>RG</label><input data-cli="rg"></div>
+          <div class="c4"><label>Profissão</label><input data-cli="profissao"></div>
+          <div class="c4"><label>Estado civil</label>
+            <select data-cli="estado_civil"><option></option><option>solteira</option><option>solteiro</option><option>casada</option><option>casado</option><option>divorciada</option><option>divorciado</option><option>viúva</option><option>viúvo</option><option>em união estável</option></select>
+          </div>
+          <div class="c12"><label>Endereço completo (com cidade, UF e CEP)</label><input data-cli="endereco"></div>
+          <div class="c6"><label>Telefone</label><input data-cli="telefone"></div>
+          <div class="c6"><label>E-mail</label><input data-cli="email" type="email"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">2</span> Serviços</h2>
+        <div class="servicos" id="servicos"></div>
+        <div class="dica" style="margin-top:8px">Marque <b>Contratado</b> para cobrar o serviço ou <b>Cortesia</b> para incluí-lo sem custo no contrato.</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">3</span> Evento</h2>
+        <div class="grade">
+          <div class="c4"><label>Tipo de evento</label>
+            <select data-con="evento_tipo"><option>casamento</option><option>bodas</option><option>aniversário de 15 anos</option><option>aniversário</option><option>formatura</option></select>
+          </div>
+          <div class="c8"><label>Nomes (como aparecem no contrato) *</label><input data-con="evento_nomes" placeholder="Isabele e Jonas"></div>
+          <div class="c4"><label>Data do evento</label><input data-con="evento_data" type="date"></div>
+          <div class="c8"><label>…ou período previsto (sem data definida)</label><input data-con="evento_periodo" placeholder="outubro ou novembro de 2027"></div>
+          <div class="c4"><label>Horário da cerimônia</label><input data-con="evento_horario" type="time"></div>
+          <div class="c8"><label>Local (vazio = a definir)</label><input data-con="evento_local"></div>
+          <div class="c3"><label>Convidados</label><input data-con="convidados" type="number" min="0" placeholder="150"></div>
+          <div class="c3"><label>Casais de padrinhos</label><input data-con="casais_padrinhos" type="number" min="0" placeholder="8"></div>
+          <div class="c3"><label>Crianças no cortejo</label><input data-con="criancas" type="number" min="0" placeholder="4"></div>
+          <div class="c3"><label>Destination?</label><select data-con="destination"><option value="nao">Não</option><option value="sim">Sim</option></select></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">4</span> Equipe e horários</h2>
+        <div class="grade">
+          <div class="c4"><label>Profissionais no evento</label><input data-con="qtd_equipe" type="number" min="2" placeholder="2"><div class="dica">1 coordenador + assistentes</div></div>
+          <div class="c4"><label>Supervisão: horas antes</label><input data-con="supervisao_antecedencia_horas" type="number" min="1" placeholder="3"></div>
+          <div class="c4"><label>Duração do cerimonial (h)</label><input data-con="cerimonial_horas" type="number" min="1" placeholder="6"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">5</span> Financeiro</h2>
+        <div class="grade">
+          <div class="c4"><label>Valor fechado (R$)</label><input data-con="valor_total" placeholder="vazio = preço de tabela"></div>
+          <div class="c4"><label>Entrada (%)</label><input data-con="entrada_percentual" type="number" min="0" max="100" step="0.5" placeholder="30"></div>
+          <div class="c4"><label>Quitação: dias antes do evento</label><input data-con="prazo_quitacao_dias" type="number" min="0" placeholder="15"></div>
+          <div class="c4"><label>Parcelar o saldo em</label><input data-con="num_parcelas" type="number" min="0" placeholder="à vista"></div>
+          <div class="c4"><label>1º vencimento</label><input data-con="primeiro_vencimento" type="date"></div>
+          <div class="c4"><label>Adicional por profissional (R$)</label><input data-con="valor_profissional_adicional" placeholder="350"></div>
+          <div class="c12"><label>Observações (aparecem na ordem de serviço)</label><textarea data-con="observacoes"></textarea></div>
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <!-- ===== Prévia ===== -->
+  <aside class="lateral-dir">
+    <div class="card previa sticky">
+      <h2>Resumo</h2>
+      <div id="previa"><div class="vazio">Escolha os serviços para ver os valores.</div></div>
+      <label class="linha-check"><input type="checkbox" id="comPdf" checked> Gerar também em PDF</label>
+      <button class="primario grande" id="btnGerar">Gerar contrato e OS</button>
+      <div id="resultado" class="resultado"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const api = async (url, corpo) => {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+};
+const moeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let config, contratos = [], estado = { contrato_arquivo: '', cliente_arquivo: '', numero_os: '', servicos: {} };
+
+// ---- datas: formulário usa AAAA-MM-DD, os .txt usam DD/MM/AAAA
+const paraBR = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : iso);
+const paraISO = (br) => (/^\d{2}\/\d{2}\/\d{4}$/.test(br || '') ? br.split('/').reverse().join('-') : (br || ''));
+const horaParaInput = (h) => { const m = /^(\d{1,2})\s*[:hH]?\s*(\d{2})?/.exec(h || ''); return m ? `${m[1].padStart(2, '0')}:${m[2] || '00'}` : ''; };
+
+function lerFormulario() {
+  const cliente = {}, contrato = {};
+  $$('[data-cli]').forEach((el) => { if (el.value.trim()) cliente[el.dataset.cli] = el.value.trim(); });
+  $$('[data-con]').forEach((el) => {
+    let v = el.value.trim();
+    if (!v) return;
+    if (el.type === 'date') v = paraBR(v);
+    contrato[el.dataset.con] = v;
+  });
+  const cont = Object.entries(estado.servicos).filter(([, m]) => m === 'contratado').map(([k]) => k);
+  const cort = Object.entries(estado.servicos).filter(([, m]) => m === 'cortesia').map(([k]) => k);
+  if (cont.length) contrato.servicos = cont.join(', ');
+  if (cort.length) contrato.servicos_cortesia = cort.join(', ');
+  if (contrato.evento_data) delete contrato.evento_periodo;
+  if (estado.numero_os) contrato.numero_os = estado.numero_os;
+  return { cliente, contrato };
+}
+
+function preencher(campos = {}, cliente = {}) {
+  $$('[data-cli]').forEach((el) => { el.value = cliente[el.dataset.cli] ?? (el.dataset.cli === 'cpf_cnpj' ? (cliente.cpf || '') : ''); });
+  $$('[data-con]').forEach((el) => {
+    let v = campos[el.dataset.con] ?? '';
+    if (el.type === 'date') v = paraISO(v);
+    if (el.type === 'time') v = horaParaInput(v);
+    if (el.tagName === 'SELECT' && !v) v = el.options[0].value;
+    if (el.dataset.con === 'destination') v = /^(s|sim|true|1)$/i.test(v) ? 'sim' : 'nao';
+    el.value = v;
+  });
+  estado.servicos = {};
+  (campos.servicos || '').split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => { estado.servicos[s] = 'contratado'; });
+  (campos.servicos_cortesia || '').split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => { estado.servicos[s] = 'cortesia'; });
+  estado.numero_os = campos.numero_os || '';
+  desenharServicos();
+  atualizarPrevia();
+}
+
+function desenharServicos() {
+  $('#servicos').innerHTML = Object.entries(config.servicos).map(([id, s]) => {
+    const m = estado.servicos[id] || '';
+    return `<div class="serv ${m === 'contratado' ? 'sel' : m === 'cortesia' ? 'cort' : ''}">
+      <div class="linha">${s.linha === 'AS' ? 'ASSESSORIA' : 'CERIMONIAL'}</div>
+      <div class="t">${esc(s.nome)}</div>
+      <div class="d">${esc(s.descricao)}</div>
+      <div class="p">${moeda(s.preco)}</div>
+      <div class="seg" data-id="${id}">
+        <button type="button" data-m="" class="${!m ? 'on' : ''}">—</button>
+        <button type="button" data-m="contratado" class="${m === 'contratado' ? 'on' : ''}">Contratado</button>
+        <button type="button" data-m="cortesia" class="cortesia ${m === 'cortesia' ? 'on' : ''}">Cortesia</button>
+      </div></div>`;
+  }).join('');
+}
+
+$('#servicos').addEventListener('click', (e) => {
+  const b = e.target.closest('.seg button');
+  if (!b) return;
+  const id = b.parentElement.dataset.id;
+  if (b.dataset.m) estado.servicos[id] = b.dataset.m; else delete estado.servicos[id];
+  desenharServicos();
+  atualizarPrevia();
+});
+
+let timer;
+function atualizarPrevia() {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    const { cliente, contrato } = lerFormulario();
+    if (!contrato.servicos) {
+      $('#previa').innerHTML = '<div class="vazio">Escolha os serviços para ver os valores.</div>';
+      return;
+    }
+    try {
+      const p = await api('/api/previa', { cliente, contrato });
+      $('#previa').innerHTML = `
+        <div><span class="tag">${esc(p.linha_nome)}</span></div>
+        <div class="num-os">${esc(p.proximo_numero)}</div>
+        <div class="dica">${p.numero_reservado ? 'Número deste contrato' : 'Próximo número (reservado ao gerar)'}</div>
+        <dl>
+          <dt>Tabela</dt><dd>${esc(p.preco_tabela)}</dd>
+          ${p.desconto ? `<dt>Desconto</dt><dd>− ${esc(p.desconto)}</dd>` : ''}
+          <dt>Valor do contrato</dt><dd class="total">${esc(p.valor_total)}</dd>
+          <dt>Entrada</dt><dd>${esc(p.entrada)}</dd>
+          <dt>Saldo</dt><dd>${esc(p.saldo)}</dd>
+          <dt>Quitação até</dt><dd>${esc(p.vencimento)}</dd>
+          <dt>Equipe</dt><dd>${esc(p.equipe)}</dd>
+        </dl>
+        <div class="dica">${esc(p.valor_extenso)}</div>
+        ${p.parcelas.length ? `<ul>${p.parcelas.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${p.horarios.length ? `<ul>${p.horarios.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
+    } catch (e) {
+      $('#previa').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`;
+    }
+  }, 300);
+}
+$('#form').addEventListener('input', atualizarPrevia);
+$('#form').addEventListener('change', atualizarPrevia);
+
+// ---- clientes
+async function carregarClientes(sel = '') {
+  const cs = await api('/api/clientes');
+  $('#cliente_sel').innerHTML = '<option value="">— Novo cliente —</option>' +
+    cs.map((c) => `<option value="${esc(c.arquivo)}">${esc(c.nome)}${c.cpf ? ` · ${esc(c.cpf)}` : ''}</option>`).join('');
+  $('#cliente_sel').value = sel;
+}
+$('#cliente_sel').addEventListener('change', async (e) => {
+  estado.cliente_arquivo = e.target.value;
+  const dados = e.target.value ? await api(`/api/cliente?arquivo=${encodeURIComponent(e.target.value)}`) : {};
+  $$('[data-cli]').forEach((el) => { el.value = dados[el.dataset.cli] ?? ''; });
+  atualizarPrevia();
+});
+
+// ---- contratos
+async function carregarContratos() {
+  contratos = await api('/api/contratos');
+  desenharLista();
+}
+function desenharLista() {
+  const q = $('#busca').value.toLowerCase();
+  const itens = contratos.filter((c) => `${c.numero_os} ${c.evento_nomes} ${c.arquivo}`.toLowerCase().includes(q));
+  $('#listaContratos').innerHTML = itens.length ? itens.map((c) => `
+    <li data-arq="${esc(c.arquivo)}" class="${c.arquivo === estado.contrato_arquivo ? 'ativo' : ''}">
+      <div class="num">${esc(c.numero_os || 'sem número')}</div>
+      <div class="nome">${esc(c.evento_nomes || c.arquivo)}</div>
+      <div class="det">${esc(c.evento_data)} · ${esc(c.servicos)}</div>
+    </li>`).join('') : '<li class="vazio">Nenhum contrato salvo ainda.</li>';
+}
+$('#busca').addEventListener('input', desenharLista);
+$('#listaContratos').addEventListener('click', async (e) => {
+  const li = e.target.closest('li[data-arq]');
+  if (!li) return;
+  const r = await api(`/api/contrato?arquivo=${encodeURIComponent(li.dataset.arq)}`);
+  estado.contrato_arquivo = li.dataset.arq;
+  estado.cliente_arquivo = r.cliente_arquivo;
+  await carregarClientes(r.cliente_arquivo);
+  preencher(r.campos, r.cliente);
+  $('#resultado').innerHTML = '';
+  desenharLista();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+function novo() {
+  estado = { contrato_arquivo: '', cliente_arquivo: '', numero_os: '', servicos: {} };
+  $('#cliente_sel').value = '';
+  preencher({}, {});
+  $('#resultado').innerHTML = '';
+  desenharLista();
+}
+$('#btnNovo').addEventListener('click', novo);
+
+// ---- gerar
+$('#btnGerar').addEventListener('click', async () => {
+  const { cliente, contrato } = lerFormulario();
+  const b = $('#btnGerar');
+  b.disabled = true; b.textContent = 'Gerando…';
+  try {
+    const r = await api('/api/gerar', {
+      cliente, contrato, pdf: $('#comPdf').checked,
+      cliente_arquivo: estado.cliente_arquivo, contrato_arquivo: estado.contrato_arquivo,
+    });
+    estado.contrato_arquivo = r.contrato_arquivo;
+    estado.cliente_arquivo = r.cliente_arquivo;
+    estado.numero_os = r.numero;
+    $('#resultado').innerHTML = `<div class="aviso ok"><b>Contrato ${esc(r.numero)} gerado.</b><br>
+      ${r.arquivos.map(esc).join('<br>')}<br><br>
+      <button type="button" id="btnAbrir">Abrir pasta</button></div>`;
+    $('#btnAbrir').onclick = () => api('/api/abrir', { caminho: r.pasta });
+    await carregarClientes(r.cliente_arquivo);
+    await carregarContratos();
+    atualizarPrevia();
+  } catch (e) {
+    $('#resultado').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`;
+  } finally {
+    b.disabled = false; b.textContent = 'Gerar contrato e OS';
+  }
+});
+
+(async () => {
+  config = await api('/api/config');
+  $('#empresa').textContent = `${config.empresa} · dados em ${config.pasta}`;
+  await carregarClientes();
+  await carregarContratos();
+  novo();
+})();
+</script>
+</body>
+</html>
