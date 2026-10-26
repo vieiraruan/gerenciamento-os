@@ -114,10 +114,17 @@ function montarContrato(d, catalogo) {
     out.tem_vencimento = false;
   }
 
-  out.evento_local_frase = d.evento_local
-    ? `no local ${d.evento_local}`
-    : 'em local para cerimônia e recepção a ser definido, desde que situado na Região ' +
+  out.destination = /^(s|sim|true|1)$/i.test(d.destination || '');
+  if (d.evento_local) {
+    out.evento_local_frase = `no local ${d.evento_local}`;
+  } else if (out.destination) {
+    out.evento_local_frase = 'em local para cerimônia e recepção a ser definido pela CONTRATANTE, ' +
+      'fora da Região Metropolitana do Recife (destination), aplicando-se as condições especiais previstas ' +
+      'neste contrato';
+  } else {
+    out.evento_local_frase = 'em local para cerimônia e recepção a ser definido, desde que situado na Região ' +
       'Metropolitana do Recife, abrangendo também Aldeia, Porto de Galinhas e Olinda';
+  }
 
   const convidados = Number(d.convidados || 150);
   const padrinhos = Number(d.casais_padrinhos || 8);
@@ -149,7 +156,6 @@ function montarContrato(d, catalogo) {
     out.tem_horario = false;
   }
 
-  out.destination = /^(s|sim|true|1)$/i.test(d.destination || '');
   return out;
 }
 
