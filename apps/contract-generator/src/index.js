@@ -22,10 +22,10 @@ const { aplicarCliente } = require('./cadastros');
 const { montarContrato } = require('./contrato');
 const { obterNumero } = require('./numeracao');
 
+const { resolverPastas, prepararPastas } = require('./pastas');
+
 const RAIZ = path.resolve(__dirname, '..');
 const DIR_TEMPLATES = path.join(RAIZ, 'templates');
-const DIR_CLIENTES = process.env.CONTRATOS_CLIENTES || path.join(RAIZ, 'clientes');
-const ARQ_SEQUENCIAS = process.env.CONTRATOS_SEQUENCIAS || path.join(RAIZ, 'config', 'sequencias.json');
 
 // Campos opcionais: se ficarem vazios no documento, não aparecem como "NÃO INFORMADO".
 const OPCIONAIS = new Set(['observacoes', 'desconto_fmt', 'alerta_horas']);
@@ -57,14 +57,19 @@ function renderizar(modelo, dados, destino) {
   return destino;
 }
 
-function gerarContrato(
-  arquivoTxt,
-  { saida = path.join(RAIZ, 'saida'), pdf = true, os: comOs = true, clientes = DIR_CLIENTES,
-    sequencias = ARQ_SEQUENCIAS } = {},
-) {
+function gerarContrato(arquivoTxt, opcoes = {}) {
+  // Pastas padrão: Google Drive (CONTRATOS GERADOS) quando disponível; ver src/pastas.js
+  const p = resolverPastas();
+  const {
+    saida = p.saida, pdf = true, os: comOs = true,
+    clientes = process.env.CONTRATOS_CLIENTES || p.clientes,
+    sequencias = p.sequencias, empresa: arqEmpresa = p.empresa,
+  } = Object.fromEntries(Object.entries(opcoes).filter(([, v]) => v !== undefined));
   const modelos = carregarJson(path.join(DIR_TEMPLATES, 'modelos.json'), {});
   const catalogo = carregarJson(path.join(DIR_TEMPLATES, 'servicos.json'), {});
-  const empresa = carregarJson(path.join(RAIZ, 'config', 'empresa.json'), {});
+  const empresa = carregarJson(arqEmpresa, {});
+  if (!empresa.razao_social) throw new Error(`Dados da empresa não encontrados (${arqEmpresa}).`);
+  fs.mkdirSync(path.dirname(sequencias), { recursive: true });
 
   const brutos = aplicarCliente(parseTxt(fs.readFileSync(arquivoTxt, 'utf8')), clientes);
   const nomeModelo = brutos.modelo || 'casamento';
@@ -178,4 +183,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { gerarContrato };
+module.exports = { gerarContrato, prepararPastas };

@@ -18,6 +18,9 @@
   header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
   header h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: .2px; }
   header .sub { color: var(--suave); font-size: 13px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-right: 4px; }
+  .badge.ok { background: #e6f2ea; color: var(--ok); }
+  .badge.alerta { background: #fbeceb; color: var(--erro); }
   header .esp { flex: 1; }
   .layout { display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; padding: 20px 24px; align-items: start; }
   @media (max-width: 1200px) { .layout { grid-template-columns: 240px 1fr; } .lateral-dir { grid-column: 1 / -1; } }
@@ -404,7 +407,9 @@ $('#btnGerar').addEventListener('click', async () => {
 
 (async () => {
   config = await api('/api/config');
-  $('#empresa').textContent = `${config.empresa} · dados em ${config.pasta}`;
+  $('#empresa').innerHTML = `${esc(config.empresa)} · ${config.modo === 'drive'
+    ? `<span class="badge ok">Google Drive</span> salvando em ${esc(config.pasta)}`
+    : `<span class="badge alerta">Fora do Drive</span> salvando em ${esc(config.pasta)}`}`;
   await carregarClientes();
   await carregarContratos();
   novo();

@@ -5,15 +5,43 @@ Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <N
 - `contrato.docx` / `.pdf`: contrato modular, só com as seções dos serviços contratados;
 - `ordem-servico.docx` / `.pdf`: ordem de serviço do evento (cliente, evento, serviços, escala e financeiro).
 
-## Uso
+## Instalação (uma vez por máquina, Windows)
 
-```powershell
-npm.cmd install
-copy config\empresa.exemplo.json config\empresa.json      # dados da contratada
-copy config\sequencias.exemplo.json config\sequencias.json  # numeração atual
-node src\index.js exemplos\contrato-exemplo.txt
+1. Instale o [Google Drive para computador](https://www.google.com/drive/download/) e entre com a conta da
+   assessoria. A pasta `Meu Drive\CONTRATOS` precisa aparecer no Explorer.
+2. Instale o Node.js: `winget install OpenJS.NodeJS.LTS`.
+3. Baixe o projeto (`git clone https://github.com/vieiraruan/gerenciamento-os.git` ou ZIP do GitHub).
+4. Em `apps\contract-generator`, dê dois cliques em **`instalar.cmd`**.
+5. Para usar: **`abrir-aplicativo.cmd`**. Dica: crie um atalho dele na Área de Trabalho.
+
+## Onde ficam os arquivos (Google Drive)
+
+```
+Meu Drive\CONTRATOS\
+└── CONTRATOS GERADOS\                   contratos e OS gerados, um por pasta
+    ├── AS-0041 - ISABELE E JONAS\
+    └── _DADOS DO SISTEMA\               compartilhado entre as máquinas
+        ├── *.txt                         dados de cada contrato
+        ├── clientes\*.txt               cadastro de clientes
+        ├── empresa.json                  dados da contratada
+        └── sequencias.json               numeração AS / CE
 ```
 
+A pasta do Drive é encontrada automaticamente (unidade `G:\Meu Drive`, modo espelho em
+`C:\Users\<nome>\Meu Drive` ou macOS). Sem Drive, o aplicativo avisa e salva numa pasta local `contratos`.
+Para forçar outro caminho: variável `CONTRATOS_DRIVE` (pasta CONTRATOS) ou `CONTRATOS_DADOS` / `CONTRATOS_SAIDA`.
+
+> **Numeração compartilhada:** como `sequencias.json` fica no Drive, as máquinas usam a mesma sequência.
+> Evite gerar contratos **novos** em duas máquinas ao mesmo tempo: espere o Drive sincronizar (ícone do Drive sem
+> setas) antes de gerar na outra.
+
+## Linha de comando
+
+```powershell
+node src\index.js "G:\Meu Drive\CONTRATOS\CONTRATOS GERADOS\_DADOS DO SISTEMA\isabele-jonas.txt"
+```
+
+Ou arraste o `.txt` em cima de **`gerar-contrato.cmd`**.
 Opções: `--saida pasta`, `--clientes pasta`, `--sem-pdf`, `--sem-os`.
 O PDF usa o LibreOffice ou, no Windows, o Microsoft Word.
 
@@ -62,7 +90,7 @@ Veja todos os campos em `exemplos/contrato-exemplo.txt`.
 
 ## Aplicativo gráfico
 
-`node src/servidor.js <pasta-de-dados>` (ou `abrir-aplicativo.cmd`) abre o formulário no navegador
+`abrir-aplicativo.cmd` (ou `node src/servidor.js`) abre o formulário no navegador
 (`http://localhost:3210`), com resumo em tempo real e geração do contrato e da OS.
 
 ## Numeração (ordem de serviço)

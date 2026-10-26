@@ -20,21 +20,20 @@ const { enriquecer } = require('./calculos');
 const { montarContrato } = require('./contrato');
 const { gerarContrato } = require('./index');
 
+const { resolverPastas, prepararPastas } = require('./pastas');
+
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const opc = (n) => (args.indexOf(n) > -1 ? args[args.indexOf(n) + 1] : undefined);
 const PORTA = Number(opc('--porta') || process.env.PORTA || 3210);
-const DADOS = path.resolve(
-  args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--porta') ||
-  process.env.CONTRATOS_DADOS ||
-  path.join(RAIZ, '..', '..', '..', 'contratos'),
-);
-const DIR_CLIENTES = path.join(DADOS, 'clientes');
-const DIR_GERADOS = path.join(DADOS, 'gerados');
-const ARQ_SEQ = process.env.CONTRATOS_SEQUENCIAS || path.join(RAIZ, 'config', 'sequencias.json');
-
-fs.mkdirSync(DIR_CLIENTES, { recursive: true });
-fs.mkdirSync(DIR_GERADOS, { recursive: true });
+const COM_VALOR = ['--porta', '--saida'];
+const dadosArg = args.find((a, i) => !a.startsWith('--') && !COM_VALOR.includes(args[i - 1]));
+const PASTAS = prepararPastas(resolverPastas({ dados: dadosArg, saida: opc('--saida') }));
+const DADOS = PASTAS.dados;
+const DIR_CLIENTES = PASTAS.clientes;
+const DIR_GERADOS = PASTAS.saida;
+const ARQ_SEQ = PASTAS.sequencias;
+const ARQ_EMPRESA = PASTAS.empresa;
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -86,7 +85,7 @@ function abrirNoSistema(alvo) {
 // ---------------------------------------------------------------------------
 function previa(campos, cliente) {
   const catalogo = lerJson(path.join(RAIZ, 'templates', 'servicos.json'), {});
-  const empresa = lerJson(path.join(RAIZ, 'config', 'empresa.json'), {});
+  const empresa = lerJson(ARQ_EMPRESA, {});
   const doCliente = {};
   for (const [k, v] of Object.entries(cliente || {})) doCliente[`contratante_${k === 'cpf_cnpj' ? 'cpf' : k}`] = v;
   const brutos = { ...doCliente, ...campos };
@@ -144,12 +143,14 @@ function lerCorpo(req) {
 
 const rotas = {
   'GET /api/config': () => ({
-    pasta: DADOS,
+    modo: PASTAS.modo,
+    pasta: DIR_GERADOS,
+    dados: DADOS,
     servicos: Object.fromEntries(
       Object.entries(lerJson(path.join(RAIZ, 'templates', 'servicos.json'), {})).filter(([k]) => !k.startsWith('_')),
     ),
     sequencias: lerJson(ARQ_SEQ, { AS: 0, CE: 0 }),
-    empresa: lerJson(path.join(RAIZ, 'config', 'empresa.json'), {}).razao_social || '(configure config/empresa.json)',
+    empresa: lerJson(ARQ_EMPRESA, {}).razao_social || '(dados da empresa não encontrados)',
   }),
 
   'GET /api/clientes': () =>
@@ -226,7 +227,8 @@ const rotas = {
     fs.writeFileSync(caminho, paraTxt(con, `Contrato: ${con.evento_nomes}`));
 
     const r = gerarContrato(caminho, {
-      saida: DIR_GERADOS, clientes: DIR_CLIENTES, sequencias: ARQ_SEQ, pdf: corpo.pdf !== false,
+      saida: DIR_GERADOS, clientes: DIR_CLIENTES, sequencias: ARQ_SEQ, empresa: ARQ_EMPRESA,
+      pdf: corpo.pdf !== false,
     });
     return {
       numero: r.numero,
@@ -239,7 +241,8 @@ const rotas = {
 
   'POST /api/abrir': (q, corpo) => {
     const alvo = path.resolve(String(corpo.caminho || ''));
-    if (!(alvo === DADOS || dentroDe(DADOS, alvo)) || !fs.existsSync(alvo)) {
+    const permitido = [DADOS, DIR_GERADOS].some((b) => alvo === b || dentroDe(b, alvo));
+    if (!permitido || !fs.existsSync(alvo)) {
       throw new Error('Caminho fora da pasta de contratos.');
     }
     abrirNoSistema(alvo);
@@ -272,7 +275,10 @@ servidor.listen(PORTA, '127.0.0.1', () => {
   const endereco = `http://localhost:${PORTA}`;
   console.log('Gerador de contratos — Tayná Alves Assessoria');
   console.log(`  Aplicativo: ${endereco}`);
-  console.log(`  Pasta de dados: ${DADOS}`);
+  console.log(PASTAS.modo === 'drive'
+    ? `  Google Drive: ${DIR_GERADOS}`
+    : `  ATENÇÃO: Google Drive não encontrado — salvando em ${DIR_GERADOS}`);
+  console.log(`  Dados do sistema: ${DADOS}`);
   console.log('  Para encerrar, feche esta janela.');
   if (!args.includes('--sem-navegador')) {
     const cmd = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';

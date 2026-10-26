@@ -48,6 +48,10 @@ CONTRATOS/
     └── (CE-0066) CERIMONIAL NOIVA E NOIVO/
 ```
 
+Hoje (gerador local), os documentos são gravados em `CONTRATOS/CONTRATOS GERADOS/` pelo Google Drive para
+computador, e cadastros, numeração e dados da empresa ficam em `CONTRATOS GERADOS/_DADOS DO SISTEMA/`,
+compartilhados entre as máquinas.
+
 Detalhes do levantamento em [levantamento-drive.md](levantamento-drive.md).
 
 ## Fluxos principais
