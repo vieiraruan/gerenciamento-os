@@ -14,5 +14,7 @@ call npm.cmd install --no-audit --no-fund
 echo.
 node -e "const p=require('./src/pastas').resolverPastas(); console.log(p.modo==='drive' ? 'Google Drive encontrado: '+p.saida : 'ATENCAO: pasta CONTRATOS do Google Drive nao encontrada nesta maquina. Os contratos serao salvos em '+p.saida)"
 echo.
-echo Pronto. Para usar, abra o  abrir-aplicativo.cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=[Environment]::GetFolderPath('Desktop'); $s=(New-Object -ComObject WScript.Shell).CreateShortcut(\"$d\Contratos - Tayna Alves.lnk\"); $s.TargetPath='%~dp0abrir-aplicativo.cmd'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%~dp0templates\marca\icone.ico,0'; $s.Description='Gerador de contratos'; $s.Save()"
+echo Atalho "Contratos - Tayna Alves" criado na Area de Trabalho.
+echo Pronto. Para usar, abra o atalho na Area de Trabalho (ou o abrir-aplicativo.cmd).
 pause
