@@ -171,6 +171,9 @@ const rotas = {
       evento_nomes: campos.evento_nomes || '',
       evento_data: campos.evento_data || campos.evento_periodo || '',
       servicos: campos.servicos || '',
+      status: campos.status || '',
+      situacao_financeira: campos.situacao_financeira || '',
+      valor_total: campos.valor_total || '',
     })),
 
   'GET /api/contrato': (q) => {
@@ -255,8 +258,10 @@ const rotas = {
 const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-      return responder(res, 200, fs.readFileSync(path.join(RAIZ, 'app', 'index.html'), 'utf8'), 'text/html; charset=utf-8');
+    // Tela inicial (painel de aplicativos) e aplicativos
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html' };
+    if (req.method === 'GET' && paginas[url.pathname]) {
+      return responder(res, 200, fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8'), 'text/html; charset=utf-8');
     }
     const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
     if (req.method === 'GET' && marca) {
@@ -275,7 +280,7 @@ const servidor = http.createServer(async (req, res) => {
 
 servidor.listen(PORTA, '127.0.0.1', () => {
   const endereco = `http://localhost:${PORTA}`;
-  console.log('Gerador de contratos — Tayná Alves Assessoria');
+  console.log('Tayná Alves Assessoria — aplicativos');
   console.log(`  Aplicativo: ${endereco}`);
   console.log(PASTAS.modo === 'drive'
     ? `  Google Drive: ${DIR_GERADOS}`

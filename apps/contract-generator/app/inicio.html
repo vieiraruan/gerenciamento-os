@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início · Tayná Alves Assessoria</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root {
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --card: #ffffff;
+    --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e;
+    --raio: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; padding: 10px 28px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img { height: 62px; display: block; }
+  header .esp { flex: 1; }
+  header .local { font-size: 12px; color: var(--suave); text-align: right; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; }
+  .badge.ok { background: #e6f2ea; color: var(--ok); }
+  .badge.alerta { background: #fbeceb; color: var(--erro); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 40px; }
+  .ola h1 { margin: 0; font-size: 26px; color: var(--marca); font-weight: 600; }
+  .ola p { margin: 4px 0 0; color: var(--suave); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 24px 0 30px; }
+  .kpi { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 18px; }
+  .kpi .v { font-size: 26px; font-weight: 700; color: var(--marca); line-height: 1.2; }
+  .kpi .r { font-size: 12px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; font-weight: 600; }
+  .kpi .d { font-size: 12px; color: var(--suave); margin-top: 2px; }
+
+  h2 { font-size: 15px; color: var(--suave); text-transform: uppercase; letter-spacing: .5px; margin: 0 0 12px; font-weight: 600; }
+  .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin-bottom: 34px; }
+  .app { position: relative; display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--borda);
+         border-radius: var(--raio); padding: 20px; text-decoration: none; color: inherit; min-height: 170px; transition: transform .12s, box-shadow .12s, border-color .12s; }
+  a.app:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(130,70,52,.12); border-color: var(--marca-2); }
+  .app .ic { width: 46px; height: 46px; border-radius: 12px; background: #f3e6df; color: var(--marca); display: grid; place-items: center; }
+  .app .ic svg { width: 26px; height: 26px; }
+  .app .t { font-weight: 700; font-size: 17px; }
+  .app .d { font-size: 13px; color: var(--suave); flex: 1; }
+  .app .acao { font-size: 13px; font-weight: 700; color: var(--marca); }
+  .app.breve { opacity: .62; cursor: default; background: #fbf8f6; }
+  .app.breve .ic { background: #eee6e1; color: var(--suave); }
+  .app .selo { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: #efe4dd; color: var(--marca); }
+  .app.breve .selo { background: #ece7e4; color: var(--suave); }
+
+  .duas { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px 20px; }
+  .eventos { list-style: none; margin: 0; padding: 0; }
+  .eventos li { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid #f2e9e4; }
+  .eventos li:first-child { border-top: 0; }
+  .data { text-align: center; background: #faf5f1; border-radius: 10px; padding: 6px 0; }
+  .data .dia { font-size: 20px; font-weight: 700; color: var(--marca); line-height: 1; }
+  .data .mes { font-size: 11px; text-transform: uppercase; color: var(--suave); font-weight: 600; }
+  .eventos .n { font-weight: 600; }
+  .eventos .s { font-size: 12px; color: var(--suave); }
+  .eventos .num { font-size: 12px; font-weight: 700; color: var(--marca); }
+  .falta { font-size: 12px; color: var(--suave); text-align: right; }
+  .vazio { color: var(--suave); font-size: 13px; }
+  .atalhos button { display: block; width: 100%; text-align: left; font: inherit; font-weight: 600; color: var(--marca); background: #fff;
+                    border: 1px solid var(--borda); border-radius: 10px; padding: 11px 14px; margin-bottom: 10px; cursor: pointer; }
+  .atalhos button:hover { background: #f3ece7; }
+  .atalhos .msg { font-size: 12px; color: var(--erro); }
+  footer { text-align: center; font-size: 12px; color: var(--suave); padding: 10px 0 24px; }
+
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } .duas { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { main { padding: 18px 12px; } header { padding: 8px 14px; } header img { height: 48px; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <div class="esp"></div>
+  <div class="local" id="local">…</div>
+</header>
+
+<main>
+  <section class="ola">
+    <h1 id="saudacao">Olá!</h1>
+    <p id="hoje"></p>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi"><div class="r">Contratos cadastrados</div><div class="v" id="kTotal">–</div><div class="d" id="kTotalD"></div></div>
+    <div class="kpi"><div class="r">Eventos em 90 dias</div><div class="v" id="k90">–</div><div class="d" id="k90D"></div></div>
+    <div class="kpi"><div class="r">Próximo nº assessoria</div><div class="v" id="kAS">–</div><div class="d">linha AS</div></div>
+    <div class="kpi"><div class="r">Próximo nº cerimonial</div><div class="v" id="kCE">–</div><div class="d">linha CE</div></div>
+  </section>
+
+  <h2>Aplicativos</h2>
+  <section class="apps" id="apps"></section>
+
+  <section class="duas">
+    <div class="card">
+      <h2>Próximos eventos</h2>
+      <ul class="eventos" id="eventos"><li class="vazio">Carregando…</li></ul>
+    </div>
+    <div class="card atalhos">
+      <h2>Atalhos</h2>
+      <button data-abrir="pasta">📁 Abrir pasta CONTRATOS</button>
+      <button data-abrir="ASSESSORIA">📂 Pasta ASSESSORIA</button>
+      <button data-abrir="CERIMONIAL">📂 Pasta CERIMONIAL</button>
+      <div class="msg" id="msgAtalho"></div>
+    </div>
+  </section>
+</main>
+<footer>Tayná Alves Assessoria e Produção · aplicativo local</footer>
+
+<script>
+// Catálogo de aplicativos. Para lançar um novo: troque "status" para "ativo" e informe o "link".
+const ICONES = {
+  contrato: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/></svg>',
+  financeiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>',
+  painel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+};
+const APPS = [
+  { id: 'contratos', nome: 'Gerador de Contratos', icone: 'contrato', status: 'ativo', link: '/contratos',
+    desc: 'Contrato e ordem de serviço com numeração AS/CE, pasta do casal e planilha de assessoria no Drive.' },
+  { id: 'checklist', nome: 'Gerador de Checklist', icone: 'checklist', status: 'breve',
+    desc: 'Checklist do evento por casal: fornecedores, prazos e tarefas da assessoria e do dia D.' },
+  { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', status: 'breve',
+    desc: 'Parcelas, pagamentos e comprovantes de clientes e fornecedores, com controle de PIX.' },
+  { id: 'painel', nome: 'Painel de gestão', icone: 'painel', status: 'breve',
+    desc: 'Indicadores de contratos, faturamento e agenda de eventos.' },
+];
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const NOMES_SERV = { te_deixa_tranquila: 'Te Deixa Tranquila', necessario: 'O Necessário', sai_na_vassoura: 'Sai na Vassoura',
+  dia_d: 'Dia D', empurraozinho: 'Empurrãozinho', essencial: 'O Essencial', so_vou_pra_casar: 'Só Vou Pra Casar' };
+let CONFIG = {};
+
+function renderApps() {
+  document.getElementById('apps').innerHTML = APPS.map((a) => {
+    const ativo = a.status === 'ativo';
+    const tag = ativo ? 'a' : 'div';
+    return `<${tag} class="app ${ativo ? '' : 'breve'}" ${ativo ? `href="${a.link}"` : 'aria-disabled="true"'}>
+      <span class="selo">${ativo ? 'Disponível' : 'Em breve'}</span>
+      <div class="ic">${ICONES[a.icone] || ''}</div>
+      <div class="t">${esc(a.nome)}</div>
+      <div class="d">${esc(a.desc)}</div>
+      ${ativo ? '<div class="acao">Abrir →</div>' : ''}
+    </${tag}>`;
+  }).join('');
+}
+
+function dataBr(s) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim());
+  return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
+}
+const proximo = (seq, linha) => `${linha}-${String((Number(seq?.[linha]) || 0) + 1).padStart(4, '0')}`;
+
+async function carregar() {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const h = new Date().getHours();
+  document.getElementById('saudacao').textContent = h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!';
+  document.getElementById('hoje').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  try {
+    CONFIG = await (await fetch('/api/config')).json();
+    document.getElementById('local').innerHTML = CONFIG.modo === 'drive'
+      ? '<span class="badge ok">Google Drive</span><br>' + esc(CONFIG.pasta)
+      : '<span class="badge alerta">Sem Google Drive</span><br>' + esc(CONFIG.pasta);
+    document.getElementById('kAS').textContent = proximo(CONFIG.sequencias, 'AS');
+    document.getElementById('kCE').textContent = proximo(CONFIG.sequencias, 'CE');
+  } catch { document.getElementById('local').textContent = 'Não foi possível ler a configuração.'; }
+
+  try {
+    const lista = await (await fetch('/api/contratos')).json();
+    const comNumero = lista.filter((c) => c.numero_os);
+    const as = comNumero.filter((c) => c.numero_os.startsWith('AS')).length;
+    document.getElementById('kTotal').textContent = comNumero.length;
+    document.getElementById('kTotalD').textContent = `${as} assessoria · ${comNumero.length - as} cerimonial`;
+
+    const futuros = comNumero.map((c) => ({ ...c, d: dataBr(c.evento_data) }))
+      .filter((c) => c.d && c.d >= hoje).sort((a, b) => a.d - b.d);
+    const em90 = futuros.filter((c) => (c.d - hoje) / 864e5 <= 90);
+    document.getElementById('k90').textContent = em90.length;
+    document.getElementById('k90D').textContent = futuros.length ? `${futuros.length} eventos futuros no total` : '';
+
+    document.getElementById('eventos').innerHTML = futuros.slice(0, 6).map((c) => {
+      const dias = Math.round((c.d - hoje) / 864e5);
+      const serv = String(c.servicos).split(',').map((s) => NOMES_SERV[s.trim()] || s.trim()).filter(Boolean).join(' + ');
+      return `<li>
+        <div class="data"><div class="dia">${c.d.getDate()}</div><div class="mes">${MESES[c.d.getMonth()]} ${String(c.d.getFullYear()).slice(2)}</div></div>
+        <div><div class="n">${esc(c.evento_nomes)}</div><div class="s"><span class="num">${esc(c.numero_os)}</span> · ${esc(serv)}</div></div>
+        <div class="falta">${dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : `em ${dias} dias`}</div>
+      </li>`;
+    }).join('') || '<li class="vazio">Nenhum evento futuro com data definida.</li>';
+  } catch { document.getElementById('eventos').innerHTML = '<li class="vazio">Não foi possível carregar os contratos.</li>'; }
+}
+
+document.querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('click', async () => {
+  const msg = document.getElementById('msgAtalho'); msg.textContent = '';
+  const base = CONFIG.pasta || '';
+  const sep = base.includes('\\') ? '\\' : '/';
+  const caminho = b.dataset.abrir === 'pasta' ? base : base + sep + b.dataset.abrir;
+  const r = await fetch('/api/abrir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caminho }) });
+  if (!r.ok) msg.textContent = (await r.json()).erro || 'Não foi possível abrir a pasta.';
+}));
+
+renderApps();
+carregar();
+</script>
+</body>
+</html>

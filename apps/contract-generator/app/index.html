@@ -22,6 +22,8 @@
   .badge.ok { background: #e6f2ea; color: var(--ok); }
   .badge.alerta { background: #fbeceb; color: var(--erro); }
   header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  header a.voltar:hover { background: #f3ece7; }
   .layout { display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; padding: 20px 24px; align-items: start; }
   @media (max-width: 1200px) { .layout { grid-template-columns: 240px 1fr; } .lateral-dir { grid-column: 1 / -1; } }
   @media (max-width: 800px) { .layout { grid-template-columns: 1fr; padding: 12px; } }
@@ -89,13 +91,14 @@
 </head>
 <body>
 <header>
-  <img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <a href="/" title="Voltar para o início"><img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"></a>
   <div class="sep"></div>
   <div>
     <h1>Gerador de Contratos</h1>
     <div class="sub" id="empresa">…</div>
   </div>
   <div class="esp"></div>
+  <a class="voltar" href="/">← Início</a>
   <button id="btnNovo" title="Começar um contrato em branco">+ Novo contrato</button>
 </header>
 
