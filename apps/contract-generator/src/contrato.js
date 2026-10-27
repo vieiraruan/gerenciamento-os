@@ -65,6 +65,16 @@ function montarContrato(d, catalogo) {
   const contratados = ids.map((id) => ({ id, ...catalogo[id] }));
   const gratis = cortesias.map((id) => ({ id, ...catalogo[id] }));
 
+  // cortesia que já está dentro de um serviço contratado não acrescenta nada
+  const cobertas = new Set(contratados.flatMap((s) => s.secoes));
+  const redundantes = gratis.filter((g) => g.secoes.every((sec) => cobertas.has(sec)));
+  if (redundantes.length) {
+    throw new Error(
+      `Cortesia sem efeito: ${redundantes.map((r) => r.nome).join(', ')} já está incluída em ` +
+      `${contratados.map((c) => c.nome).join(', ')}. Retire a cortesia.`,
+    );
+  }
+
   for (const s of [...contratados, ...gratis]) {
     for (const secao of s.secoes) out[`secao_${secao}`] = true;
   }
@@ -101,6 +111,7 @@ function montarContrato(d, catalogo) {
 
   // ---- Evento -------------------------------------------------------------
   out.evento_tipo = d.evento_tipo || 'casamento';
+  out.evento_nomes = String(d.evento_nomes || '').replace(/\s+/g, ' ').trim();
   if (d.evento_data) {
     const data = parseData(d.evento_data);
     out.evento_quando = `no dia ${dataExtenso(data)}`;

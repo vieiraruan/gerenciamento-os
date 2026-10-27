@@ -11,6 +11,6 @@ rem ============================================================
 
 cd /d "%~dp0"
 where node >nul 2>nul || (echo Node.js nao encontrado. Rode primeiro o instalar.cmd & pause & exit /b 1)
-if not exist node_modules\exceljs call instalar.cmd
+if not exist node_modules\docxtemplater call instalar.cmd
 node src\servidor.js %*
 if errorlevel 1 pause

@@ -13,7 +13,6 @@
   "license": "ISC",
   "dependencies": {
     "docxtemplater": "^3.71.1",
-    "exceljs": "^4.4.0",
     "extenso": "^3.0.0",
     "pizzip": "^3.3.0"
   },

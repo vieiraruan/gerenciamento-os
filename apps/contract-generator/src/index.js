@@ -40,7 +40,7 @@ function carregarJson(arquivo, padrao) {
 function slug(texto) {
   return String(texto || '')
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .replace(/[^a-zA-Z0-9]+/g, ' ').trim().toUpperCase();
+    .replace(/[^a-zA-Z0-9&]+/g, ' ').replace(/\s*&\s*/g, ' & ').trim().toUpperCase();
 }
 
 function renderizar(modelo, dados, destino) {
@@ -99,7 +99,7 @@ async function gerarContrato(arquivoTxt, opcoes = {}) {
   // Pasta do casal no padrão do Drive:
   //   (AS-0042) ASSESSORIA DIDIER E MANUELA/
   //   ├── 001. Tayná Alves Assessoria/   contrato + ordem de serviço
-  //   └── FINANCEIRO - Didier e Manuela.xlsx
+  //   └── PLANILHA DE ASSESSORIA Didier & Manuela.xlsx
   const linhaNome = contrato.linha === 'AS' ? 'ASSESSORIA' : 'CERIMONIAL';
   const pastaCasal = path.join(saida, `(${numero}) ${linhaNome} ${slug(brutos.evento_nomes)}`);
   const nomeEmpresa = String(empresa.nome_fantasia || empresa.razao_social).replace(/[\\/:*?"<>|]/g, '');
@@ -110,8 +110,7 @@ async function gerarContrato(arquivoTxt, opcoes = {}) {
   if (comOs) arquivos.push(renderizar('ordem_servico.docx', dados, path.join(pasta, 'ordem-servico.docx')));
   const pdfs = pdf ? arquivos.map((a) => converterPdf(a, pasta)).filter(Boolean) : [];
 
-  const nomePlanilha = `FINANCEIRO - ${String(brutos.evento_nomes).replace(/[\\/:*?"<>|]/g, '')}.xlsx`;
-  const planilha = await criarPlanilha(path.join(pastaCasal, nomePlanilha), { brutos, dados, empresa });
+  const planilha = await criarPlanilha(pastaCasal, { brutos, dados, empresa });
 
   return {
     numero, pasta, pastaCasal, planilha,

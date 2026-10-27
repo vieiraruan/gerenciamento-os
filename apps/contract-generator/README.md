@@ -19,9 +19,9 @@ Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <N
 ```
 Meu Drive\CONTRATOS\
 └── CONTRATOS GERADOS\
-    ├── (AS-0042) ASSESSORIA DIDIER E MANUELA\     pasta do casal
-    │   ├── 001. Tayná Alves Assessoria\           contrato + ordem de serviço (.docx/.pdf)
-    │   └── FINANCEIRO - Didier e Manuela.xlsx      planilha financeira do evento
+    ├── (AS-0042) ASSESSORIA DIDIER & MANUELA\               pasta do casal
+    │   ├── 001. Tayná Alves Assessoria\                     contrato + ordem de serviço (.docx/.pdf)
+    │   └── PLANILHA DE ASSESSORIA Didier & Manuela.xlsx      planilha do evento (modelo da empresa)
     └── _DADOS DO SISTEMA\               compartilhado entre as máquinas
         ├── *.txt                         dados de cada contrato
         ├── clientes\*.txt               cadastro de clientes
@@ -29,13 +29,12 @@ Meu Drive\CONTRATOS\
         └── sequencias.json               numeração AS / CE
 ```
 
-**Planilha financeira** (criada uma vez por casal; gerar o contrato de novo **não** a sobrescreve):
-- `RESUMO`: dados do evento, orçamento previsto, total contratado, pago, a pagar, vencidos e próximo vencimento.
-- `FORNECEDORES`: um contrato por linha (a 001 já vem com o contrato da assessoria); entrada, parcela, total pago,
-  a pagar, status e próximo vencimento são calculados.
-- `PAGAMENTOS`: um lançamento por pagamento, com o nome do arquivo do comprovante.
-- Cores: azul = sistema · amarelo = preencher · preto = fórmula. Modelo em `templates/planilha_financeira.xlsx`
-  (recriar com `python scripts/criar_planilha.py`).
+**Planilha de assessoria** (criada uma vez por casal; gerar o contrato de novo **não** a sobrescreve):
+é o modelo da empresa (`templates/planilha_assessoria.xlsx`, com as abas ASSESSORIA, FINANCEIRO 1, FINANCEIRO,
+Botões e Lista de Convidados). O sistema preenche noivos, data, convidados, padrinhos, crianças, local e horário
+na aba ASSESSORIA e a linha do contrato com a assessoria na aba FINANCEIRO; o resto (checklist, logo, listas,
+fórmulas) fica igual ao modelo. Para trocar o modelo, rode
+`python scripts/criar_planilha_assessoria.py "NOVA PLANILHA DE ASSESSORIA <casal>.xlsx"` com uma planilha atualizada.
 
 A pasta do Drive é encontrada automaticamente (unidade `G:\Meu Drive`, modo espelho em
 `C:\Users\<nome>\Meu Drive` ou macOS). Sem Drive, o aplicativo avisa e salva numa pasta local `contratos`.
