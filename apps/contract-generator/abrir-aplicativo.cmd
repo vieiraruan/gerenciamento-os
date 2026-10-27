@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Gerador de Contratos - Tayna Alves Assessoria
+title Aplicativos - Tayna Alves Assessoria
 
 rem ============================================================
 rem  Abre o aplicativo de contratos no navegador.
