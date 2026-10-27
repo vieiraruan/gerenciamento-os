@@ -31,8 +31,8 @@
   .card h2 .n { background: var(--marca); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; }
 
   .grade { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px 14px; }
-  .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
-  @media (max-width: 800px) { .c3, .c4, .c6, .c8 { grid-column: span 12; } }
+  .c1 { grid-column: span 1; } .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+  @media (max-width: 800px) { .c1, .c3, .c4, .c6, .c8 { grid-column: span 12; } }
   label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; }
   input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; background: #fffdfb; color: var(--texto); }
   input:focus, select:focus, textarea:focus { outline: 2px solid #c9b2a6; border-color: var(--marca-2); }
@@ -126,7 +126,14 @@
           <div class="c4"><label>Estado civil</label>
             <select data-cli="estado_civil"><option></option><option>solteira</option><option>solteiro</option><option>casada</option><option>casado</option><option>divorciada</option><option>divorciado</option><option>viúva</option><option>viúvo</option><option>em união estável</option></select>
           </div>
-          <div class="c12"><label>Endereço completo (com cidade, UF e CEP)</label><input data-cli="endereco"></div>
+          <div class="c3"><label>CEP</label><input data-cli="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000"><div class="dica" id="cepStatus">Digite o CEP para buscar o endereço</div></div>
+          <div class="c6"><label>Rua / logradouro</label><input data-cli="logradouro" data-end></div>
+          <div class="c3"><label>Número</label><input data-cli="numero" id="numeroEnd" data-end></div>
+          <div class="c4"><label>Complemento</label><input data-cli="complemento" data-end placeholder="ap., bloco…"></div>
+          <div class="c4"><label>Bairro</label><input data-cli="bairro" data-end></div>
+          <div class="c3"><label>Cidade</label><input data-cli="cidade" data-end></div>
+          <div class="c1"><label>UF</label><input data-cli="uf" data-end maxlength="2"></div>
+          <div class="c12"><label>Endereço completo (como sai no contrato)</label><input data-cli="endereco" id="enderecoCompleto"><div class="dica">Montado automaticamente a partir dos campos acima; pode ajustar se precisar.</div></div>
           <div class="c6"><label>Telefone</label><input data-cli="telefone"></div>
           <div class="c6"><label>E-mail</label><input data-cli="email" type="email"></div>
         </div>
@@ -325,6 +332,65 @@ function atualizarPrevia() {
 }
 $('#form').addEventListener('input', atualizarPrevia);
 $('#form').addEventListener('change', atualizarPrevia);
+
+// ---- CEP: busca o endereço (ViaCEP; BrasilAPI como reserva)
+const soDigitos = (v) => String(v || '').replace(/\D/g, '');
+const fmtCep = (v) => { const d = soDigitos(v).slice(0, 8); return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d; };
+const campoCli = (n) => $(`[data-cli="${n}"]`);
+
+function montarEndereco() {
+  const v = (n) => campoCli(n).value.trim();
+  if (!v('logradouro') && !v('cidade')) return; // sem dados estruturados: mantém o que foi digitado
+  const partes = [v('logradouro') + (v('numero') ? `, nº ${v('numero')}` : ''), v('complemento'), v('bairro'),
+    [v('cidade'), v('uf').toUpperCase()].filter(Boolean).join(' – ')];
+  const cep = fmtCep(v('cep'));
+  if (cep.length === 9) partes.push(`CEP ${cep}`);
+  $('#enderecoCompleto').value = partes.filter(Boolean).join(', ');
+}
+
+async function buscarCep(cep) {
+  const fontes = [
+    async () => {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const j = await r.json();
+      if (!r.ok || j.erro) throw new Error('não encontrado');
+      return { logradouro: j.logradouro, bairro: j.bairro, cidade: j.localidade, uf: j.uf };
+    },
+    async () => {
+      const r = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error('não encontrado');
+      return { logradouro: j.street, bairro: j.neighborhood, cidade: j.city, uf: j.state };
+    },
+  ];
+  for (const f of fontes) {
+    try { return await f(); } catch { /* tenta a próxima */ }
+  }
+  return null;
+}
+
+let ultimoCep = '';
+$('#cep').addEventListener('input', async (e) => {
+  e.target.value = fmtCep(e.target.value);
+  const cep = soDigitos(e.target.value);
+  const status = $('#cepStatus');
+  if (cep.length < 8) { status.textContent = 'Digite o CEP para buscar o endereço'; status.style.color = ''; ultimoCep = ''; return; }
+  if (cep === ultimoCep) return;
+  ultimoCep = cep;
+  status.textContent = 'Buscando…'; status.style.color = '';
+  const end = await buscarCep(cep);
+  if (soDigitos($('#cep').value) !== cep) return; // o CEP mudou durante a busca
+  if (!end) {
+    status.textContent = 'CEP não encontrado — preencha o endereço manualmente.'; status.style.color = 'var(--erro)';
+    return;
+  }
+  for (const [k, v] of Object.entries(end)) if (v) campoCli(k).value = v;
+  status.textContent = `✓ ${end.cidade} – ${end.uf}`; status.style.color = 'var(--ok)';
+  montarEndereco();
+  atualizarPrevia();
+  (campoCli('logradouro').value ? $('#numeroEnd') : campoCli('logradouro')).focus();
+});
+$$('[data-end]').forEach((el) => el.addEventListener('input', montarEndereco));
 
 // ---- clientes
 async function carregarClientes(sel = '') {

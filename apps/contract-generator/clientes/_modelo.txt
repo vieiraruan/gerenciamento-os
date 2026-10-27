@@ -10,6 +10,15 @@ cpf_cnpj:
 rg:
 estado_civil:
 profissao:
+# Endereço: no aplicativo, basta digitar o CEP (busca automática) e o número.
+cep:
+logradouro:
+numero:
+complemento:
+bairro:
+cidade:
+uf:
+# endereco = texto que sai no contrato (o aplicativo monta a partir dos campos acima)
 endereco:
 telefone:
 email:

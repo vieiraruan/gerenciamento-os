@@ -113,7 +113,7 @@ então nenhum número é desperdiçado.
 
 ## Cadastro de clientes
 
-Um arquivo por cliente em `clientes/`, a partir de `clientes/_modelo.txt`. No contrato, use
+Um arquivo por cliente em `clientes/`, a partir de `clientes/_modelo.txt`. No aplicativo, ao digitar o **CEP** o endereço é buscado automaticamente (ViaCEP, com BrasilAPI como reserva) e o texto do contrato é montado com rua, número, complemento, bairro, cidade, UF e CEP. No contrato, use
 `cliente: <CPF/CNPJ>` ou `cliente: <nome-do-arquivo>`. Os campos viram `{contratante_*}`.
 Um `contratante_*` escrito no próprio contrato tem prioridade. Os arquivos reais **não vão para o git** (LGPD).
 
