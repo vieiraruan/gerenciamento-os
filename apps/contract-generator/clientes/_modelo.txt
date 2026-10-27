@@ -3,11 +3,10 @@
 #
 # No contrato, use:   cliente: <CPF/CNPJ>   ou   cliente: <nome do arquivo sem .txt>
 # Os campos abaixo viram {contratante_nome}, {contratante_cpf}, {contratante_endereco}...
-# Pode acrescentar outros campos livremente (ex.: profissao, estado_civil, rg).
+# Pode acrescentar outros campos livremente (ex.: profissao, estado_civil).
 
 nome:
 cpf_cnpj:
-rg:
 estado_civil:
 profissao:
 # Endereço: no aplicativo, basta digitar o CEP (busca automática) e o número.

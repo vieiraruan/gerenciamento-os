@@ -189,6 +189,7 @@ const rotas = {
     const cli = corpo.cliente || {};
     const con = { ...(corpo.contrato || {}) };
     if (!cli.nome) throw new Error('Informe o nome do contratante.');
+    if (!cli.cpf_cnpj) throw new Error('Informe o CPF do contratante.');
     if (!con.evento_nomes) throw new Error('Informe os nomes do casal / evento.');
 
     // valida antes de gravar qualquer coisa

@@ -138,7 +138,7 @@ def contrato():
     w.rico([
         ("Pelo presente instrumento de CONTRATO DE PRESTAÇÃO DE SERVIÇOS que celebram entre si, de um lado ", False),
         ("{contratante_nome}", True),
-        (", {contratante_profissao}, {contratante_estado_civil}, portador(a) do RG {contratante_rg} e do CPF "
+        (", {contratante_profissao}, {contratante_estado_civil}, inscrito(a) no CPF sob o nº "
          "{contratante_cpf}, residente no endereço {contratante_endereco}, telefone {contratante_telefone} e "
          "e-mail {contratante_email}, denominado(a) ", False),
         ("CONTRATANTE", True),
@@ -147,8 +147,8 @@ def contrato():
         (", pessoa jurídica de direito privado, inscrita no CNPJ sob o nº {contratada_cnpj}, com sede na "
          "{contratada_endereco}, neste ato representada na forma prevista em seu Contrato Social pela produtora "
          "{contratada_representante}, {contratada_representante_nacionalidade}, "
-         "{contratada_representante_cargo}, {contratada_representante_estado_civil}, portadora do RG "
-         "{contratada_representante_rg} e do CPF {contratada_representante_cpf}, telefone {contratada_telefone}, "
+         "{contratada_representante_cargo}, {contratada_representante_estado_civil}, inscrita no CPF sob o nº "
+         "{contratada_representante_cpf}, telefone {contratada_telefone}, "
          "denominada ", False),
         ("CONTRATADA", True),
         (", pelas cláusulas pactuadas a seguir:", False),
