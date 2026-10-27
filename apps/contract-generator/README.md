@@ -2,8 +2,9 @@
 
 Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <NOMES>`:
 
-- `contrato.docx` / `.pdf`: contrato modular, só com as seções dos serviços contratados;
-- `ordem-servico.docx` / `.pdf`: ordem de serviço do evento (cliente, evento, serviços, escala e financeiro).
+- `CT-AS-0043-271020261844MARIA-JOAO_CONTRATO-TAYNA-ALVES-ASSESSORIA.docx` / `.pdf`: contrato modular, só com as seções dos serviços contratados;
+- `OS-AS-0043-271020261844MARIA-JOAO_ORDEM-SERVICO-TAYNA-ALVES-ASSESSORIA.docx` / `.pdf`: ordem de serviço do evento (cliente, evento, serviços, escala e financeiro).
+  O nome traz o número, a data e hora da geração (ddmmaaaahhmm) e o casal (noiva-noivo).
 
 ## Instalação (uma vez por máquina, Windows)
 

@@ -8,8 +8,9 @@
  *   node src/index.js <dados.txt> [--saida pasta] [--clientes pasta] [--sem-pdf] [--sem-os]
  *
  * Gera, numa pasta "<numero_os> - <nomes>":
- *   contrato.docx/.pdf       contrato modular com as seções dos serviços contratados
- *   ordem-servico.docx/.pdf  ordem de serviço do evento
+ *   CT-AS-0043-271020261844MARIA-JOAO_CONTRATO-TAYNA-ALVES-ASSESSORIA.docx/.pdf      contrato modular
+ *   OS-AS-0043-271020261844MARIA-JOAO_ORDEM-SERVICO-TAYNA-ALVES-ASSESSORIA.docx/.pdf ordem de serviço
+ *   (número do contrato + data/hora da geração ddmmaaaahhmm + noiva-noivo)
  */
 const fs = require('fs');
 const path = require('path');
@@ -41,6 +42,28 @@ function slug(texto) {
   return String(texto || '')
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-zA-Z0-9&]+/g, ' ').replace(/\s*&\s*/g, ' & ').trim().toUpperCase();
+}
+
+/** "Maria Eduarda & Roberto" → "MARIA_EDUARDA-ROBERTO" (noiva-noivo, sem acentos). */
+function nomesArquivo(nomes) {
+  return String(nomes || '')
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .split(/\s*(?:&|\+|,|\s+e\s+)\s*/i)
+    .map((n) => n.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase())
+    .filter(Boolean)
+    .join('-') || 'SEM-NOME';
+}
+
+/** Data e hora da geração no formato ddmmaaaahhmm. */
+function carimbo(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}${p(d.getMonth() + 1)}${d.getFullYear()}${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+/** Nome-base dos documentos: CT-AS-0043-271020261844MARIA-JOAO_CONTRATO-TAYNA-ALVES-ASSESSORIA */
+function nomeDocumento(tipo, numero, nomes, quando) {
+  const sufixo = tipo === 'OS' ? 'ORDEM-SERVICO' : 'CONTRATO';
+  return `${tipo}-${numero}-${carimbo(quando)}${nomesArquivo(nomes)}_${sufixo}-TAYNA-ALVES-ASSESSORIA`;
 }
 
 function renderizar(modelo, dados, destino) {
@@ -106,8 +129,11 @@ async function gerarContrato(arquivoTxt, opcoes = {}) {
   const pasta = path.join(pastaCasal, `001. ${nomeEmpresa}`);
   fs.mkdirSync(pasta, { recursive: true });
 
-  const arquivos = [renderizar(modelo.arquivo, dados, path.join(pasta, 'contrato.docx'))];
-  if (comOs) arquivos.push(renderizar('ordem_servico.docx', dados, path.join(pasta, 'ordem-servico.docx')));
+  const agora = new Date();
+  const nomeCt = nomeDocumento('CT', numero, brutos.evento_nomes, agora);
+  const nomeOs = nomeDocumento('OS', numero, brutos.evento_nomes, agora);
+  const arquivos = [renderizar(modelo.arquivo, dados, path.join(pasta, `${nomeCt}.docx`))];
+  if (comOs) arquivos.push(renderizar('ordem_servico.docx', dados, path.join(pasta, `${nomeOs}.docx`)));
   const pdfs = pdf ? arquivos.map((a) => converterPdf(a, pasta)).filter(Boolean) : [];
 
   const planilha = await criarPlanilha(pastaCasal, { brutos, dados, empresa });
