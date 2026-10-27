@@ -14,6 +14,7 @@ if "%~1"=="" (
   goto :fim
 )
 cd /d "%~dp0"
+if not exist node_modules\exceljs call instalar.cmd
 node src\index.js "%ARQ%"
 
 :fim

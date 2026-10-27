@@ -392,8 +392,9 @@ $('#btnGerar').addEventListener('click', async () => {
     estado.cliente_arquivo = r.cliente_arquivo;
     estado.numero_os = r.numero;
     $('#resultado').innerHTML = `<div class="aviso ok"><b>Contrato ${esc(r.numero)} gerado.</b><br>
-      ${r.arquivos.map(esc).join('<br>')}<br><br>
-      <button type="button" id="btnAbrir">Abrir pasta</button></div>`;
+      ${r.arquivos.map(esc).join('<br>')}
+      ${r.planilha_mantida ? '<br><i>Planilha financeira já existia e foi mantida.</i>' : ''}<br><br>
+      <button type="button" id="btnAbrir">Abrir pasta do casal</button></div>`;
     $('#btnAbrir').onclick = () => api('/api/abrir', { caminho: r.pasta });
     await carregarClientes(r.cliente_arquivo);
     await carregarContratos();

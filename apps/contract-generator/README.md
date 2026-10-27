@@ -18,14 +18,24 @@ Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <N
 
 ```
 Meu Drive\CONTRATOS\
-└── CONTRATOS GERADOS\                   contratos e OS gerados, um por pasta
-    ├── AS-0041 - ISABELE E JONAS\
+└── CONTRATOS GERADOS\
+    ├── (AS-0042) ASSESSORIA DIDIER E MANUELA\     pasta do casal
+    │   ├── 001. Tayná Alves Assessoria\           contrato + ordem de serviço (.docx/.pdf)
+    │   └── FINANCEIRO - Didier e Manuela.xlsx      planilha financeira do evento
     └── _DADOS DO SISTEMA\               compartilhado entre as máquinas
         ├── *.txt                         dados de cada contrato
         ├── clientes\*.txt               cadastro de clientes
         ├── empresa.json                  dados da contratada
         └── sequencias.json               numeração AS / CE
 ```
+
+**Planilha financeira** (criada uma vez por casal; gerar o contrato de novo **não** a sobrescreve):
+- `RESUMO`: dados do evento, orçamento previsto, total contratado, pago, a pagar, vencidos e próximo vencimento.
+- `FORNECEDORES`: um contrato por linha (a 001 já vem com o contrato da assessoria); entrada, parcela, total pago,
+  a pagar, status e próximo vencimento são calculados.
+- `PAGAMENTOS`: um lançamento por pagamento, com o nome do arquivo do comprovante.
+- Cores: azul = sistema · amarelo = preencher · preto = fórmula. Modelo em `templates/planilha_financeira.xlsx`
+  (recriar com `python scripts/criar_planilha.py`).
 
 A pasta do Drive é encontrada automaticamente (unidade `G:\Meu Drive`, modo espelho em
 `C:\Users\<nome>\Meu Drive` ou macOS). Sem Drive, o aplicativo avisa e salva numa pasta local `contratos`.

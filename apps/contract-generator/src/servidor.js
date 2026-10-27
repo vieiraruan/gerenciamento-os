@@ -185,7 +185,7 @@ const rotas = {
 
   'POST /api/previa': (q, corpo) => previa(corpo.contrato || {}, corpo.cliente || {}),
 
-  'POST /api/gerar': (q, corpo) => {
+  'POST /api/gerar': async (q, corpo) => {
     const cli = corpo.cliente || {};
     const con = { ...(corpo.contrato || {}) };
     if (!cli.nome) throw new Error('Informe o nome do contratante.');
@@ -226,14 +226,15 @@ const rotas = {
     const caminho = path.join(DADOS, arqContrato);
     fs.writeFileSync(caminho, paraTxt(con, `Contrato: ${con.evento_nomes}`));
 
-    const r = gerarContrato(caminho, {
+    const r = await gerarContrato(caminho, {
       saida: DIR_GERADOS, clientes: DIR_CLIENTES, sequencias: ARQ_SEQ, empresa: ARQ_EMPRESA,
       pdf: corpo.pdf !== false,
     });
     return {
       numero: r.numero,
-      pasta: r.pasta,
-      arquivos: r.arquivos.map((a) => path.basename(a)),
+      pasta: r.pastaCasal,
+      arquivos: r.arquivos.map((a) => path.relative(r.pastaCasal, a)),
+      planilha_mantida: !r.planilha.criada,
       contrato_arquivo: arqContrato,
       cliente_arquivo: arqCliente,
     };

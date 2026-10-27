@@ -23,6 +23,7 @@ const { montarContrato } = require('./contrato');
 const { obterNumero } = require('./numeracao');
 
 const { resolverPastas, prepararPastas } = require('./pastas');
+const { criarPlanilha } = require('./planilha');
 
 const RAIZ = path.resolve(__dirname, '..');
 const DIR_TEMPLATES = path.join(RAIZ, 'templates');
@@ -57,7 +58,7 @@ function renderizar(modelo, dados, destino) {
   return destino;
 }
 
-function gerarContrato(arquivoTxt, opcoes = {}) {
+async function gerarContrato(arquivoTxt, opcoes = {}) {
   // Pastas padrão: Google Drive (CONTRATOS GERADOS) quando disponível; ver src/pastas.js
   const p = resolverPastas();
   const {
@@ -95,14 +96,28 @@ function gerarContrato(arquivoTxt, opcoes = {}) {
   });
   const dados = enriquecer({ ...brutos, ...contrato, numero_os: numero }, empresa);
 
-  const pasta = path.join(saida, `${numero} - ${slug(brutos.evento_nomes)}`);
+  // Pasta do casal no padrão do Drive:
+  //   (AS-0042) ASSESSORIA DIDIER E MANUELA/
+  //   ├── 001. Tayná Alves Assessoria/   contrato + ordem de serviço
+  //   └── FINANCEIRO - Didier e Manuela.xlsx
+  const linhaNome = contrato.linha === 'AS' ? 'ASSESSORIA' : 'CERIMONIAL';
+  const pastaCasal = path.join(saida, `(${numero}) ${linhaNome} ${slug(brutos.evento_nomes)}`);
+  const nomeEmpresa = String(empresa.nome_fantasia || empresa.razao_social).replace(/[\\/:*?"<>|]/g, '');
+  const pasta = path.join(pastaCasal, `001. ${nomeEmpresa}`);
   fs.mkdirSync(pasta, { recursive: true });
 
   const arquivos = [renderizar(modelo.arquivo, dados, path.join(pasta, 'contrato.docx'))];
   if (comOs) arquivos.push(renderizar('ordem_servico.docx', dados, path.join(pasta, 'ordem-servico.docx')));
-
   const pdfs = pdf ? arquivos.map((a) => converterPdf(a, pasta)).filter(Boolean) : [];
-  return { numero, pasta, arquivos: [...arquivos, ...pdfs], dados };
+
+  const nomePlanilha = `FINANCEIRO - ${String(brutos.evento_nomes).replace(/[\\/:*?"<>|]/g, '')}.xlsx`;
+  const planilha = await criarPlanilha(path.join(pastaCasal, nomePlanilha), { brutos, dados, empresa });
+
+  return {
+    numero, pasta, pastaCasal, planilha,
+    arquivos: [...arquivos, ...pdfs, ...(planilha.criada ? [planilha.arquivo] : [])],
+    dados,
+  };
 }
 
 /**
@@ -167,20 +182,21 @@ if (require.main === module) {
     process.exit(1);
   }
   const valor = (op) => (args.indexOf(op) > -1 ? args[args.indexOf(op) + 1] : undefined);
-  try {
-    const r = gerarContrato(arquivo, {
+  (async () => {
+    const r = await gerarContrato(arquivo, {
       saida: valor('--saida'),
       clientes: valor('--clientes'),
       pdf: !args.includes('--sem-pdf'),
       os: !args.includes('--sem-os'),
     });
-    console.log(`✔ Contrato ${r.numero}`);
-    r.arquivos.forEach((a) => console.log(`  ${a}`));
-  } catch (e) {
+    console.log(`✔ Contrato ${r.numero}  →  ${r.pastaCasal}`);
+    r.arquivos.forEach((a) => console.log(`  ${path.relative(r.pastaCasal, a)}`));
+    if (!r.planilha.criada) console.log(`  (planilha financeira já existia — mantida: ${path.basename(r.planilha.arquivo)})`);
+  })().catch((e) => {
     const detalhes = e.properties?.errors?.map((x) => x.properties.explanation).join('\n  ');
     console.error(`✖ ${e.message}${detalhes ? `\n  ${detalhes}` : ''}`);
     process.exit(1);
-  }
+  });
 }
 
 module.exports = { gerarContrato, prepararPastas };
