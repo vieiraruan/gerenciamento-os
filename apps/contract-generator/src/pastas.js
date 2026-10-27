@@ -6,8 +6,11 @@
  * Com o Google Drive para computador instalado, tudo fica no Drive:
  *
  *   CONTRATOS/
- *   └── CONTRATOS GERADOS/                 ← contratos e ordens de serviço gerados
- *       ├── AS-0041 - ISABELE E JONAS/
+ *   ├── ASSESSORIA/                        ← casais da linha AS
+ *   │   └── (AS-0043) ASSESSORIA NOIVA & NOIVO/
+ *   ├── CERIMONIAL/                        ← casais da linha CE
+ *   │   └── (CE-0067) CERIMONIAL NOIVA & NOIVO/
+ *   └── CONTRATOS GERADOS/
  *       └── _DADOS DO SISTEMA/             ← compartilhado entre as máquinas
  *           ├── *.txt                      dados de cada contrato
  *           ├── clientes/*.txt             cadastro de clientes
@@ -59,6 +62,7 @@ function encontrarDrive() {
 
 /**
  * Resolve todas as pastas/arquivos usados.
+ * `saida` é a pasta-base: o gerador cria a pasta do casal em `saida/ASSESSORIA` ou `saida/CERIMONIAL`.
  * @param {{dados?: string, saida?: string}} opcoes caminhos explícitos (opcional)
  */
 function resolverPastas(opcoes = {}) {
@@ -75,7 +79,7 @@ function resolverPastas(opcoes = {}) {
     saida = path.resolve(saidaExplicita || path.join(dados, 'gerados'));
   } else if ((drive = encontrarDrive())) {
     modo = 'drive';
-    saida = path.resolve(saidaExplicita || path.join(drive, NOME_SAIDA));
+    saida = path.resolve(saidaExplicita || drive);
     dados = path.join(path.join(drive, NOME_SAIDA), NOME_DADOS);
   } else {
     modo = 'local';

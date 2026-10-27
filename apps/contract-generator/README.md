@@ -18,10 +18,13 @@ Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <N
 
 ```
 Meu Drive\CONTRATOS\
+├── ASSESSORIA\
+│   └── (AS-0043) ASSESSORIA NOIVA & NOIVO\                pasta do casal (linha AS)
+│       ├── 001. Tayná Alves Assessoria\                    contrato + ordem de serviço (.docx/.pdf)
+│       └── PLANILHA DE ASSESSORIA Noiva & Noivo.xlsx        planilha do evento (modelo da empresa)
+├── CERIMONIAL\
+│   └── (CE-0067) CERIMONIAL NOIVA & NOIVO\                pasta do casal (linha CE)
 └── CONTRATOS GERADOS\
-    ├── (AS-0042) ASSESSORIA DIDIER & MANUELA\               pasta do casal
-    │   ├── 001. Tayná Alves Assessoria\                     contrato + ordem de serviço (.docx/.pdf)
-    │   └── PLANILHA DE ASSESSORIA Didier & Manuela.xlsx      planilha do evento (modelo da empresa)
     └── _DADOS DO SISTEMA\               compartilhado entre as máquinas
         ├── *.txt                         dados de cada contrato
         ├── clientes\*.txt               cadastro de clientes
