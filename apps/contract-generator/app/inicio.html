@@ -181,7 +181,9 @@ async function carregar() {
     document.getElementById('k90').textContent = em90.length;
     document.getElementById('k90D').textContent = futuros.length ? `${futuros.length} eventos futuros no total` : '';
 
-    document.getElementById('eventos').innerHTML = futuros.slice(0, 6).map((c) => {
+    // todos os eventos dos próximos 90 dias (no mínimo os 6 próximos)
+    const mostrar = em90.length >= 6 ? em90 : futuros.slice(0, 6);
+    document.getElementById('eventos').innerHTML = mostrar.map((c) => {
       const dias = Math.round((c.d - hoje) / 864e5);
       const serv = String(c.servicos).split(',').map((s) => NOMES_SERV[s.trim()] || s.trim()).filter(Boolean).join(' + ');
       return `<li>
