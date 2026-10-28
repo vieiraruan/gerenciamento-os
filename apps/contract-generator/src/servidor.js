@@ -20,7 +20,8 @@ const { enriquecer } = require('./calculos');
 const { montarContrato } = require('./contrato');
 const { gerarContrato } = require('./index');
 
-const { resolverPastas, prepararPastas } = require('./pastas');
+const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
+const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -174,6 +175,7 @@ const rotas = {
       status: campos.status || '',
       situacao_financeira: campos.situacao_financeira || '',
       valor_total: campos.valor_total || '',
+      destination: campos.destination || '',
       evento_horario: campos.evento_horario || '',
       evento_local: campos.evento_local || '',
     })),
@@ -246,6 +248,28 @@ const rotas = {
     };
   },
 
+  // ---- Gerador de Checklist ----
+  'GET /api/checklist/vertentes': () => listarVertentes(),
+
+  'GET /api/checklist/previa': (q) => {
+    const arq = path.join(DADOS, nomeArquivo(q.get('arquivo')));
+    if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
+    const campos = lerTxt(arq);
+    const ck = montarChecklist(campos, q.get('vertente') || 'destination');
+    const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    return { ...ck, destination_contrato: /^s/i.test(campos.destination || ''), pasta: destino.pasta, pasta_existe: destino.existe };
+  },
+
+  'POST /api/checklist/gerar': (q, corpo) => {
+    const arq = path.join(DADOS, nomeArquivo(corpo.arquivo));
+    if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
+    const campos = lerTxt(arq);
+    const ck = montarChecklist(campos, corpo.vertente || 'destination');
+    const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const r = gravarChecklist(ck, pasta, { novaVersao: Boolean(corpo.novaVersao) });
+    return { ...r, pasta };
+  },
+
   // Encerra o aplicativo (ele roda em segundo plano, sem janela)
   'POST /api/encerrar': () => {
     console.log('Encerrado pelo botão "Encerrar".');
@@ -268,7 +292,7 @@ const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);

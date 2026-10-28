@@ -126,3 +126,16 @@ Um `contratante_*` escrito no próprio contrato tem prioridade. Os arquivos reai
 `templates/contrato_casamento.docx` e `templates/ordem_servico.docx` podem ser abertos no Word para trocar
 logo, fontes e texto. Mantenha os campos `{assim}` e as marcações `{#secao_x}` … `{/secao_x}` intactos, sem
 formatação no meio. Para recriar os modelos do zero: `python scripts/criar_modelos.py`.
+
+## Gerador de Checklist
+
+Tela **Checklist** do aplicativo (`/checklist`): escolha o casal, a vertente e gere a planilha
+`CHECKLIST DESTINATION - <casal>.xlsx` na pasta do casal (`CONTRATOS/ASSESSORIA` ou `CERIMONIAL`).
+
+- Modelo: `templates/checklists/destination.json` — cronograma do casal Hanna & Ivan (12 meses → 1 mês antes),
+  106 tarefas; itens com `"sugerido": true` foram acrescentados a partir das pastas de fornecedores do casal.
+- Com a data do evento, cada etapa ganha o período (de/até) e a situação: prazo passou / agora / próxima.
+- A planilha tem lista de status (EM ANDAMENTO, EM COTAÇÃO, NÃO SE APLICA, NÃO DESEJO, FINALIZADO) com cores,
+  colunas de observações, estimativa, valor final (com total) e fornecedor. Nunca sobrescreve: se já existir,
+  oferece "Gerar nova versão".
+- Vertente **sem destination**: em breve (`templates/checklists/padrao.json`).

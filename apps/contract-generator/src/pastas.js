@@ -111,4 +111,23 @@ function prepararPastas(p) {
   return p;
 }
 
-module.exports = { resolverPastas, prepararPastas, encontrarDrive, NOME_SAIDA, NOME_DADOS };
+/**
+ * Pasta do casal pelo número do contrato: procura "(AS-0043) ..." em <base>/ASSESSORIA e
+ * <base>/CERIMONIAL. Se não existir, devolve o caminho no padrão (sem criar).
+ */
+function acharPastaCasal(base, numero, nomes) {
+  const linhaNome = String(numero).startsWith('CE') ? 'CERIMONIAL' : 'ASSESSORIA';
+  for (const l of ['ASSESSORIA', 'CERIMONIAL']) {
+    const dir = path.join(base, l);
+    if (!numero || !fs.existsSync(dir)) continue;
+    const achada = fs.readdirSync(dir, { withFileTypes: true })
+      .find((d) => d.isDirectory() && d.name.startsWith(`(${numero})`));
+    if (achada) return { pasta: path.join(dir, achada.name), existe: true };
+  }
+  const nome = String(nomes || 'EVENTO')
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-zA-Z0-9&]+/g, ' ').replace(/\s*&\s*/g, ' & ').trim().toUpperCase();
+  return { pasta: path.join(base, linhaNome, `(${numero || 'SEM NUMERO'}) ${linhaNome} ${nome}`), existe: false };
+}
+
+module.exports = { resolverPastas, prepararPastas, encontrarDrive, acharPastaCasal, NOME_SAIDA, NOME_DADOS };

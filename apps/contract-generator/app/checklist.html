@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist · Tayná Alves Assessoria</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root {
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --card: #ffffff;
+    --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400;
+    --raio: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  header a.voltar:hover { background: #f3ece7; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px 24px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 12px; } }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--marca); }
+  input { width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; background: #fffdfb; }
+  .lista { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
+  .lista li { padding: 9px 11px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .lista li:hover { background: #f3ece7; }
+  .lista li.ativo { background: #f3e6df; border-color: var(--borda); }
+  .lista .num { font-size: 12px; font-weight: 700; color: var(--marca); }
+  .lista .nome { font-weight: 600; }
+  .lista .det { font-size: 12px; color: var(--suave); }
+  .lista .grupo { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .4px; padding: 10px 4px 4px; cursor: default; }
+  .lista .grupo:hover { background: none; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: #efe4dd; color: var(--marca); vertical-align: middle; }
+  .tag.dest { background: #e3eef6; color: #1f4e78; }
+  .vazio { color: var(--suave); font-size: 14px; padding: 6px 2px; }
+
+  .topo { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .topo .info { flex: 1; min-width: 260px; }
+  .topo .info h3 { margin: 0; font-size: 22px; color: var(--marca); font-weight: 600; }
+  .topo dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 10px 0 0; font-size: 14px; }
+  .topo dt { color: var(--suave); }
+  .topo dd { margin: 0; }
+  .acoes { display: flex; flex-direction: column; gap: 10px; min-width: 260px; }
+  .seg { display: flex; border: 1px solid var(--borda); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-radius: 0; padding: 9px 10px; font: inherit; font-size: 13px; font-weight: 600; color: var(--suave); background: #fff; cursor: pointer; }
+  .seg button.on { background: var(--marca); color: #fff; }
+  .seg button:disabled { cursor: not-allowed; opacity: .6; }
+  button.btn { font: inherit; border-radius: 10px; border: 1px solid var(--marca); padding: 11px 14px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; }
+  button.btn:hover { background: #f3ece7; }
+  button.btn.primario { background: var(--marca); color: #fff; }
+  button.btn.primario:hover { background: #6c3a2b; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  .aviso { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 10px; }
+  .aviso.erro { background: #fbeceb; color: var(--erro); }
+  .aviso.ok { background: #edf6f0; color: var(--ok); }
+  .aviso.info { background: #fdf6e7; color: var(--aviso); }
+  .aviso button { margin: 8px 8px 0 0; padding: 7px 12px; font-size: 13px; }
+
+  .resumo { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .resumo span { font-size: 13px; background: #fff; border: 1px solid var(--borda); border-radius: 99px; padding: 4px 12px; }
+  .secao { border: 1px solid var(--borda); border-radius: 10px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+  .secao > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #faf5f1; }
+  .secao > summary::-webkit-details-marker { display: none; }
+  .secao > summary::before { content: '▸'; color: var(--marca); transition: transform .15s; }
+  .secao[open] > summary::before { transform: rotate(90deg); }
+  .secao .rot { font-weight: 700; color: var(--marca); }
+  .secao .per { font-size: 13px; color: var(--suave); }
+  .secao .qtd { margin-left: auto; font-size: 12px; color: var(--suave); }
+  .sit { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+  .sit.vencida { background: #fbeceb; color: var(--erro); }
+  .sit.atual { background: #e6f2ea; color: var(--ok); }
+  .sit.futura { background: #f0ebe8; color: var(--suave); }
+  .itens { list-style: none; margin: 0; padding: 4px 14px 10px; }
+  .itens li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid #f3ebe6; font-size: 14px; }
+  .itens li:first-child { border-top: 0; }
+  .itens .o { color: var(--suave); font-weight: 700; text-align: right; }
+  .novo { font-size: 10px; font-weight: 700; color: #1f4e78; background: #e3eef6; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" title="Voltar para o início"><img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"></a>
+  <div class="sep"></div>
+  <div>
+    <h1>Gerador de Checklist</h1>
+    <div class="sub">Cronograma de tarefas do casamento, a partir da data do evento</div>
+  </div>
+  <div class="esp"></div>
+  <a class="voltar" href="/">← Início</a>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="card">
+      <h2>Casais</h2>
+      <input id="busca" placeholder="Buscar por nome ou número…" style="margin-bottom:10px">
+      <ul class="lista" id="lista"><li class="vazio">Carregando…</li></ul>
+    </div>
+  </aside>
+
+  <main id="principal">
+    <div class="card"><div class="vazio">Escolha um casal na lista ao lado para montar o checklist.</div></div>
+  </main>
+</div>
+
+<script>
+const api = async (url, corpo) => {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (s) => document.querySelector(s);
+const dataBr = (s) => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim()); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+const SIT = { vencida: 'prazo passou', atual: 'agora', futura: 'próxima' };
+
+let contratos = [];
+let vertentes = [];
+let atual = null;     // arquivo do contrato selecionado
+let vertente = 'destination';
+
+function renderLista() {
+  const q = $('#busca').value.trim().toLowerCase();
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const filtrados = contratos.filter((c) => !q || `${c.numero_os} ${c.evento_nomes}`.toLowerCase().includes(q))
+    .map((c) => ({ ...c, d: dataBr(c.evento_data) }));
+  const futuros = filtrados.filter((c) => !c.d || c.d >= hoje).sort((a, b) => (a.d || Infinity) - (b.d || Infinity));
+  const passados = filtrados.filter((c) => c.d && c.d < hoje).sort((a, b) => b.d - a.d);
+  const item = (c) => `<li data-a="${esc(c.arquivo)}" class="${c.arquivo === atual ? 'ativo' : ''}">
+      <div class="num">${esc(c.numero_os || 'sem número')} ${/^s/i.test(c.destination) ? '<span class="tag dest">Destination</span>' : ''}</div>
+      <div class="nome">${esc(c.evento_nomes || c.arquivo)}</div>
+      <div class="det">${esc(c.evento_data || 'data a definir')}${c.evento_local ? ' · ' + esc(c.evento_local) : ''}</div></li>`;
+  $('#lista').innerHTML =
+    (futuros.length ? '<li class="grupo">Próximos eventos</li>' + futuros.map(item).join('') : '') +
+    (passados.length ? '<li class="grupo">Eventos que já passaram</li>' + passados.map(item).join('') : '') ||
+    '<li class="vazio">Nenhum contrato encontrado.</li>';
+  document.querySelectorAll('#lista li[data-a]').forEach((li) => li.onclick = () => selecionar(li.dataset.a));
+}
+
+async function selecionar(arquivo) {
+  atual = arquivo;
+  renderLista();
+  $('#principal').innerHTML = '<div class="card"><div class="vazio">Montando checklist…</div></div>';
+  try {
+    const ck = await api(`/api/checklist/previa?arquivo=${encodeURIComponent(arquivo)}&vertente=${vertente}`);
+    renderChecklist(ck);
+  } catch (e) {
+    $('#principal').innerHTML = `<div class="card"><div class="aviso erro">${esc(e.message)}</div></div>`;
+  }
+}
+
+function renderChecklist(ck) {
+  const e = ck.evento;
+  const cont = { vencida: 0, atual: 0, futura: 0 };
+  ck.secoes.forEach((s) => { if (s.situacao) cont[s.situacao] += s.itens.length; });
+  const novos = ck.secoes.reduce((n, s) => n + s.itens.filter((i) => i.sugerido).length, 0);
+  const segs = vertentes.map((v) => `<button data-v="${v.id}" class="${v.id === vertente ? 'on' : ''}" ${v.disponivel ? '' : 'disabled title="Em breve"'}>
+      ${esc(v.nome)}${v.disponivel ? '' : ' (em breve)'}</button>`).join('');
+  const alerta = !ck.destination_contrato && vertente === 'destination'
+    ? '<div class="aviso info">O contrato deste casal não está marcado como destination. Confira se este é o checklist certo.</div>' : '';
+
+  $('#principal').innerHTML = `
+    <div class="card">
+      <div class="topo">
+        <div class="info">
+          <div class="num" style="font-weight:700;color:var(--marca-2)">${esc(e.numero_os)}</div>
+          <h3>${esc(e.nomes)}</h3>
+          <dl>
+            <dt>Data</dt><dd>${e.data ? `${esc(e.data)} · ${esc(e.data_extenso)}` : `a definir${e.periodo ? ' (' + esc(e.periodo) + ')' : ''}`}</dd>
+            <dt>Horário</dt><dd>${esc(e.horario || 'a definir')}</dd>
+            <dt>Local</dt><dd>${esc(e.local || 'a definir')}</dd>
+            <dt>Convidados</dt><dd>${esc(e.convidados || '–')}${e.padrinhos ? ` · ${esc(e.padrinhos)} casais de padrinhos` : ''}${e.criancas ? ` · ${esc(e.criancas)} crianças` : ''}</dd>
+          </dl>
+        </div>
+        <div class="acoes">
+          <div class="seg" id="seg">${segs}</div>
+          <button class="btn primario" id="btnGerar">Gerar planilha na pasta do casal</button>
+          <div class="det" style="font-size:12px;color:var(--suave)">Pasta: ${esc(ck.pasta)}${ck.pasta_existe ? '' : ' <b>(será criada)</b>'}</div>
+          <div id="resultado"></div>
+        </div>
+      </div>
+      ${alerta}
+    </div>
+    <div class="resumo">
+      <span><b>${ck.total_itens}</b> tarefas</span>
+      ${e.data ? `<span style="color:var(--erro)"><b>${cont.vencida}</b> com prazo passado</span>
+      <span style="color:var(--ok)"><b>${cont.atual}</b> para agora</span>
+      <span><b>${cont.futura}</b> próximas</span>` : '<span>Sem data do evento: os prazos aparecem quando a data for definida</span>'}
+      ${novos ? `<span>${novos} itens sugeridos para revisar (marcados com <span class="novo" style="margin:0">novo</span>)</span>` : ''}
+    </div>
+    ${ck.secoes.map((s) => `
+      <details class="secao" ${s.situacao !== 'futura' ? 'open' : ''}>
+        <summary>
+          <span class="rot">${esc(s.rotulo)}</span>
+          ${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
+          ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}
+          <span class="qtd">${s.itens.length} tarefas</span>
+        </summary>
+        <ul class="itens">${s.itens.map((i) => `<li><span class="o">${i.ordem}</span>
+          <span>${esc(i.texto)}${i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : ''}</span></li>`).join('')}</ul>
+      </details>`).join('')}`;
+
+  document.querySelectorAll('#seg button[data-v]').forEach((b) => b.onclick = () => {
+    if (b.disabled) return;
+    vertente = b.dataset.v; selecionar(atual);
+  });
+  $('#btnGerar').onclick = () => gerar(false);
+}
+
+async function gerar(novaVersao) {
+  const out = $('#resultado');
+  $('#btnGerar').disabled = true;
+  out.innerHTML = '<div class="aviso info">Gerando…</div>';
+  try {
+    const r = await api('/api/checklist/gerar', { arquivo: atual, vertente, novaVersao });
+    if (r.existe) {
+      out.innerHTML = `<div class="aviso info">Já existe um checklist na pasta deste casal (${esc(r.arquivo.split(/[\\/]/).pop())}).
+        Ele não foi alterado para não perder o que já foi preenchido.<br>
+        <button class="btn" id="bPasta">Abrir pasta</button><button class="btn" id="bNova">Gerar nova versão</button></div>`;
+      $('#bNova').onclick = () => gerar(true);
+    } else {
+      document.querySelectorAll('.acoes .det b').forEach((b) => b.remove());
+      out.innerHTML = `<div class="aviso ok">Planilha criada: <b>${esc(r.arquivo.split(/[\\/]/).pop())}</b><br>
+        <button class="btn" id="bPasta">Abrir pasta</button></div>`;
+    }
+    $('#bPasta').onclick = () => api('/api/abrir', { caminho: r.pasta }).catch((e) => alert(e.message));
+  } catch (e) {
+    out.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`;
+  } finally {
+    $('#btnGerar').disabled = false;
+  }
+}
+
+(async () => {
+  try {
+    [contratos, vertentes] = await Promise.all([api('/api/contratos'), api('/api/checklist/vertentes')]);
+    renderLista();
+    const pre = new URLSearchParams(location.search).get('contrato');
+    if (pre) selecionar(pre);
+  } catch (e) {
+    $('#lista').innerHTML = `<li class="vazio">${esc(e.message)}</li>`;
+  }
+})();
+$('#busca').addEventListener('input', renderLista);
+</script>
+</body>
+</html>
