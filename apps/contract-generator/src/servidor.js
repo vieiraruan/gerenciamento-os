@@ -289,9 +289,18 @@ const rotas = {
     const { arquivo, campos } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const pl = ev.localizarPlanilha(pasta);
+    if (corpo.texto) {
+      // colado do Google Planilhas
+      const lista = ev.lerTextoColado(corpo.texto);
+      if (!lista.length) throw new Error('Não reconheci fornecedores no texto colado. Copie as colunas Fornecedor e Descrição da aba FINANCEIRO.');
+      const atual = ev.carregarEvento(DADOS, arquivo, campos);
+      const junto = ev.importarFornecedores(atual, lista, 'Google Planilhas (colado)');
+      const salvo = ev.salvarEvento(DADOS, arquivo, junto);
+      return { evento: salvo, novos: junto.novos, planilha: pl, pendencias: ev.pendencias(salvo) };
+    }
     if (!pl.arquivo) {
       throw new Error(pl.gsheet
-        ? 'A planilha deste casal está no Google Planilhas. No Google Drive, abra a planilha e use Arquivo > Fazer download > .xlsx, salve na pasta do casal e importe de novo (ou cadastre os fornecedores aqui).'
+        ? 'A planilha deste casal está no Google Planilhas. Use "Colar do Google Planilhas": copie as colunas Fornecedor e Descrição da aba FINANCEIRO e cole aqui.'
         : 'Não encontrei a planilha de assessoria (.xlsx) na pasta do casal. Cadastre os fornecedores aqui ou coloque a planilha na pasta.');
     }
     const atual = ev.carregarEvento(DADOS, arquivo, campos);

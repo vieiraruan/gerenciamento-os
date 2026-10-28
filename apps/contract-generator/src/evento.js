@@ -136,6 +136,37 @@ function lerFinanceiro(arquivo) {
   return lista;
 }
 
+/**
+ * Fornecedores a partir de um trecho copiado do Google Planilhas (Ctrl+C na aba FINANCEIRO):
+ * colunas separadas por tabulação. Usa a linha de cabeçalho "Fornecedor" se vier junto; senão,
+ * 1ª coluna = fornecedor e 2ª = descrição do serviço.
+ */
+function lerTextoColado(texto) {
+  const linhas = String(texto || '').replace(/\r/g, '').split('\n').map((l) => l.split('\t'));
+  let cF = 0; let cD = 1; let inicio = 0;
+  const cab = linhas.findIndex((l) => l.some((c) => /^\s*fornecedor\s*$/i.test(c)));
+  if (cab >= 0) {
+    cF = linhas[cab].findIndex((c) => /^\s*fornecedor\s*$/i.test(c));
+    const d = linhas[cab].findIndex((c) => /descri/i.test(c));
+    cD = d >= 0 ? d : cF + 1;
+    inicio = cab + 1;
+  } else {
+    // pula colunas vazias à esquerda (ex.: copiou a partir da coluna A)
+    const primeira = linhas.find((l) => l.some((c) => c.trim()));
+    if (primeira) { cF = primeira.findIndex((c) => c.trim()); cD = cF + 1; }
+  }
+  const lista = [];
+  for (const l of linhas.slice(inicio)) {
+    const nome = String(l[cF] || '').replace(/\s+/g, ' ').trim();
+    if (!nome || /^r\$|^\d+([.,]\d+)?$/.test(nome)) continue;
+    if (/^total/i.test(nome)) break;
+    if (/tayn[aá]\s+alves/i.test(nome)) continue;
+    const desc = String(l[cD] || '').split(/[.;]/)[0].replace(/\s+/g, ' ').trim();
+    lista.push({ nome, servico: desc.length > 60 ? `${desc.slice(0, 57)}…` : desc });
+  }
+  return lista;
+}
+
 // ---------------------------------------------------------------------------
 // Dados do evento
 // ---------------------------------------------------------------------------
@@ -269,6 +300,6 @@ const exibirHora = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h || ''); return 
 
 module.exports = {
   CATEGORIAS: CATEGORIAS.map(([id, nome]) => ({ id, nome })), ROTULO_CATEGORIA, DIAS, categorizar,
-  localizarPlanilha, lerFinanceiro, carregarEvento, salvarEvento, importarFornecedores,
+  localizarPlanilha, lerFinanceiro, lerTextoColado, carregarEvento, salvarEvento, importarFornecedores,
   pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora,
 };

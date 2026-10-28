@@ -142,7 +142,8 @@ cronograma do dia com horário de cada atividade e programação dos outros dias
    da montagem.
 2. **Fornecedores**: "Importar do controle financeiro" lê a aba FINANCEIRO da planilha de assessoria (.xlsx) da pasta
    do casal (fornecedor e descrição). O que não está no controle financeiro (telefone, responsável, quando chega e
-   horário) é preenchido na tela. Planilhas no Google Planilhas: baixar como .xlsx na pasta do casal.
+   horário) é preenchido na tela. Planilhas no Google Planilhas (.gsheet): botão "Colar do Google Planilhas"
+   (copiar as colunas Fornecedor e Descrição da aba FINANCEIRO e colar).
 3. **Atividades do dia**: sugestões do roteiro (making of, saída para a cerimônia, recepção, bolo, buquê...) com
    horários calculados pelo horário da cerimônia; todas editáveis. As chegadas dos fornecedores entram sozinhas.
 4. Só gera quando **tudo estiver preenchido** (a tela lista o que falta). Salvo automaticamente em

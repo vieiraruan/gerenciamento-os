@@ -229,7 +229,15 @@ function renderChecklist(ck) {
         responsável e horário de chegada. "Sem horário" = só contato (ex.: local, papelaria entregue antes).</div>
       <div class="linha-acoes" style="margin:0 0 10px">
         <button class="btn" id="btnImportar">Importar do controle financeiro</button>
+        <button class="btn" id="btnColar">Colar do Google Planilhas</button>
         <span class="salvo" id="fonte"></span>
+      </div>
+      <div id="caixaColar" style="display:none;margin-bottom:10px">
+        <div class="det" style="font-size:13px;margin-bottom:6px">No Google Planilhas, abra a aba <b>FINANCEIRO</b> da planilha do casal, selecione as colunas
+          <b>Fornecedor</b> e <b>Descrição do Serviço</b> (pode incluir o cabeçalho), copie (Ctrl+C) e cole abaixo (Ctrl+V).</div>
+        <textarea id="txtColar" style="min-height:120px" placeholder="Cole aqui…"></textarea>
+        <div class="linha-acoes"><button class="btn primario" id="btnColarOk">Importar fornecedores colados</button>
+          <button class="btn" id="btnColarCancelar">Cancelar</button></div>
       </div>
       <div style="overflow-x:auto"><table class="t" id="tForn"></table></div>
       <div class="linha-acoes"><button class="btn" id="btnAddForn">+ Adicionar fornecedor</button></div>
@@ -274,6 +282,9 @@ function renderChecklist(ck) {
   $('#btnEvento').onclick = () => gerar('evento', false);
   $('#btnCrono').onclick = () => gerar('cronograma', false);
   $('#btnImportar').onclick = importar;
+  $('#btnColar').onclick = () => { $('#caixaColar').style.display = 'block'; $('#txtColar').focus(); };
+  $('#btnColarCancelar').onclick = () => { $('#caixaColar').style.display = 'none'; };
+  $('#btnColarOk').onclick = () => importar($('#txtColar').value);
   $('#btnAddForn').onclick = () => { EV.fornecedores.push({ id: novoId(), nome: '', servico: '', categoria: 'outros', responsavel: '', telefone: '', dia: 'evento', chegada: '', observacao: '', origem: 'manual' }); renderForn(); agendar(); };
   $('#btnAddAtiv').onclick = () => { EV.atividades.push({ id: novoId(), hora: '', texto: '', responsavel: '', detalhes: [], origem: 'manual' }); renderAtiv(); agendar(); };
   $('#btnOrdenar').onclick = () => { EV.atividades.sort((a, b) => minutos(a.hora) - minutos(b.hora)); renderAtiv(); agendar(); };
@@ -296,7 +307,7 @@ async function carregarEvento() {
 function renderFonte() {
   const p = META.planilha || {};
   $('#fonte').textContent = p.arquivo ? `Planilha: ${p.arquivo.split(/[\\/]/).pop()}` + (EV.importado_em ? ` · importado em ${new Date(EV.importado_em).toLocaleString('pt-BR')}` : '')
-    : p.gsheet ? 'Planilha no Google Planilhas: baixe como .xlsx na pasta do casal para importar' : 'Planilha de assessoria (.xlsx) não encontrada na pasta do casal';
+    : p.gsheet ? 'A planilha deste casal está no Google Planilhas: use "Colar do Google Planilhas"' : 'Planilha de assessoria não encontrada na pasta do casal: cadastre aqui ou cole do Google Planilhas';
 }
 
 const INFO = [
@@ -405,10 +416,11 @@ function agendar() {
   }, 600);
 }
 
-async function importar() {
+async function importar(texto) {
   const b = $('#btnImportar'); b.disabled = true;
   try {
-    const r = await api('/api/evento/importar', { arquivo: atual });
+    const r = await api('/api/evento/importar', { arquivo: atual, texto: typeof texto === 'string' ? texto : undefined });
+    if (typeof texto === 'string') { $('#caixaColar').style.display = 'none'; $('#txtColar').value = ''; }
     EV = r.evento; PEND = r.pendencias; META.planilha = r.planilha;
     renderForn(); renderAtiv(); renderPend(); renderFonte();
     $('#fonte').textContent += ` · ${r.novos} novo(s) fornecedor(es)`;
