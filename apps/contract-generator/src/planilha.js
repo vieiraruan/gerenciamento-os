@@ -1,140 +1,198 @@
 'use strict';
 
 /**
- * Cria a "PLANILHA DE ASSESSORIA <casal>.xlsx" a partir de templates/planilha_assessoria.xlsx,
- * que é o modelo da empresa limpo (scripts/criar_planilha_assessoria.py).
+ * Planilha de assessoria do casal → dados do dia do evento.
  *
- * O arquivo é editado no nível do XML: só as células marcadas com {{CAMPO}} mudam;
- * formatação, logo, listas, checklist e fórmulas ficam exatamente como no modelo.
- * Uma planilha existente nunca é sobrescrita (pode ter pagamentos lançados).
+ * Fontes (a mais recente vale):
+ *  - .xlsx na pasta do casal (lido direto);
+ *  - cópia sincronizada de uma planilha do Google Planilhas, gravada em
+ *    _DADOS DO SISTEMA/planilhas/<contrato>.json  (formato abaixo). O app não acessa o Google;
+ *    a cópia é feita pela sincronização (Claude + conector do Google) e o app só lê o arquivo.
+ *
+ *  { "fonte": { "tipo": "google", "id": "...", "titulo": "...", "url": "...", "modificada_em": "..." },
+ *    "lido_em": "2026-10-28T23:00:00Z",
+ *    "info": { "convidados": "100", "padrinhos": "10", "criancas": "03",
+ *              "local": "Casa de Chá", "horario": "16h", "data": "31/10/2026" },
+ *    "fornecedores": [ { "nome": "La Place", "descricao": "Buffet\nDuração 07h", "pix": "..." } ] }
+ *
+ * O que vem da planilha só PREENCHE o que está vazio: o que já foi editado no app é mantido.
  */
 const fs = require('fs');
 const path = require('path');
-const PizZip = require('pizzip');
-const { parseValor } = require('./parser');
-const { parseHora } = require('./contrato');
+const { lerAba } = require('./xlsxLeitor');
 
-const MODELO = path.resolve(__dirname, '..', 'templates', 'planilha_assessoria.xlsx');
+const chave = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase();
+const limpa = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
-const escXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const unescXml = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+// "Fornecedor" que na verdade é o nome do serviço (ex.: "Vestido" | "Cassia Gonçalvez")
+const SERVICO_GENERICO = new RegExp(`^(${[
+  'foto', 'fotos', 'fotografia', 'foto e video', 'foto e filme', 'filme', 'video', 'vestido', 'vestido noiva', 'vestido da noiva',
+  'banda', 'banda \\d+', 'banda cerimonia', 'dj', 'gerador', 'gerador de energia', 'bolo', 'bolo de rolo', 'doces', 'seguranca',
+  'seg limpeza', 'limpeza', 'cervejas?', 'bebidas', 'drinks?', 'chopp', 'sandalias?', 'sapato( da)? noiva', 'terno( do)? noivo',
+  'bem casados?', 'celebrante', 'decoracao', 'buffet', 'local', 'igreja', 'cadeiras', 'mobilia', 'id visual', 'musica( da)? cerimonia',
+  'lembrancas( de padrinhos)?', 'maquiagem', 'make', 'cabelo', 'cabelo e make', 'som', 'iluminacao', 'orquestra', 'convites?',
+].join('|')})$`);
 
-/** Mapa "nome da aba" -> caminho do XML dentro do .xlsx */
-function mapaAbas(zip) {
-  const wb = zip.file('xl/workbook.xml').asText();
-  const rels = zip.file('xl/_rels/workbook.xml.rels').asText();
-  const alvo = {};
-  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
-    const id = /Id="([^"]+)"/.exec(m[0])[1];
-    const t = /Target="([^"]+)"/.exec(m[0])[1].replace(/^\/?xl\//, '');
-    alvo[id] = `xl/${t}`;
+// sem horário no dia (só contato): compras, trajes, papelaria...
+const SO_CONTATO = /vestido|sapato|\bterno\b|\btraje|sand[aá]lia|alian[cç]a|caixas? (de )?padrinho|lembran[cç]as? de padrinho|forminha|acess[oó]rio|id visual|identidade visual|convite|papelaria|massag|booking|bon[eé]s|ecobag/i;
+
+const IGNORAR = /tayn[aá]\s+alves|^outras?\s+desp|^degusta|^total\b|\{\{/i;
+
+/** Celular brasileiro em um texto (DDD + 9 + 8 dígitos), formatado. */
+function acharCelular(texto) {
+  const m = /(?<!\d)(?:\+?55\s*)?\(?([1-9][1-9])\)?\s*(9\s?\d{4})[\s.-]?(\d{4})(?!\d)/.exec(String(texto || ''));
+  if (!m) return '';
+  return `(${m[1]}) ${m[2].replace(/\s/g, '')}-${m[3]}`;
+}
+
+/** Horário escrito de qualquer jeito na planilha ("16h", "15h30", "1530h", "16:00h") → "HH:MM". */
+function lerHorario(t) {
+  const s = String(t || '').trim();
+  let m = /^(\d{1,2})(\d{2})\s*h?$/i.exec(s);
+  if (!m) m = /(\d{1,2})\s*[h:]\s*(\d{2})?/i.exec(s);
+  if (!m) return '';
+  const h = Number(m[1]); const min = Number(m[2] || 0);
+  if (h > 23 || min > 59) return '';
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+const aDefinir = (s) => !limpa(s) || /^(a|à)\s*definir$/i.test(limpa(s));
+
+/**
+ * Linhas cruas do FINANCEIRO ({nome, descricao, pix}) → fornecedores para o checklist:
+ * { nome, servico, observacao, telefone, telefone_pix, dia }
+ */
+function normalizarFornecedores(cruas) {
+  const lista = [];
+  for (const r of cruas || []) {
+    let nome = limpa(r.nome);
+    const linhasDesc = String(r.descricao || '').replace(/\r/g, '').split('\n').map(limpa).filter(Boolean);
+    if (!nome || /^\d+$/.test(nome) || /^r\$/i.test(nome)) continue;
+    if (/^total\b/i.test(nome)) break;
+    if (IGNORAR.test(nome)) continue;
+
+    let servico;
+    let resto;
+    const primeira = linhasDesc[0] || '';
+    const palavrasServico = chave(nome).split(' ').filter((w) => w.length > 3);
+    const pareceNome = primeira && primeira.length <= 30 && primeira.split(' ').length <= 4 && !/^\d/.test(primeira)
+      && !/^(comprad[oa]|pago|alugad[oa]|ok|sim)$/i.test(primeira)
+      && !palavrasServico.some((w) => chave(primeira).includes(w));
+    if (SERVICO_GENERICO.test(chave(nome)) && pareceNome) {
+      // coluna Fornecedor tem o serviço e a descrição tem o nome
+      servico = nome;
+      nome = /^(igreja|capela|par[oó]quia)$/i.test(chave(servico)) ? `${servico} ${primeira}` : primeira;
+      resto = linhasDesc.slice(1);
+    } else {
+      const corte = primeira.split(/[.;]/)[0].trim();
+      servico = corte || (SERVICO_GENERICO.test(chave(nome)) ? nome : '');
+      resto = [primeira.slice(corte.length).replace(/^[.;\s]+/, ''), ...linhasDesc.slice(1)].filter(Boolean);
+    }
+    if (servico.length > 60) {
+      // corta em "/" ou "," (ou no último espaço) antes de 60 caracteres; o resto vai para a observação
+      const partes = servico.split(/(?<=[/,])\s*/);
+      let curto = '';
+      while (partes.length && (curto + partes[0]).length <= 60) curto += (curto && !/[/,]$/.test(curto) ? ' ' : (curto ? ' ' : '')) + partes.shift();
+      if (!curto) { const i = servico.lastIndexOf(' ', 60); curto = servico.slice(0, i > 20 ? i : 60); partes.splice(0, partes.length, servico.slice(curto.length)); }
+      resto.unshift(partes.join(' ').trim());
+      servico = curto.replace(/[/,\s]+$/, '');
+    }
+    let observacao = resto.map((x) => x.replace(/^[-–•*\s]+/, '')).filter(Boolean).join(' · ');
+    if (observacao.length > 220) observacao = `${observacao.slice(0, 217)}…`;
+
+    let telefone = acharCelular(r.descricao);
+    let telefonePix = false;
+    if (!telefone && r.pix) { telefone = acharCelular(r.pix); telefonePix = !!telefone; }
+
+    lista.push({
+      nome, servico, observacao, telefone, telefone_pix: telefonePix,
+      dia: SO_CONTATO.test(`${nome} ${servico}`) ? 'nao' : '',
+    });
   }
-  const abas = {};
-  for (const m of wb.matchAll(/<sheet\b[^>]*>/g)) {
-    const nome = unescXml(/name="([^"]+)"/.exec(m[0])[1]);
-    abas[nome] = alvo[/r:id="([^"]+)"/.exec(m[0])[1]];
-  }
-  return abas;
+  return lista;
 }
 
-/** Textos compartilhados (sharedStrings) — para achar as células {{CAMPO}}. */
-function textosCompartilhados(zip) {
-  const f = zip.file('xl/sharedStrings.xml');
-  if (!f) return [];
-  return [...f.asText().matchAll(/<si>([\s\S]*?)<\/si>/g)]
-    .map((m) => unescXml([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((t) => t[1]).join('')));
-}
-
-/** Troca o conteúdo da célula `ref`, mantendo o estilo (atributo s). */
-function definirCelula(xml, ref, valor) {
-  const re = new RegExp(`<c r="${ref}"([^>]*?)(?:/>|>[\\s\\S]*?</c>)`);
-  const m = re.exec(xml);
-  if (!m) throw new Error(`Célula ${ref} não encontrada no modelo da planilha.`);
-  const estilo = (/\ss="(\d+)"/.exec(m[1]) || [])[1];
-  const s = estilo ? ` s="${estilo}"` : '';
-  let nova;
-  if (valor === null || valor === undefined || valor === '') nova = `<c r="${ref}"${s}/>`;
-  else if (typeof valor === 'number') nova = `<c r="${ref}"${s}><v>${valor}</v></c>`;
-  else nova = `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escXml(valor)}</t></is></c>`;
-  return xml.replace(m[0], nova);
-}
-
-/** Preenche todas as células cujo texto é {{CAMPO}} com valores[CAMPO]. */
-function preencherAba(xml, compartilhados, valores) {
-  const pendentes = [];
-  const alvos = [];
-  for (const m of xml.matchAll(/<c r="([A-Z]+\d+)"([^>]*?)>([\s\S]*?)<\/c>/g)) {
-    const [, ref, attrs, corpo] = m;
-    let texto = null;
-    if (/t="s"/.test(attrs)) texto = compartilhados[Number((/<v>(\d+)<\/v>/.exec(corpo) || [])[1])];
-    else if (/t="inlineStr"/.test(attrs)) texto = unescXml((/<t[^>]*>([\s\S]*?)<\/t>/.exec(corpo) || [])[1] || '');
-    const campo = texto && (/^\{\{(\w+)\}\}$/.exec(texto) || [])[1];
-    if (campo) alvos.push([ref, campo]);
-  }
-  for (const [ref, campo] of alvos) {
-    if (!(campo in valores)) pendentes.push(campo);
-    xml = definirCelula(xml, ref, valores[campo]);
-  }
-  return { xml, pendentes };
-}
-
-function nomeArquivo(nomes) {
-  const limpo = String(nomes).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
-  return `PLANILHA DE ASSESSORIA ${limpo}.xlsx`;
-}
-
-async function criarPlanilha(pastaCasal, { brutos, dados, empresa }) {
-  const destino = path.join(pastaCasal, nomeArquivo(brutos.evento_nomes));
-  if (fs.existsSync(destino)) return { criada: false, arquivo: destino };
-
-  const zip = new PizZip(fs.readFileSync(MODELO));
-  const abas = mapaAbas(zip);
-  const compartilhados = textosCompartilhados(zip);
-
-  const total = parseValor(dados.valor_total);
-  const entrada = parseValor(dados.entrada);
-  const parcelas = dados.parcelas || [];
-  let horario = 'a combinar';
-  if (brutos.evento_horario) horario = parseHora(brutos.evento_horario) / 1440; // fração do dia (formato hh:mm)
-
-  const nomes = String(brutos.evento_nomes).replace(/\s+/g, ' ').trim().toUpperCase();
-  const valores = {
-    // aba ASSESSORIA
-    NOIVOS: `NOIVOS: ${nomes}`,
-    DATA: `DATA: ${brutos.evento_data ? dados.evento_data : `a definir${brutos.evento_periodo ? ` (${brutos.evento_periodo})` : ''}`}`,
-    // mesmos números do contrato (com os padrões aplicados): "08 (oito)" -> 8
-    CONVIDADOS: parseInt(dados.convidados_fmt, 10),
-    PADRINHOS: parseInt(dados.casais_padrinhos_fmt, 10),
-    CRIANCAS: parseInt(dados.criancas_fmt, 10),
-    LOCAL: brutos.evento_local || 'a combinar',
-    HORARIO: horario,
-    // aba FINANCEIRO, linha 4: contrato do casal com a assessoria
-    F_B: empresa.nome_fantasia || empresa.razao_social,
-    F_C: `${dados.servicos_nomes} (contrato ${dados.numero_os})`,
-    F_D: total,
-    F_E: entrada,
-    F_F: 'Pendente',
-    F_I: parcelas.length ? `${parcelas.length}x` : '',
-    F_J: parcelas.length ? parcelas[0].valor : '',
-    F_N: 'Pendente',
-    F_O: empresa.pix || '',
-    F_P: `Contrato ${dados.numero_os} gerado em ${dados.data_assinatura}. Saldo até ` +
-      `${dados.tem_vencimento ? dados.vencimento_saldo : `${brutos.prazo_quitacao_dias || 15} dias antes do evento`}.`,
+/** Bloco INFORMAÇÕES da aba ASSESSORIA, a partir de linhas (arrays de células). */
+function infoDeLinhas(linhas) {
+  const info = {};
+  const valorApos = (l, re) => {
+    const i = l.findIndex((c) => re.test(c || ''));
+    if (i < 0) return undefined;
+    const dentro = String(l[i]).split(':').slice(1).join(':').trim();
+    if (dentro) return dentro;
+    const prox = l.slice(i + 1).find((c) => limpa(c));
+    return prox ? limpa(prox) : '';
   };
-
-  const pendentes = [];
-  for (const aba of ['ASSESSORIA', 'FINANCEIRO']) {
-    const arq = abas[aba];
-    if (!arq) throw new Error(`Aba ${aba} não encontrada no modelo da planilha.`);
-    const r = preencherAba(zip.file(arq).asText(), compartilhados, valores);
-    zip.file(arq, r.xml);
-    pendentes.push(...r.pendentes);
+  for (const l of linhas.slice(0, 15)) {
+    const conv = valorApos(l, /qtd\.?\s*convidados/i); if (conv !== undefined && !/qtd/i.test(conv)) info.convidados = conv;
+    const pad = valorApos(l, /casal de padrinho/i); if (pad !== undefined && !/qtd/i.test(pad)) info.padrinhos = pad;
+    const cri = valorApos(l, /qtd\.?\s*de\s*crian/i); if (cri !== undefined) info.criancas = cri;
+    const loc = valorApos(l, /local da cerim/i); if (loc !== undefined) info.local = loc;
+    const hor = valorApos(l, /hor[aá]rio da cerim/i); if (hor !== undefined) info.horario = hor;
+    const dat = valorApos(l, /^\s*data\s*:/i); if (dat !== undefined) info.data = dat;
   }
-  if (pendentes.length) throw new Error(`Campos sem valor no modelo da planilha: ${pendentes.join(', ')}`);
-
-  fs.mkdirSync(pastaCasal, { recursive: true });
-  fs.writeFileSync(destino, zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
-  return { criada: true, arquivo: destino };
+  return info;
 }
 
-module.exports = { criarPlanilha, nomeArquivo };
+/** Lê uma planilha .xlsx (abas FINANCEIRO e ASSESSORIA) no mesmo formato da cópia sincronizada. */
+function lerPlanilhaXlsx(arquivo) {
+  const fin = lerAba(arquivo, 'FINANCEIRO');
+  if (!fin) throw new Error('A planilha do casal não tem a aba FINANCEIRO.');
+  const cols = (l) => Object.keys(l.c);
+  const cab = fin.linhas.find((l) => cols(l).some((k) => /^\s*fornecedor\s*$/i.test(l.c[k])));
+  const fornecedores = [];
+  if (cab) {
+    const col = (re) => cols(cab).find((k) => re.test(cab.c[k]));
+    const cN = col(/^\s*fornecedor\s*$/i); const cD = col(/descri/i); const cP = col(/^\s*pix\s*$/i);
+    for (const l of fin.linhas) {
+      if (l.n <= cab.n) continue;
+      if (/^\s*total/i.test(l.c[cN] || '') || Object.values(l.c).some((v) => /^\s*total\s*:?\s*$/i.test(v))) break;
+      fornecedores.push({ nome: l.c[cN] || '', descricao: (cD && l.c[cD]) || '', pix: (cP && l.c[cP]) || '' });
+    }
+  }
+  const ass = lerAba(arquivo, 'ASSESSORIA');
+  const letras = (l) => { const ks = Object.keys(l.c).sort((a, b) => a.length - b.length || a.localeCompare(b)); return ks.map((k) => l.c[k]); };
+  const info = ass ? infoDeLinhas(ass.linhas.map(letras)) : {};
+  return {
+    fonte: { tipo: 'xlsx', titulo: path.basename(arquivo), arquivo },
+    lido_em: new Date(fs.statSync(arquivo).mtimeMs).toISOString(),
+    info, fornecedores,
+  };
+}
+
+const arquivoCopia = (dirDados, contratoArquivo) => path.join(dirDados, 'planilhas', String(contratoArquivo).replace(/\.txt$/i, '.json'));
+
+function lerCopiaSincronizada(dirDados, contratoArquivo) {
+  const arq = arquivoCopia(dirDados, contratoArquivo);
+  if (!fs.existsSync(arq)) return null;
+  try { return JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, '')); } catch { return null; }
+}
+
+/** A fonte mais recente entre o .xlsx da pasta e a cópia sincronizada do Google. */
+function fonteDoCasal(dirDados, contratoArquivo, xlsx) {
+  const copia = lerCopiaSincronizada(dirDados, contratoArquivo);
+  let doXlsx = null;
+  if (xlsx) { try { doXlsx = lerPlanilhaXlsx(xlsx); } catch { doXlsx = null; } }
+  if (copia && doXlsx) return new Date(copia.lido_em) >= new Date(doXlsx.lido_em) ? copia : doXlsx;
+  return copia || doXlsx;
+}
+
+const assinatura = (dados) => (dados ? `${dados.fonte?.tipo}:${dados.fonte?.id || dados.fonte?.titulo}:${dados.lido_em}` : '');
+
+/** Separa "Cerimônia - X, Festa - Y" quando a planilha traz os dois locais juntos. */
+function separarLocais(texto) {
+  const t = limpa(texto);
+  const m = /cerim[oô]nia\s*[-:–]\s*(.+?)\s*[,;|/]\s*(?:festa|recep[cç][aã]o)\s*[-:–]\s*(.+)/i.exec(t);
+  if (m) return { cerimonia: aDefinir(m[1]) ? '' : m[1], recepcao: aDefinir(m[2]) ? '' : m[2] };
+  // "Igreja X e Espaço Y": cerimônia na igreja, recepção no outro local
+  const ig = /^((?:igreja|par[oó]quia|capela|catedral|bas[ií]lica)\b.+?)\s+e\s+(.+)$/i.exec(t);
+  if (ig) return { cerimonia: ig[1], recepcao: ig[2] };
+  return aDefinir(t) ? { cerimonia: '', recepcao: '' } : { cerimonia: t, recepcao: t };
+}
+
+const ehServicoGenerico = (s) => SERVICO_GENERICO.test(chave(s));
+
+module.exports = {
+  ehServicoGenerico, normalizarFornecedores, infoDeLinhas, lerPlanilhaXlsx, lerCopiaSincronizada, arquivoCopia, fonteDoCasal,
+  assinatura, separarLocais, lerHorario, acharCelular, aDefinir,
+};

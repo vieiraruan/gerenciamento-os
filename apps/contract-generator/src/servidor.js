@@ -24,6 +24,7 @@ const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
 const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
 const { gravarChecklistEvento } = require('./roteiro');
 const ev = require('./evento');
+const planilhaCasal = require('./planilha');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -271,11 +272,21 @@ const rotas = {
   // ---- Dados do dia do evento (fornecedores, telefones, chegadas, atividades) ----
   'GET /api/evento': (q) => {
     const { arquivo, campos } = contratoDe(q.get('arquivo'));
-    const evento = ev.carregarEvento(DADOS, arquivo, campos);
+    let evento = ev.carregarEvento(DADOS, arquivo, campos);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const pl = ev.localizarPlanilha(pasta);
+    // planilha nova ou atualizada desde a última vez: pré-preenche (só o que está vazio) e salva
+    const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+    let aplicada = null;
+    if (dados && planilhaCasal.assinatura(dados) !== (evento.planilha || {}).assinatura) {
+      const junto = ev.aplicarPlanilha(evento, dados);
+      aplicada = { novos: junto.novos, atualizados: junto.atualizados };
+      delete junto.novos; delete junto.atualizados;
+      evento = ev.salvarEvento(DADOS, arquivo, junto);
+    }
     return {
-      evento, pendencias: ev.pendencias(evento), planilha: ev.localizarPlanilha(pasta),
-      categorias: ev.CATEGORIAS, dias: ev.DIAS, campos: ev.CAMPOS,
+      evento, pendencias: ev.pendencias(evento), planilha: { ...pl, sincronizada: dados ? { titulo: dados.fonte?.titulo, url: dados.fonte?.url, tipo: dados.fonte?.tipo, lido_em: dados.lido_em } : null },
+      aplicada, categorias: ev.CATEGORIAS, dias: ev.DIAS, campos: ev.CAMPOS,
     };
   },
 
@@ -289,24 +300,28 @@ const rotas = {
     const { arquivo, campos } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const pl = ev.localizarPlanilha(pasta);
+    const atual = ev.carregarEvento(DADOS, arquivo, campos);
+    let junto;
     if (corpo.texto) {
       // colado do Google Planilhas
       const lista = ev.lerTextoColado(corpo.texto);
       if (!lista.length) throw new Error('Não reconheci fornecedores no texto colado. Copie as colunas Fornecedor e Descrição da aba FINANCEIRO.');
-      const atual = ev.carregarEvento(DADOS, arquivo, campos);
-      const junto = ev.importarFornecedores(atual, lista, 'Google Planilhas (colado)');
-      const salvo = ev.salvarEvento(DADOS, arquivo, junto);
-      return { evento: salvo, novos: junto.novos, planilha: pl, pendencias: ev.pendencias(salvo) };
+      junto = ev.importarFornecedores(atual, lista, 'Google Planilhas (colado)');
+    } else {
+      const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+      if (!dados) {
+        throw new Error(pl.gsheet
+          ? 'A planilha deste casal está no Google Planilhas e ainda não foi sincronizada. Use "Colar do Google Planilhas": copie a aba FINANCEIRO e cole aqui.'
+          : 'Não encontrei a planilha de assessoria na pasta do casal. Cadastre os fornecedores aqui ou cole do Google Planilhas.');
+      }
+      junto = ev.aplicarPlanilha(atual, dados);
     }
-    if (!pl.arquivo) {
-      throw new Error(pl.gsheet
-        ? 'A planilha deste casal está no Google Planilhas. Use "Colar do Google Planilhas": copie as colunas Fornecedor e Descrição da aba FINANCEIRO e cole aqui.'
-        : 'Não encontrei a planilha de assessoria (.xlsx) na pasta do casal. Cadastre os fornecedores aqui ou coloque a planilha na pasta.');
-    }
-    const atual = ev.carregarEvento(DADOS, arquivo, campos);
-    const junto = ev.importarFornecedores(atual, ev.lerFinanceiro(pl.arquivo), path.basename(pl.arquivo));
+    const { novos, atualizados } = junto;
+    delete junto.novos; delete junto.atualizados;
     const salvo = ev.salvarEvento(DADOS, arquivo, junto);
-    return { evento: salvo, novos: junto.novos, planilha: pl, pendencias: ev.pendencias(salvo) };
+    const dadosPl = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+    const sincronizada = dadosPl ? { titulo: dadosPl.fonte?.titulo, url: dadosPl.fonte?.url, tipo: dadosPl.fonte?.tipo, lido_em: dadosPl.lido_em } : null;
+    return { evento: salvo, novos, atualizados, planilha: { ...pl, sincronizada }, pendencias: ev.pendencias(salvo) };
   },
 
   // tipo: 'evento' (checklist do evento .docx + painel do dia .html) ou 'cronograma' (tarefas, .xlsx)

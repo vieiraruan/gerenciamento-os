@@ -49,10 +49,13 @@ function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
   const lista = (dia) => forn.filter((f) => f.dia === dia && f.chegada)
     .sort((a, b) => minutos(a.chegada) - minutos(b.chegada))
     .map((f) => ({ chegada: exibirHora(f.chegada), servico_txt: servicoTxt(f), nome: f.nome, contato_txt: contatoTxt(f) }));
+  const qConv = i.convidados || contrato.convidados;
+  const qPad = i.padrinhos || contrato.padrinhos || contrato.casais_padrinhos;
+  const qCri = i.criancas || contrato.criancas;
   const conv = [
-    contrato.convidados && `${contrato.convidados} convidados`,
-    (contrato.padrinhos || contrato.casais_padrinhos) && `${contrato.padrinhos || contrato.casais_padrinhos} casais de padrinhos`,
-    contrato.criancas && `${contrato.criancas} crianças`,
+    qConv && `${qConv} convidados`,
+    qPad && `${qPad} casais de padrinhos`,
+    qCri && `${qCri} crianças`,
   ].filter(Boolean).join(' · ');
 
   const montagemVespera = lista('vespera');

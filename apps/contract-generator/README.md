@@ -140,10 +140,17 @@ cronograma do dia com horário de cada atividade e programação dos outros dias
 
 1. **Informações do dia**: horário da cerimônia, locais, responsável e telefone da assessoria, emergência, início
    da montagem.
-2. **Fornecedores**: "Importar do controle financeiro" lê a aba FINANCEIRO da planilha de assessoria (.xlsx) da pasta
-   do casal (fornecedor e descrição). O que não está no controle financeiro (telefone, responsável, quando chega e
-   horário) é preenchido na tela. Planilhas no Google Planilhas (.gsheet): botão "Colar do Google Planilhas"
-   (copiar as colunas Fornecedor e Descrição da aba FINANCEIRO e colar).
+2. **Fornecedores e informações do dia vêm da planilha de assessoria do casal**, sozinhos, ao abrir o casal:
+   - aba FINANCEIRO: fornecedor, serviço (quando a coluna Fornecedor traz o serviço, ex. "Vestido | Atelier X",
+     o app inverte), detalhes da descrição na observação, celular quando aparece na descrição ou na chave PIX
+     (marcado "confirmar"), categoria e se atua no dia; atrações da festa a partir dos fornecedores de música
+     (com horário quando a descrição traz "22h às 0h");
+   - aba ASSESSORIA: horário da cerimônia, locais, convidados, casais de padrinhos e crianças.
+   Só preenche o que está vazio: o que foi editado no app é mantido. Quando a planilha muda, a próxima abertura
+   completa o que for novo. Fontes: o .xlsx da pasta do casal ou a cópia sincronizada de uma planilha do Google
+   (`_DADOS DO SISTEMA/planilhas/<contrato>.json`, gravada pela sincronização com o conector do Google; formato em
+   `src/planilha.js`). Sem nenhuma das duas, ainda dá para "Colar do Google Planilhas" (aba FINANCEIRO).
+   Telefone, responsável e horário de chegada que não estão na planilha são preenchidos na tela.
 3. **Atividades do dia**: sugestões do roteiro (making of, saída para a cerimônia, recepção, bolo, buquê...) com
    horários calculados pelo horário da cerimônia; todas editáveis. As chegadas dos fornecedores entram sozinhas.
 4. **Cerimônia** (tipo, celebrante, decoração, homenagem, alianças, buquê, necessidades especiais, saída, músicas

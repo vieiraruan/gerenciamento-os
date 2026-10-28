@@ -226,10 +226,10 @@ function renderChecklist(ck) {
 
     <div class="card">
       <h2><span class="passo">2</span>Fornecedores <span class="salvo" id="qtdForn"></span></h2>
-      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Vêm do controle financeiro (aba FINANCEIRO da planilha do casal). Complete telefone,
-        responsável e horário de chegada. "Sem horário" = só contato (ex.: local, papelaria entregue antes).</div>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Vêm da planilha de assessoria do casal (aba FINANCEIRO) e entram sozinhos quando a planilha muda;
+        o que você editar aqui é mantido. Complete telefone, responsável e horário de chegada. "Sem horário" = só contato (ex.: local, papelaria entregue antes).</div>
       <div class="linha-acoes" style="margin:0 0 10px">
-        <button class="btn" id="btnImportar">Importar do controle financeiro</button>
+        <button class="btn" id="btnImportar">Atualizar da planilha do casal</button>
         <button class="btn" id="btnColar">Colar do Google Planilhas</button>
         <span class="salvo" id="fonte"></span>
       </div>
@@ -318,19 +318,30 @@ async function carregarEvento() {
     const r = await api(`/api/evento?arquivo=${encodeURIComponent(atual)}`);
     EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha, campos: r.campos }; PEND = r.pendencias;
     renderInfo(); renderForn(); renderAtiv(); renderGrupo('cerimonia', '#gCerimonia'); renderGrupo('festa', '#gFesta'); renderAtr(); renderPend(); renderFonte();
+    if (r.aplicada) $('#fonte').textContent += ` · agora: ${r.aplicada.novos} novo(s), ${r.aplicada.atualizados} completado(s)`;
   } catch (e) { $('#pendencias').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; }
 }
 
 function renderFonte() {
   const p = META.planilha || {};
-  $('#fonte').textContent = p.arquivo ? `Planilha: ${p.arquivo.split(/[\\/]/).pop()}` + (EV.importado_em ? ` · importado em ${new Date(EV.importado_em).toLocaleString('pt-BR')}` : '')
-    : p.gsheet ? 'A planilha deste casal está no Google Planilhas: use "Colar do Google Planilhas"' : 'Planilha de assessoria não encontrada na pasta do casal: cadastre aqui ou cole do Google Planilhas';
+  const sinc = p.sincronizada;
+  const quando = (d) => (d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
+  let t;
+  if (sinc && sinc.tipo === 'google') t = `Planilha do Google: ${sinc.titulo} · cópia de ${quando(sinc.lido_em)}`;
+  else if (p.arquivo) t = `Planilha: ${p.arquivo.split(/[\\/]/).pop()}`;
+  else if (p.gsheet) t = 'A planilha deste casal está no Google Planilhas e ainda não foi sincronizada: use "Colar do Google Planilhas"';
+  else t = 'Planilha de assessoria não encontrada na pasta do casal: cadastre aqui ou cole do Google Planilhas';
+  if (EV.importado_em) t += ` · aplicada em ${quando(EV.importado_em)}`;
+  $('#fonte').textContent = t;
 }
 
 const INFO = [
   ['hora_cerimonia', 'Horário da cerimônia *', 'time', 'c3'],
   ['local_cerimonia', 'Local da cerimônia *', 'text', 'c4'],
   ['local_recepcao', 'Local da recepção *', 'text', 'c5'],
+  ['convidados', 'Convidados', 'text', 'c4'],
+  ['padrinhos', 'Casais de padrinhos', 'text', 'c4'],
+  ['criancas', 'Crianças', 'text', 'c4'],
   ['responsavel_montagem', 'Responsável pela montagem', 'text', 'c4'],
   ['telefone_assessoria', 'Telefone da assessoria (no dia)', 'tel', 'c4'],
   ['contato_emergencia', 'Contato de emergência (nome e telefone)', 'text', 'c4'],
@@ -495,7 +506,7 @@ async function importar(texto) {
     if (typeof texto === 'string') { $('#caixaColar').style.display = 'none'; $('#txtColar').value = ''; }
     EV = r.evento; PEND = r.pendencias; META.planilha = r.planilha;
     renderInfo(); renderForn(); renderAtiv(); renderGrupo('cerimonia', '#gCerimonia'); renderGrupo('festa', '#gFesta'); renderAtr(); renderPend(); renderFonte();
-    $('#fonte').textContent += ` · ${r.novos} novo(s) fornecedor(es)`;
+    $('#fonte').textContent += ` · ${r.novos} novo(s), ${r.atualizados || 0} completado(s)`;
   } catch (e) { alert(e.message); } finally { b.disabled = false; }
 }
 

@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { lerAba } = require('./xlsxLeitor');
 const { parseHora } = require('./contrato');
+const planilha = require('./planilha');
 
 // Categorias (para agrupar no painel e sugerir a etapa de montagem). Ordem = ordem de exibição.
 const CATEGORIAS = [
@@ -21,14 +22,14 @@ const CATEGORIAS = [
   ['estrutura', 'Som, iluminação e estrutura', /\b(som|sonoriza|ilumina|estrutura|palco|led|tablado|tenda|cobert|ramalho|q30)/i],
   ['gerador', 'Gerador', /gerador/i],
   ['decoracao', 'Decoração e mobiliário', /\b(decor|mobili|flor|buqu|mesas?|cadeiras?)/i],
-  ['buffet', 'Buffet e alimentação', /\b(buffet|bufe|churrasc|comida|coffee|card[aá]pio|vegan|gastronom)/i],
+  ['buffet', 'Buffet e alimentação', /\b(buffet|bufe|churrasc|caldinho|comida|coffee|card[aá]pio|vegan|gastronom)/i],
   ['bebidas', 'Bebidas, bar e chopp', /\b(bebida|drink|bar\b|barman|chopp|chope|coco|cerveja|espumante)/i],
   ['bolo_doces', 'Bolo e doces', /\b(bolo|doce|brigad|bem.?casad|confeit)/i],
-  ['musica', 'Música (banda, DJ, orquestra)', /\b(banda|dj|orquestra|m[uú]sic|samba|sax|cantor|ax[eé])/i],
+  ['musica', 'Música (banda, DJ, orquestra)', /\b(banda|dj|orquestra|m[uú]sic|samba|sax|cantor|ax[eé]|show|frevo|sanfon|voz)/i],
   ['foto_video', 'Foto e vídeo', /\b(foto|v[ií]deo|film|drone|cabine)/i],
-  ['beleza', 'Cabelo e maquiagem', /\b(make|maqui|cabel|hair|beleza|noiva por)/i],
+  ['beleza', 'Cabelo e maquiagem', /\b(make|maqui|cabel|hair|beleza|noiva por|pentead|massag)/i],
   ['servicos', 'Limpeza, segurança e apoio', /\b(limpeza|seguran|carregador|ambul[aâ]nc|bombeir|banheir|\bwc\b|valet|manobr|copeir)/i],
-  ['transporte', 'Transporte e passeios', /\b(transfer|translado|transporte|van|[oô]nibus|passeio|barco|lancha)/i],
+  ['transporte', 'Transporte e passeios', /\b(transfer|translado|transporte|vans?\b|[oô]nibus|passeio|barco|lancha)/i],
   ['papelaria', 'Papelaria e personalizados', /\b(papelaria|convite|ecobag|lembran|personaliz|copos?|kit|bal[oõ]es)/i],
   ['outros', 'Outros', /.*/],
 ];
@@ -43,8 +44,13 @@ const DIAS = {
   nao: 'Sem horário (só contato)',
 };
 
-function categorizar(texto) {
-  return (CATEGORIAS.find(([, , re]) => re.test(texto || '')) || CATEGORIAS[CATEGORIAS.length - 1])[0];
+function categorizar(...textos) {
+  // o primeiro texto que cair numa categoria específica decide (ex.: nome do fornecedor, depois o serviço)
+  for (const t of textos) {
+    const c = CATEGORIAS.find(([id, , re]) => id !== 'outros' && re.test(t || ''));
+    if (c) return c[0];
+  }
+  return 'outros';
 }
 
 // Atividades padrão do dia (minutos em relação ao início da cerimônia) — roteiro Hanna & Ivan.
@@ -176,23 +182,9 @@ function localizarPlanilha(pastaCasal) {
   return res;
 }
 
-/** Fornecedores do controle financeiro (aba FINANCEIRO): [{ nome, servico }] */
+/** Fornecedores do controle financeiro (aba FINANCEIRO) de um .xlsx. */
 function lerFinanceiro(arquivo) {
-  const aba = lerAba(arquivo, 'FINANCEIRO');
-  if (!aba) throw new Error('A planilha do casal não tem a aba FINANCEIRO.');
-  const cab = aba.linhas.find((l) => /fornecedor/i.test(l.c.B || ''));
-  const lista = [];
-  for (const l of aba.linhas) {
-    if (!cab || l.n <= cab.n) continue;
-    const nome = String(l.c.B || '').replace(/\s+/g, ' ').trim();
-    if (!nome) continue;
-    if (/^total/i.test(nome)) break;
-    if (/\{\{/.test(nome) || /tayn[aá]\s+alves/i.test(nome)) continue; // modelo vazio / a própria assessoria
-    // só o começo da descrição (o resto costuma ser dado de pagamento)
-    const desc = String(l.c.C || '').split(/[\n.;]/)[0].replace(/\s+/g, ' ').trim();
-    lista.push({ nome, servico: desc.length > 60 ? `${desc.slice(0, 57)}…` : desc });
-  }
-  return lista;
+  return planilha.normalizarFornecedores(planilha.lerPlanilhaXlsx(arquivo).fornecedores);
 }
 
 /**
@@ -202,28 +194,25 @@ function lerFinanceiro(arquivo) {
  */
 function lerTextoColado(texto) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n').map((l) => l.split('\t'));
-  let cF = 0; let cD = 1; let inicio = 0;
+  let cF = 0; let cD = 1; let cP = -1; let inicio = 0;
   const cab = linhas.findIndex((l) => l.some((c) => /^\s*fornecedor\s*$/i.test(c)));
   if (cab >= 0) {
     cF = linhas[cab].findIndex((c) => /^\s*fornecedor\s*$/i.test(c));
     const d = linhas[cab].findIndex((c) => /descri/i.test(c));
     cD = d >= 0 ? d : cF + 1;
+    cP = linhas[cab].findIndex((c) => /^\s*pix\s*$/i.test(c));
     inicio = cab + 1;
   } else {
-    // pula colunas vazias à esquerda (ex.: copiou a partir da coluna A)
+    // pula colunas vazias à esquerda (ex.: copiou a partir da coluna A) e a coluna de ID (001, 002...)
     const primeira = linhas.find((l) => l.some((c) => c.trim()));
-    if (primeira) { cF = primeira.findIndex((c) => c.trim()); cD = cF + 1; }
+    if (primeira) {
+      cF = primeira.findIndex((c) => c.trim());
+      if (/^\d{1,3}$/.test(primeira[cF].trim())) cF += 1;
+      cD = cF + 1;
+    }
   }
-  const lista = [];
-  for (const l of linhas.slice(inicio)) {
-    const nome = String(l[cF] || '').replace(/\s+/g, ' ').trim();
-    if (!nome || /^r\$|^\d+([.,]\d+)?$/.test(nome)) continue;
-    if (/^total/i.test(nome)) break;
-    if (/tayn[aá]\s+alves/i.test(nome)) continue;
-    const desc = String(l[cD] || '').split(/[.;]/)[0].replace(/\s+/g, ' ').trim();
-    lista.push({ nome, servico: desc.length > 60 ? `${desc.slice(0, 57)}…` : desc });
-  }
-  return lista;
+  return planilha.normalizarFornecedores(linhas.slice(inicio)
+    .map((l) => ({ nome: l[cF] || '', descricao: l[cD] || '', pix: cP >= 0 ? l[cP] || '' : '' })));
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +239,9 @@ function novoEvento(contrato) {
       hora_cerimonia: contrato.evento_horario ? normalizarHora(contrato.evento_horario) : '',
       local_cerimonia: m ? m[1] : local.replace(/\s*\(cerim[oô]nia e recep[cç][aã]o\)/i, ''),
       local_recepcao: m ? m[2] : (local ? 'Mesmo local da cerimônia' : ''),
+      convidados: contrato.convidados || '',
+      padrinhos: contrato.padrinhos || contrato.casais_padrinhos || '',
+      criancas: contrato.criancas || '',
       responsavel_montagem: 'Tayná Alves',
       telefone_assessoria: '',
       contato_emergencia: '',
@@ -297,25 +289,37 @@ function salvarEvento(dirDados, contratoArquivo, evento) {
   return limpo;
 }
 
-/** Junta os fornecedores do controle financeiro com os já cadastrados (mantém o que foi preenchido). */
+/** Junta os fornecedores do controle financeiro com os já cadastrados (só preenche o que está vazio). */
 function importarFornecedores(evento, doFinanceiro, origem) {
   const atuais = evento.fornecedores || [];
   const porChave = new Map(atuais.map((f) => [chave(f.nome), f]));
   let novos = 0;
+  let atualizados = 0;
   for (const f of doFinanceiro) {
     const k = chave(f.nome);
     const existente = porChave.get(k);
+    const notaPix = f.telefone_pix ? 'Telefone tirado da chave PIX: confirmar' : '';
     if (existente) {
-      if (!existente.servico && f.servico) existente.servico = f.servico;
-      existente.origem = 'financeiro';
+      let mudou = false;
+      if (!existente.servico && f.servico) { existente.servico = f.servico; mudou = true; }
+      if (!String(existente.telefone || '').trim() && f.telefone) {
+        existente.telefone = f.telefone; mudou = true;
+        if (notaPix) existente.observacao = [existente.observacao, notaPix].filter(Boolean).join(' · ');
+      }
+      if (!String(existente.observacao || '').trim() && f.observacao) { existente.observacao = f.observacao; mudou = true; }
+      if (existente.origem !== 'manual') existente.origem = 'financeiro';
+      if (mudou) atualizados++;
       continue;
     }
-    const cat = categorizar(`${f.nome} ${f.servico}`);
+    const cat = planilha.ehServicoGenerico(f.servico)
+      ? categorizar(f.servico, f.nome, f.observacao)
+      : categorizar(f.nome, f.servico, f.observacao);
+    const texto = `${f.nome} ${f.servico}`;
     const item = {
-      id: novoId(), nome: f.nome, servico: f.servico, categoria: cat, responsavel: '', telefone: '',
-      dia: /dia\s*2|segundo dia|p[oó]s.?casamento|passeio|churrasc|pool/i.test(`${f.nome} ${f.servico}`) ? 'posterior'
-        : ['papelaria', 'local'].includes(cat) ? 'nao' : 'evento',
-      chegada: '', observacao: '', origem: 'financeiro',
+      id: novoId(), nome: f.nome, servico: f.servico || '', categoria: cat, responsavel: '', telefone: f.telefone || '',
+      dia: f.dia || (/dia\s*2|segundo dia|p[oó]s.?casamento|passeio|churrasc|pool|catamar|luau/i.test(texto) ? 'posterior'
+        : ['papelaria', 'local'].includes(cat) ? 'nao' : 'evento'),
+      chegada: '', observacao: [f.observacao, notaPix].filter(Boolean).join(' · '), origem: 'financeiro',
     };
     atuais.push(item);
     porChave.set(k, item);
@@ -325,12 +329,68 @@ function importarFornecedores(evento, doFinanceiro, origem) {
   const atracoes = evento.atracoes || [];
   const ja = new Set(atracoes.map((x) => chave(x.nome)));
   for (const f of atuais) {
-    if (f.categoria === 'musica' && f.dia !== 'posterior' && !ja.has(chave(f.nome))) {
-      atracoes.push({ id: novoId(), nome: f.nome, inicio: '', fim: '', obs: f.servico || '' });
+    const txt = `${f.nome} ${f.servico} ${f.observacao || ''}`;
+    const hor = /(\d{1,2})(?:\s*h\s*(\d{2})?)?\s+(?:às|as|a|até)\s+(\d{1,2})\s*(?:h|:)?\s*(\d{2})?/i.exec(`${f.servico} ${f.observacao || ''}`);
+    const soCerimonia = /cerim[oô]nia/i.test(txt) || (/orquestra/i.test(txt) && !hor);
+    if (f.categoria === 'musica' && f.dia !== 'posterior' && !soCerimonia && !ja.has(chave(f.nome))) {
+      const hh = (h, m) => `${String(Number(h) % 24).padStart(2, '0')}:${m || '00'}`;
+      atracoes.push({
+        id: novoId(), nome: f.nome, inicio: hor ? hh(hor[1], hor[2]) : '', fim: hor ? hh(hor[3], hor[4]) : '', obs: f.servico || '',
+      });
       ja.add(chave(f.nome));
     }
   }
-  return { ...evento, fornecedores: atuais, atracoes, importado_de: origem, importado_em: new Date().toISOString(), novos };
+  return {
+    ...evento, fornecedores: atuais, atracoes, importado_de: origem, importado_em: new Date().toISOString(), novos, atualizados,
+  };
+}
+
+/**
+ * Pré-preenche o evento com a planilha de assessoria do casal (fornecedores + informações do dia).
+ * Só preenche campos vazios: o que já foi editado no app é mantido.
+ */
+function aplicarPlanilha(evento, dados) {
+  if (!dados) return { ...evento, novos: 0, atualizados: 0 };
+  const origem = dados.fonte?.tipo === 'google' ? `Google Planilhas: ${dados.fonte.titulo}` : (dados.fonte?.titulo || 'planilha');
+  const junto = importarFornecedores(evento, planilha.normalizarFornecedores(dados.fornecedores), origem);
+  const info = { ...(junto.info || {}) };
+  const d = dados.info || {};
+  const vazio = (k) => !String(info[k] || '').trim();
+  const hora = planilha.lerHorario(d.horario);
+  if (vazio('hora_cerimonia') && hora) info.hora_cerimonia = hora;
+  const locais = planilha.separarLocais(d.local);
+  if (vazio('local_cerimonia') && locais.cerimonia) info.local_cerimonia = locais.cerimonia;
+  if (vazio('local_recepcao') && locais.recepcao) info.local_recepcao = locais.recepcao === info.local_cerimonia ? 'Mesmo local da cerimônia' : locais.recepcao;
+  // sem local na aba ASSESSORIA: usa os fornecedores "local" do controle financeiro
+  if (vazio('local_cerimonia') || vazio('local_recepcao')) {
+    const nomesPl = new Set(planilha.normalizarFornecedores(dados.fornecedores).map((f) => chave(f.nome)));
+    const locais = junto.fornecedores.filter((f) => f.categoria === 'local' && nomesPl.has(chave(f.nome)) && !/dia da noiva|making|hosped|n[uú]pcias/i.test(`${f.nome} ${f.servico}`));
+    const tx = (f) => `${f.nome} ${f.servico}`;
+    const cer = locais.find((f) => /igreja|par[oó]quia|capela|catedral|cerim/i.test(tx(f)) && !/recep|festa/i.test(tx(f)));
+    const rec = locais.find((f) => /recep|festa|espa[cç]o|s[ií]tio/i.test(tx(f)) && f !== cer && !(/cerim/i.test(tx(f)) && !/recep|festa/i.test(tx(f))));
+    if (cer || rec) {
+      if (vazio('local_cerimonia') && cer) info.local_cerimonia = cer.nome;
+      if (vazio('local_recepcao') && rec) info.local_recepcao = rec.nome;
+    } else if (locais.length === 1) {
+      if (vazio('local_cerimonia')) info.local_cerimonia = locais[0].nome;
+      if (vazio('local_recepcao')) info.local_recepcao = 'Mesmo local da cerimônia';
+    }
+  }
+  for (const k of ['convidados', 'padrinhos', 'criancas']) if (vazio(k) && String(d[k] || '').trim()) info[k] = String(d[k]).trim().replace(/^0+(\d)/, '$1');
+  // atividades padrão ainda sem horário: calcula pelo horário da cerimônia que veio da planilha
+  let atividades = junto.atividades || [];
+  if (hora && !(evento.info || {}).hora_cerimonia) {
+    const base = atividadesPadrao(hora);
+    atividades = atividades.map((a) => {
+      if (a.origem !== 'padrao' || a.hora) return a;
+      const p = base.find((b) => b.texto === a.texto);
+      return p && p.hora ? { ...a, hora: p.hora } : a;
+    });
+  }
+  return {
+    ...junto, info, atividades,
+    planilha: { assinatura: planilha.assinatura(dados), titulo: dados.fonte?.titulo || '', url: dados.fonte?.url || '', lido_em: dados.lido_em, aplicada_em: new Date().toISOString() },
+  };
 }
 
 /** O que falta preencher antes de gerar o checklist do evento. */
@@ -400,6 +460,6 @@ const exibirHora = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h || ''); return 
 
 module.exports = {
   CATEGORIAS: CATEGORIAS.map(([id, nome]) => ({ id, nome })), ROTULO_CATEGORIA, DIAS, categorizar,
-  localizarPlanilha, lerFinanceiro, lerTextoColado, carregarEvento, salvarEvento, importarFornecedores,
+  localizarPlanilha, lerFinanceiro, lerTextoColado, aplicarPlanilha, carregarEvento, salvarEvento, importarFornecedores,
   pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora, CAMPOS, itensPreenchidos,
 };
