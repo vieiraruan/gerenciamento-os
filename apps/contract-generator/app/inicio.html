@@ -17,6 +17,11 @@
   header img { height: 62px; display: block; }
   header .esp { flex: 1; }
   header .local { font-size: 12px; color: var(--suave); text-align: right; }
+  header .encerrar { font: inherit; font-size: 13px; font-weight: 600; color: var(--marca); background: #fff; border: 1px solid var(--borda);
+                     border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  header .encerrar:hover { background: #f3ece7; }
+  .fechado { max-width: 520px; margin: 18vh auto; text-align: center; color: var(--suave); }
+  .fechado h1 { color: var(--marca); font-weight: 600; }
   .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; }
   .badge.ok { background: #e6f2ea; color: var(--ok); }
   .badge.alerta { background: #fbeceb; color: var(--erro); }
@@ -75,6 +80,7 @@
   <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
   <div class="esp"></div>
   <div class="local" id="local">…</div>
+  <button class="encerrar" id="btnEncerrar" title="Fecha o aplicativo que roda em segundo plano">Encerrar</button>
 </header>
 
 <main>
@@ -212,6 +218,15 @@ document.querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('cli
   const r = await fetch('/api/abrir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caminho }) });
   if (!r.ok) msg.textContent = (await r.json()).erro || 'Não foi possível abrir a pasta.';
 }));
+
+document.getElementById('btnEncerrar').addEventListener('click', async () => {
+  if (!confirm('Encerrar o aplicativo? Para usar de novo, abra o atalho "Tayna Alves Assessoria".')) return;
+  try { await fetch('/api/encerrar', { method: 'POST' }); } catch { /* já encerrou */ }
+  document.querySelector('main').innerHTML =
+    '<div class="fechado"><h1>Aplicativo encerrado</h1><p>Pode fechar esta aba. Para abrir de novo, use o atalho ' +
+    '<b>Tayna Alves Assessoria</b> na Área de Trabalho.</p></div>';
+  document.getElementById('btnEncerrar').remove();
+});
 
 renderApps();
 carregar();

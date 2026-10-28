@@ -246,6 +246,13 @@ const rotas = {
     };
   },
 
+  // Encerra o aplicativo (ele roda em segundo plano, sem janela)
+  'POST /api/encerrar': () => {
+    console.log('Encerrado pelo botão "Encerrar".');
+    setTimeout(() => process.exit(0), 300);
+    return { ok: true };
+  },
+
   'POST /api/abrir': (q, corpo) => {
     const alvo = path.resolve(String(corpo.caminho || ''));
     const permitido = [DADOS, DIR_GERADOS].some((b) => alvo === b || dentroDe(b, alvo));
@@ -288,11 +295,11 @@ servidor.listen(PORTA, '127.0.0.1', () => {
     ? `  Google Drive: ${DIR_GERADOS}`
     : `  ATENÇÃO: Google Drive não encontrado — salvando em ${DIR_GERADOS}`);
   console.log(`  Dados do sistema: ${DADOS}`);
-  console.log('  Para encerrar, feche esta janela.');
+  console.log('  Para encerrar: botão "Encerrar" na tela inicial (ou feche esta janela, se estiver visível).');
   if (!args.includes('--sem-navegador')) {
     const cmd = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
     const a = process.platform === 'win32' ? ['/c', 'start', '', endereco] : [endereco];
-    spawn(cmd, a, { detached: true, stdio: 'ignore' }).unref();
+    spawn(cmd, a, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
   }
 });
 
@@ -300,7 +307,7 @@ servidor.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.log(`O aplicativo já está aberto em http://localhost:${PORTA}`);
     if (!args.includes('--sem-navegador') && process.platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '', `http://localhost:${PORTA}`], { detached: true, stdio: 'ignore' }).unref();
+      spawn('cmd', ['/c', 'start', '', `http://localhost:${PORTA}`], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     }
     process.exit(0);
   }

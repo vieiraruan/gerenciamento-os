@@ -331,7 +331,14 @@ function Rodar-Instalacao {
       if (Test-Path $velho) { Remove-Item $velho -Force }
       $ws = New-Object -ComObject WScript.Shell
       $lnk = $ws.CreateShortcut((Join-Path $desk "$ATALHO.lnk"))
-      $lnk.TargetPath = Join-Path $app 'abrir-aplicativo.cmd'
+      # abre em segundo plano (sem janela preta) pelo .vbs; o .cmd fica para diagnóstico
+      $vbs = Join-Path $app 'abrir-aplicativo.vbs'
+      if (Test-Path $vbs) {
+        $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
+        $lnk.Arguments = '"' + $vbs + '"'
+      } else {
+        $lnk.TargetPath = Join-Path $app 'abrir-aplicativo.cmd'
+      }
       $lnk.WorkingDirectory = $app
       $lnk.IconLocation = (Join-Path $app 'templates\marca\icone.ico') + ',0'
       $lnk.Description = 'Aplicativos Tayna Alves Assessoria'
@@ -539,7 +546,11 @@ $btnDet.Add_LinkClicked({
 })
 $lnkLog.Add_LinkClicked({ Start-Process notepad.exe $LOG })
 $btnAbrir.Add_Click({
-  if ($script:app) { Start-Process (Join-Path $script:app 'abrir-aplicativo.cmd') -WorkingDirectory $script:app }
+  if ($script:app) {
+    $vbs = Join-Path $script:app 'abrir-aplicativo.vbs'
+    if (Test-Path $vbs) { Start-Process 'wscript.exe' -ArgumentList ('"' + $vbs + '"') -WorkingDirectory $script:app }
+    else { Start-Process (Join-Path $script:app 'abrir-aplicativo.cmd') -WorkingDirectory $script:app }
+  }
   $form.Close()
 })
 $script:rodando = $false
