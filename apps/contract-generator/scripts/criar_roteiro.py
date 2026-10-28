@@ -155,6 +155,31 @@ def modelo():
     w.tag("{/detalhes}")
     w.tag("{/linha_tempo}")
 
+    # ---- Cerimônia e festa -------------------------------------------------------
+    for titulo, loop in (("Cerimônia", "cerimonia_itens"), ("Festa", "festa_itens")):
+        w.secao(titulo)
+        w.tag("{#" + loop + "}")
+        pc = w.doc.add_paragraph()
+        r = pc.add_run("{rotulo}:")
+        r.bold = True
+        pc.add_run("{^lista} {valor}{/lista}")
+        pc.paragraph_format.space_after = Pt(2)
+        w.tag("{#lista}")
+        li = w.doc.add_paragraph(style="List Bullet")
+        li.add_run("{.}")
+        li.paragraph_format.space_after = Pt(0)
+        w.tag("{/lista}")
+        w.tag("{/" + loop + "}")
+        if loop == "festa_itens":
+            w.p("Previsão artística", negrito=True, depois=2)
+            w.tag("{#atracoes}")
+            pa = w.doc.add_paragraph()
+            r = pa.add_run("{inicio} às {fim}  ☐ "); r.bold = True; r.font.color.rgb = COR
+            pa.add_run("{nome}")
+            r2 = pa.add_run("{obs_txt}"); r2.font.color.rgb = SUAVE
+            pa.paragraph_format.space_after = Pt(2)
+            w.tag("{/atracoes}")
+
     # ---- Fornecedores -----------------------------------------------------------
     w.secao("Fornecedores e contatos")
     w.tabela_loop(["Serviço", "Fornecedor", "Responsável", "Telefone", "Chegada"],

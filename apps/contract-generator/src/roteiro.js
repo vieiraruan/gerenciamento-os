@@ -12,7 +12,7 @@ const path = require('path');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const { parseData } = require('./parser');
-const { ROTULO_CATEGORIA, CATEGORIAS, linhaDoTempo, exibirHora, pendencias } = require('./evento');
+const { ROTULO_CATEGORIA, CATEGORIAS, linhaDoTempo, exibirHora, pendencias, itensPreenchidos } = require('./evento');
 
 const RAIZ = path.resolve(__dirname, '..');
 const MODELO = path.join(RAIZ, 'templates', 'checklist_evento.docx');
@@ -89,6 +89,11 @@ function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
     fornecedores: forn.map((f) => ({
       servico_txt: servicoTxt(f), categoria: ROTULO_CATEGORIA[f.categoria] || 'Outros', nome: f.nome,
       responsavel: f.responsavel || '—', telefone: f.telefone || '—', chegada_txt: chegadaTxt(f), observacao: f.observacao || '',
+    })),
+    cerimonia_itens: itensPreenchidos('cerimonia', evento.cerimonia),
+    festa_itens: itensPreenchidos('festa', evento.festa),
+    atracoes: (evento.atracoes || []).slice().sort((a, b) => minutos(a.inicio) - minutos(b.inicio)).map((a) => ({
+      nome: a.nome, inicio: exibirHora(a.inicio), fim: exibirHora(a.fim), obs_txt: a.obs ? `  ·  ${a.obs}` : '',
     })),
     tem_posterior: posterior.length > 0,
     posterior,

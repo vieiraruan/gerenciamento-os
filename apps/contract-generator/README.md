@@ -146,13 +146,18 @@ cronograma do dia com horário de cada atividade e programação dos outros dias
    (copiar as colunas Fornecedor e Descrição da aba FINANCEIRO e colar).
 3. **Atividades do dia**: sugestões do roteiro (making of, saída para a cerimônia, recepção, bolo, buquê...) com
    horários calculados pelo horário da cerimônia; todas editáveis. As chegadas dos fornecedores entram sozinhas.
-4. Só gera quando **tudo estiver preenchido** (a tela lista o que falta). Salvo automaticamente em
+4. **Cerimônia** (tipo, celebrante, decoração, homenagem, alianças, buquê, necessidades especiais, saída, músicas
+   de sala de espera / padrinhos / noivo / noiva / alianças / homenagem / saída, protocolo de fotos) e **Festa**
+   (decoração, entrada dos noivos, dança, cumprimentos, buquê, uísque, kit festa, brincadeiras, bolo, fotos na mesa
+   do bolo, restrições alimentares e previsão artística com início e fim de cada atração — sugeridas a partir dos
+   fornecedores de música). Campos em `CAMPOS` de `src/evento.js`.
+5. Só gera quando **tudo estiver preenchido** (a tela lista o que falta). Salvo automaticamente em
    `_DADOS DO SISTEMA/eventos/<contrato>.json`.
 
 Saída: `CHECKLIST DO EVENTO - <casal>.docx` (modelo `templates/checklist_evento.docx`, gerado por
 `python3 scripts/criar_roteiro.py`) e `PAINEL DO EVENTO - <casal>.html` — página única que funciona sem internet
-para a equipe no iPad: cronograma com marcar concluído, relógio, próximo item, atrasados em vermelho, fornecedores
-com Ligar/WhatsApp, montagem e informações. As marcações ficam salvas no aparelho.
+para a equipe no iPad: cronograma com marcar concluído, relógio, próximo item, atrasados em vermelho, abas Cerimônia e Festa
+(com previsão artística), fornecedores com Ligar/WhatsApp, montagem e informações. As marcações ficam salvas no aparelho.
 Código: `src/evento.js`, `src/roteiro.js`, `src/painel.js`, `src/xlsxLeitor.js`.
 
 ### Cronograma de tarefas

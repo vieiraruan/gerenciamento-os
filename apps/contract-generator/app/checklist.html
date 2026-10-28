@@ -89,6 +89,7 @@
   label.l { display: block; font-size: 11px; font-weight: 700; color: var(--suave); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .3px; }
   .card input, .card select, .card textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--borda); border-radius: 7px; font: inherit; font-size: 14px; background: #fffdfb; }
   .card textarea { min-height: 60px; }
+  .card .c6 textarea { min-height: 96px; }
   .card input.falta, .card select.falta { border-color: var(--erro); background: #fff6f5; }
   table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.t th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 4px 4px 6px; }
@@ -252,7 +253,22 @@ function renderChecklist(ck) {
     </div>
 
     <div class="card">
-      <h2><span class="passo">4</span>Antes de gerar</h2>
+      <h2><span class="passo">4</span>Cerimônia</h2>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Tudo aparece no painel do dia. Se algo não vai acontecer, escreva "não terá".</div>
+      <div class="grade" id="gCerimonia"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="passo">5</span>Festa</h2>
+      <div class="grade" id="gFesta"></div>
+      <h2 style="margin-top:16px;font-size:14px">Previsão artística (atrações) *</h2>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Os fornecedores de música entram aqui ao importar; complete início e fim de cada atração.</div>
+      <div style="overflow-x:auto"><table class="t" id="tAtr"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddAtr">+ Adicionar atração</button></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="passo">6</span>Antes de gerar</h2>
       <div id="pendencias"></div>
     </div>
 
@@ -287,6 +303,7 @@ function renderChecklist(ck) {
   $('#btnColarOk').onclick = () => importar($('#txtColar').value);
   $('#btnAddForn').onclick = () => { EV.fornecedores.push({ id: novoId(), nome: '', servico: '', categoria: 'outros', responsavel: '', telefone: '', dia: 'evento', chegada: '', observacao: '', origem: 'manual' }); renderForn(); agendar(); };
   $('#btnAddAtiv').onclick = () => { EV.atividades.push({ id: novoId(), hora: '', texto: '', responsavel: '', detalhes: [], origem: 'manual' }); renderAtiv(); agendar(); };
+  $('#btnAddAtr').onclick = () => { EV.atracoes.push({ id: novoId(), nome: '', inicio: '', fim: '', obs: '' }); renderAtr(); agendar(); };
   $('#btnOrdenar').onclick = () => { EV.atividades.sort((a, b) => minutos(a.hora) - minutos(b.hora)); renderAtiv(); agendar(); };
   carregarEvento();
 }
@@ -299,8 +316,8 @@ const telOk = (t) => String(t || '').replace(/\D/g, '').length >= 10;
 async function carregarEvento() {
   try {
     const r = await api(`/api/evento?arquivo=${encodeURIComponent(atual)}`);
-    EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha }; PEND = r.pendencias;
-    renderInfo(); renderForn(); renderAtiv(); renderPend(); renderFonte();
+    EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha, campos: r.campos }; PEND = r.pendencias;
+    renderInfo(); renderForn(); renderAtiv(); renderGrupo('cerimonia', '#gCerimonia'); renderGrupo('festa', '#gFesta'); renderAtr(); renderPend(); renderFonte();
   } catch (e) { $('#pendencias').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; }
 }
 
@@ -325,6 +342,46 @@ function renderInfo() {
   $('#info').innerHTML = INFO.map(([k, rot, tipo, c]) => `<div class="${c === 'c5' ? 'c4' : c}"><label class="l">${esc(rot)}</label>
     ${tipo === 'textarea' ? `<textarea data-i="${k}">${esc(EV.info[k] || '')}</textarea>` : `<input type="${tipo}" data-i="${k}" value="${esc(EV.info[k] || '')}">`}</div>`).join('');
   document.querySelectorAll('[data-i]').forEach((el) => el.oninput = () => { EV.info[el.dataset.i] = el.value; marcarFaltas(); agendar(); });
+  marcarFaltas();
+}
+
+function renderGrupo(grupo, alvo) {
+  const dados = EV[grupo] = EV[grupo] || {};
+  $(alvo).innerHTML = META.campos[grupo].map((c) => {
+    const v = dados[c.id];
+    const larg = c.tipo === 'lista' || c.tipo === 'longo' ? 'c6' : 'c4';
+    const rot = `<label class="l">${esc(c.rotulo)}${c.opcional ? '' : ' *'}</label>`;
+    let campo;
+    if (c.tipo === 'opcao') campo = `<select data-g="${c.id}"><option value=""></option>${c.opcoes.map((o) => `<option${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    else if (c.tipo === 'lista') campo = `<textarea data-g="${c.id}" placeholder="${esc(c.dica || 'um item por linha')}">${esc((Array.isArray(v) ? v : []).join('\n'))}</textarea>`;
+    else if (c.tipo === 'longo') campo = `<textarea data-g="${c.id}">${esc(v || '')}</textarea>`;
+    else campo = `<input data-g="${c.id}" value="${esc(v || '')}" placeholder="${esc(c.dica || '')}">`;
+    return `<div class="${larg}">${rot}${campo}</div>`;
+  }).join('');
+  $(alvo).querySelectorAll('[data-g]').forEach((el) => {
+    const c = META.campos[grupo].find((x) => x.id === el.dataset.g);
+    el.oninput = el.onchange = () => {
+      EV[grupo] = EV[grupo] || {};
+      EV[grupo][c.id] = c.tipo === 'lista' ? el.value.split('\n').map((x) => x.trim()).filter(Boolean) : el.value;
+      marcarFaltas(); agendar();
+    };
+  });
+  marcarFaltas();
+}
+
+function renderAtr() {
+  $('#tAtr').innerHTML = `<tr><th style="min-width:200px">Atração *</th><th>Início *</th><th>Fim *</th><th style="min-width:200px">Observação</th><th></th></tr>` +
+    EV.atracoes.map((a, i) => `<tr data-t="${i}">
+      <td><input data-c="nome" value="${esc(a.nome)}"></td>
+      <td><input type="time" data-c="inicio" value="${esc(a.inicio)}"></td>
+      <td><input type="time" data-c="fim" value="${esc(a.fim)}"></td>
+      <td><input data-c="obs" value="${esc(a.obs || '')}"></td>
+      <td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
+  document.querySelectorAll('#tAtr tr[data-t]').forEach((tr) => {
+    const a = EV.atracoes[+tr.dataset.t];
+    tr.querySelectorAll('[data-c]').forEach((el) => { el.oninput = el.onchange = () => { a[el.dataset.c] = el.value; marcarFaltas(); agendar(); }; });
+  });
+  document.querySelectorAll('#tAtr [data-del]').forEach((b) => b.onclick = () => { EV.atracoes.splice(+b.dataset.del, 1); renderAtr(); agendar(); });
   marcarFaltas();
 }
 
@@ -378,6 +435,21 @@ function renderAtiv() {
 }
 
 function marcarFaltas() {
+  for (const [grupo, alvo] of [['cerimonia', '#gCerimonia'], ['festa', '#gFesta']]) {
+    if (!META.campos || !$(alvo)) continue;
+    META.campos[grupo].forEach((c) => {
+      const el = $(alvo).querySelector(`[data-g="${c.id}"]`);
+      if (!el || c.opcional) return;
+      const v = EV[grupo][c.id];
+      el.classList.toggle('falta', Array.isArray(v) ? v.length === 0 : !String(v || '').trim());
+    });
+  }
+  document.querySelectorAll('#tAtr tr[data-t]').forEach((tr) => {
+    const a = EV.atracoes[+tr.dataset.t];
+    tr.querySelector('[data-c=nome]').classList.toggle('falta', !String(a.nome || '').trim());
+    tr.querySelector('[data-c=inicio]').classList.toggle('falta', !horaOk(a.inicio));
+    tr.querySelector('[data-c=fim]').classList.toggle('falta', !horaOk(a.fim));
+  });
   document.querySelectorAll('[data-i=hora_cerimonia]').forEach((el) => el.classList.toggle('falta', !horaOk(el.value)));
   ['local_cerimonia', 'local_recepcao'].forEach((k) => document.querySelectorAll(`[data-i=${k}]`).forEach((el) => el.classList.toggle('falta', !el.value.trim())));
   document.querySelectorAll('#tForn tr[data-f]').forEach((tr) => {
@@ -398,7 +470,7 @@ function marcarFaltas() {
 function renderPend() {
   const n = PEND.length;
   $('#btnEvento').disabled = n > 0;
-  $('#statusPend').innerHTML = n ? `<span style="color:var(--erro)">Faltam ${n} informações para gerar (veja o passo 4)</span>` : '<span class="ok-tudo">Tudo preenchido — pronto para gerar</span>';
+  $('#statusPend').innerHTML = n ? `<span style="color:var(--erro)">Faltam ${n} informações para gerar (veja o passo 6)</span>` : '<span class="ok-tudo">Tudo preenchido — pronto para gerar</span>';
   $('#pendencias').innerHTML = n
     ? `<div>Faltam <b>${n}</b> informações. Os campos em vermelho acima precisam ser preenchidos:</div><ul class="pend">${PEND.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`
     : '<div class="ok-tudo">Tudo preenchido. Gere o checklist do evento e o painel do dia no botão do topo.</div>';
@@ -422,7 +494,7 @@ async function importar(texto) {
     const r = await api('/api/evento/importar', { arquivo: atual, texto: typeof texto === 'string' ? texto : undefined });
     if (typeof texto === 'string') { $('#caixaColar').style.display = 'none'; $('#txtColar').value = ''; }
     EV = r.evento; PEND = r.pendencias; META.planilha = r.planilha;
-    renderForn(); renderAtiv(); renderPend(); renderFonte();
+    renderInfo(); renderForn(); renderAtiv(); renderGrupo('cerimonia', '#gCerimonia'); renderGrupo('festa', '#gFesta'); renderAtr(); renderPend(); renderFonte();
     $('#fonte').textContent += ` · ${r.novos} novo(s) fornecedor(es)`;
   } catch (e) { alert(e.message); } finally { b.disabled = false; }
 }

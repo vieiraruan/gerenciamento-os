@@ -82,6 +82,65 @@ const ATIVIDADES_PADRAO = [
   [null, 'Encerramento da festa e finalização (conferência de itens com a pessoa indicada pelos noivos)', []],
 ];
 
+
+// ---------------------------------------------------------------------------
+// Informações da cerimônia e da festa (roteiro Hanna & Ivan) — obrigatórias, exceto observações.
+// tipo: texto | opcao | lista (uma por linha) | longo (observação, opcional)
+// ---------------------------------------------------------------------------
+const CAMPOS = {
+  cerimonia: [
+    { id: 'tipo', rotulo: 'Tipo de cerimônia', tipo: 'opcao', opcoes: ['Religiosa', 'Civil', 'Afetiva / simbólica', 'Ecumênica', 'Outra'] },
+    { id: 'celebrante', rotulo: 'Celebrante (nome e contato)', tipo: 'texto' },
+    { id: 'decoracao', rotulo: 'Cor / estilo da decoração da cerimônia', tipo: 'texto' },
+    { id: 'homenagem', rotulo: 'Homenagem ou estrutura especial', tipo: 'texto', dica: 'ex.: aos pais falecidos do noivo, com balões' },
+    { id: 'aliancas_com', rotulo: 'Com quem estarão as alianças', tipo: 'texto' },
+    { id: 'buque', rotulo: 'Quem busca / entrega o buquê', tipo: 'texto' },
+    { id: 'necessidades', rotulo: 'Convidados com necessidades especiais', tipo: 'texto', dica: 'nomes e cuidados, ou "não há"' },
+    { id: 'saida_com', rotulo: 'Saída dos noivos com', tipo: 'opcao', opcoes: ['Pétalas', 'Sparkles', 'Chuva de prata', 'Bolhas de sabão', 'Chuva de arroz', 'Balões', 'Nada'] },
+    { id: 'sala_espera', rotulo: 'Sala de espera (música / atração)', tipo: 'texto' },
+    { id: 'padrinhos_musicas', rotulo: 'Entrada dos padrinhos – músicas, em ordem', tipo: 'lista', dica: 'uma por linha' },
+    { id: 'padrinhos_como', rotulo: 'Como entram os padrinhos', tipo: 'texto', dica: 'ex.: separados, pelas três passarelas' },
+    { id: 'noivo_musica', rotulo: 'Entrada do noivo – música', tipo: 'texto' },
+    { id: 'noivo_com', rotulo: 'Noivo entra com', tipo: 'texto' },
+    { id: 'noiva_musica', rotulo: 'Entrada da noiva – música', tipo: 'texto' },
+    { id: 'noiva_com', rotulo: 'Noiva entra com', tipo: 'texto' },
+    { id: 'aliancas_musica', rotulo: 'Entrada das alianças – música e quem leva', tipo: 'texto' },
+    { id: 'homenagem_musica', rotulo: 'Homenagem – música e quem participa', tipo: 'texto', dica: 'ou "não terá"' },
+    { id: 'saida_musica', rotulo: 'Saída dos noivos – música', tipo: 'texto' },
+    { id: 'protocolo_fotos', rotulo: 'Protocolo de fotos no altar (ordem)', tipo: 'lista',
+      padrao: ['Celebrante(s)', 'Pais da noiva', 'Pais do noivo', 'Porta-alianças', 'Padrinhos e madrinhas', 'Crianças'] },
+    { id: 'obs', rotulo: 'Observações da cerimônia', tipo: 'longo', opcional: true },
+  ],
+  festa: [
+    { id: 'decoracao', rotulo: 'Cor / estilo da decoração da festa', tipo: 'texto' },
+    { id: 'entrada_noivos', rotulo: 'Entrada dos noivos na festa – música e como', tipo: 'texto' },
+    { id: 'danca', rotulo: 'Valsa / dança dos noivos – música', tipo: 'texto', dica: 'ou "não terá"' },
+    { id: 'cumprimentos', rotulo: 'Cumprimentos aos convidados', tipo: 'opcao', opcoes: ['Agradecimento coletivo após a dança', 'Mesa a mesa', 'Não terá'] },
+    { id: 'buque', rotulo: 'Buquê', tipo: 'opcao', opcoes: ['Jogar o buquê (buquê separado para jogar)', 'Jogar o buquê principal', 'Não jogará'] },
+    { id: 'uisque', rotulo: 'Noivo jogará uísque ou outro item', tipo: 'opcao', opcoes: ['Sim', 'Não'] },
+    { id: 'kit_festa', rotulo: 'Kit festa (o que e quando entra)', tipo: 'texto', dica: 'ou "não terá"' },
+    { id: 'brincadeiras', rotulo: 'Brincadeiras (corte da gravata etc.)', tipo: 'texto', dica: 'ou "não terá"' },
+    { id: 'bolo', rotulo: 'Corte do bolo – como e quando', tipo: 'texto' },
+    { id: 'fotos_bolo', rotulo: 'Fotos na mesa do bolo (grupos, em ordem)', tipo: 'lista',
+      padrao: ['Somente os noivos', 'Noivos + pais da noiva', 'Noivos + pais do noivo', 'Noivos + padrinhos'] },
+    { id: 'restricoes', rotulo: 'Convidados com restrição / alergia alimentar', tipo: 'texto', dica: 'nomes e restrição, ou "não há"' },
+    { id: 'obs', rotulo: 'Observações da festa', tipo: 'longo', opcional: true },
+  ],
+};
+
+function camposPadrao(grupo) {
+  return Object.fromEntries(CAMPOS[grupo].map((c) => [c.id, c.padrao ? c.padrao.slice() : (c.tipo === 'lista' ? [] : '')]));
+}
+const listaDe = (v) => (Array.isArray(v) ? v : String(v || '').split('\n')).map((x) => String(x).trim()).filter(Boolean);
+
+/** Pares rótulo/valor preenchidos (documento e painel). */
+function itensPreenchidos(grupo, dados) {
+  return CAMPOS[grupo].map((c) => {
+    const v = c.tipo === 'lista' ? listaDe(dados?.[c.id]) : String(dados?.[c.id] || '').trim();
+    return { rotulo: c.rotulo, valor: Array.isArray(v) ? v.join('\n') : v, lista: Array.isArray(v) ? v : null, tipo: c.tipo };
+  }).filter((x) => (x.lista ? x.lista.length : x.valor));
+}
+
 const hhmm = (min) => {
   const t = ((min % 1440) + 1440) % 1440;
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
@@ -198,6 +257,9 @@ function novoEvento(contrato) {
       inicio_montagem_dia: '',
       observacoes: '',
     },
+    cerimonia: camposPadrao('cerimonia'),
+    festa: camposPadrao('festa'),
+    atracoes: [],
     fornecedores: [],
     atividades: atividadesPadrao(contrato.evento_horario),
     importado_de: null,
@@ -209,7 +271,14 @@ function carregarEvento(dirDados, contratoArquivo, contrato) {
   const arq = arquivoEvento(dirDados, contratoArquivo);
   if (fs.existsSync(arq)) {
     const ev = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, ''));
-    return { ...novoEvento(contrato), ...ev, info: { ...novoEvento(contrato).info, ...(ev.info || {}) } };
+    const base = novoEvento(contrato);
+    return {
+      ...base, ...ev,
+      info: { ...base.info, ...(ev.info || {}) },
+      cerimonia: { ...base.cerimonia, ...(ev.cerimonia || {}) },
+      festa: { ...base.festa, ...(ev.festa || {}) },
+      atracoes: ev.atracoes || [],
+    };
   }
   return novoEvento(contrato);
 }
@@ -221,6 +290,7 @@ function salvarEvento(dirDados, contratoArquivo, evento) {
     ...evento,
     fornecedores: (evento.fornecedores || []).map((f) => ({ ...f, id: f.id || novoId(), chegada: normalizarHora(f.chegada) })),
     atividades: (evento.atividades || []).map((a) => ({ ...a, id: a.id || novoId(), hora: normalizarHora(a.hora) })),
+    atracoes: (evento.atracoes || []).map((a) => ({ ...a, id: a.id || novoId(), inicio: normalizarHora(a.inicio), fim: normalizarHora(a.fim) })),
     atualizado_em: new Date().toISOString(),
   };
   fs.writeFileSync(arq, `${JSON.stringify(limpo, null, 2)}\n`);
@@ -251,7 +321,16 @@ function importarFornecedores(evento, doFinanceiro, origem) {
     porChave.set(k, item);
     novos++;
   }
-  return { ...evento, fornecedores: atuais, importado_de: origem, importado_em: new Date().toISOString(), novos };
+  // atrações da festa sugeridas a partir dos fornecedores de música (horários a preencher)
+  const atracoes = evento.atracoes || [];
+  const ja = new Set(atracoes.map((x) => chave(x.nome)));
+  for (const f of atuais) {
+    if (f.categoria === 'musica' && f.dia !== 'posterior' && !ja.has(chave(f.nome))) {
+      atracoes.push({ id: novoId(), nome: f.nome, inicio: '', fim: '', obs: f.servico || '' });
+      ja.add(chave(f.nome));
+    }
+  }
+  return { ...evento, fornecedores: atuais, atracoes, importado_de: origem, importado_em: new Date().toISOString(), novos };
 }
 
 /** O que falta preencher antes de gerar o checklist do evento. */
@@ -267,6 +346,19 @@ function pendencias(evento) {
     if (!String(f.nome || '').trim()) p.push('Fornecedor sem nome');
     if (String(f.telefone || '').replace(/\D/g, '').length < 10) p.push(`${nome}: telefone`);
     if (f.dia !== 'nao' && !horaValida(f.chegada)) p.push(`${nome}: horário de chegada`);
+  }
+  for (const [grupo, nome] of [['cerimonia', 'Cerimônia'], ['festa', 'Festa']]) {
+    for (const c of CAMPOS[grupo]) {
+      if (c.opcional) continue;
+      const v = evento[grupo]?.[c.id];
+      const vazio = c.tipo === 'lista' ? listaDe(v).length === 0 : !String(v || '').trim();
+      if (vazio) p.push(`${nome}: ${c.rotulo}`);
+    }
+  }
+  if (!(evento.atracoes || []).length) p.push('Festa: nenhuma atração cadastrada (banda, DJ...)');
+  for (const a of evento.atracoes || []) {
+    if (!String(a.nome || '').trim()) p.push('Atração sem nome');
+    else if (!horaValida(a.inicio) || !horaValida(a.fim)) p.push(`Atração "${a.nome}": horário de início e fim`);
   }
   for (const a of evento.atividades || []) {
     if (!String(a.texto || '').trim()) p.push('Atividade sem descrição');
@@ -291,6 +383,14 @@ function linhaDoTempo(evento) {
       });
     }
   }
+  for (const a of evento.atracoes || []) {
+    if (a.inicio) {
+      itens.push({
+        hora: normalizarHora(a.inicio), texto: `Atração: ${a.nome} (até ${exibirHora(normalizarHora(a.fim))})`,
+        responsavel: '', detalhes: a.obs ? [a.obs] : [], fornecedor: a.nome, tipo: 'atracao',
+      });
+    }
+  }
   // horários da madrugada (00h–05h) contam como depois da festa
   const ordem = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h); if (!m) return 9999; const t = Number(m[1]) * 60 + Number(m[2]); return t < 300 ? t + 1440 : t; };
   return itens.sort((a, b) => ordem(a.hora) - ordem(b.hora));
@@ -301,5 +401,5 @@ const exibirHora = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h || ''); return 
 module.exports = {
   CATEGORIAS: CATEGORIAS.map(([id, nome]) => ({ id, nome })), ROTULO_CATEGORIA, DIAS, categorizar,
   localizarPlanilha, lerFinanceiro, lerTextoColado, carregarEvento, salvarEvento, importarFornecedores,
-  pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora,
+  pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora, CAMPOS, itensPreenchidos,
 };

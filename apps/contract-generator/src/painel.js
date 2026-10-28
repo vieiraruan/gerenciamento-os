@@ -58,6 +58,13 @@ function gerarPainel(d) {
           <label class="chegou"><input type="checkbox" data-k="f-${esc(f.nome)}"> chegou</label></div>
       </div>`).join('')}`).join('');
 
+  const blocoInfo = (itens) => `<div class="card"><dl class="info">${itens.map((x) => `<dt>${esc(x.rotulo)}</dt><dd>${x.lista
+    ? `<ol>${x.lista.map((y) => `<li>${esc(y)}</li>`).join('')}</ol>` : esc(x.valor)}</dd>`).join('')}</dl></div>`;
+  const atracoes = (d.atracoes || []).map((a, i) => `
+    <li class="it"><label class="ck"><input type="checkbox" data-k="at${i}"><span></span></label>
+      <div class="hora">${esc(a.inicio)}</div><div class="corpo"><div class="tx">${esc(a.nome)}</div>
+      <div class="sub">até ${esc(a.fim)}${a.obs_txt ? ` · ${esc(a.obs_txt.replace(/^\s*·\s*/, ''))}` : ''}</div></div></li>`).join('');
+
   const listaMontagem = (lista, pref) => lista.map((m, i) => `
     <li class="it"><label class="ck"><input type="checkbox" data-k="${pref}${i}"><span></span></label>
       <div class="hora">${esc(m.chegada)}</div><div class="corpo"><div class="tx">${esc(m.servico_txt)} – ${esc(m.nome)}</div>
@@ -92,6 +99,10 @@ function gerarPainel(d) {
   .card { background:#fff; border:1px solid var(--borda); border-radius:14px; padding:14px 16px; margin-bottom:12px; }
   .card dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:0; }
   .card dt { color:var(--suave); }
+  dl.info { grid-template-columns: minmax(150px, 34%) 1fr; gap:10px 16px; }
+  dl.info dt { font-size:14px; } dl.info dd { margin:0; font-weight:600; }
+  dl.info ol { margin:0; padding-left:20px; font-weight:600; }
+  @media (max-width:600px) { dl.info { grid-template-columns:1fr; gap:2px; } dl.info dd { margin-bottom:8px; } }
   ul.lista { list-style:none; margin:0; padding:0; }
   .it { display:grid; grid-template-columns:44px 74px 1fr; gap:10px; align-items:start; background:#fff; border:1px solid var(--borda); border-radius:14px; padding:12px; margin-bottom:8px; }
   .it.chegada { background:#fbf8f6; }
@@ -135,6 +146,8 @@ function gerarPainel(d) {
   <div class="prox" id="prox"></div>
   <nav id="abas">
     <button class="on" data-s="crono">Cronograma</button>
+    <button data-s="ceri">Cerimônia</button>
+    <button data-s="festa">Festa</button>
     <button data-s="forn">Fornecedores</button>
     <button data-s="mont">Montagem</button>
     ${d.tem_posterior ? '<button data-s="outros">Outros dias</button>' : ''}
@@ -144,6 +157,12 @@ function gerarPainel(d) {
 <main>
   <section id="crono" class="on">
     <ul class="lista">${d.linha_tempo.map(itemTempo).join('')}</ul>
+  </section>
+  <section id="ceri">${blocoInfo(d.cerimonia_itens || [])}</section>
+  <section id="festa">
+    ${atracoes ? `<h2>Previsão artística</h2><ul class="lista">${atracoes}</ul>` : ''}
+    <h2>Informações da festa</h2>
+    ${blocoInfo(d.festa_itens || [])}
   </section>
   <section id="forn">
     <input class="busca" id="busca" placeholder="Buscar fornecedor, serviço ou responsável…">

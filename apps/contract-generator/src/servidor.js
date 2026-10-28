@@ -275,7 +275,7 @@ const rotas = {
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     return {
       evento, pendencias: ev.pendencias(evento), planilha: ev.localizarPlanilha(pasta),
-      categorias: ev.CATEGORIAS, dias: ev.DIAS,
+      categorias: ev.CATEGORIAS, dias: ev.DIAS, campos: ev.CAMPOS,
     };
   },
 
