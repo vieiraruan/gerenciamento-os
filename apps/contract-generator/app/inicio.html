@@ -56,6 +56,7 @@
   .data .mes { font-size: 11px; text-transform: uppercase; color: var(--suave); font-weight: 600; }
   .eventos .n { font-weight: 600; }
   .eventos .s { font-size: 12px; color: var(--suave); }
+  .eventos .info { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--texto); margin: 2px 0; }
   .eventos .num { font-size: 12px; font-weight: 700; color: var(--marca); }
   .falta { font-size: 12px; color: var(--suave); text-align: right; }
   .vazio { color: var(--suave); font-size: 13px; }
@@ -151,6 +152,12 @@ function dataBr(s) {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim());
   return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
 }
+/** "15:00", "15h", "15:30" → "15h" / "15h30"; vazio → "horário a definir". */
+function hora(h) {
+  const m = /^(\d{1,2})(?:[:h](\d{2}))?/i.exec(String(h || '').trim());
+  if (!m) return h ? String(h) : 'horário a definir';
+  return `${Number(m[1])}h${m[2] && m[2] !== '00' ? m[2] : ''}`;
+}
 const proximo = (seq, linha) => `${linha}-${String((Number(seq?.[linha]) || 0) + 1).padStart(4, '0')}`;
 
 async function carregar() {
@@ -188,7 +195,9 @@ async function carregar() {
       const serv = String(c.servicos).split(',').map((s) => NOMES_SERV[s.trim()] || s.trim()).filter(Boolean).join(' + ');
       return `<li>
         <div class="data"><div class="dia">${c.d.getDate()}</div><div class="mes">${MESES[c.d.getMonth()]} ${String(c.d.getFullYear()).slice(2)}</div></div>
-        <div><div class="n">${esc(c.evento_nomes)}</div><div class="s"><span class="num">${esc(c.numero_os)}</span> · ${esc(serv)}</div></div>
+        <div><div class="n">${esc(c.evento_nomes)}</div>
+          <div class="info"><span>🕒 ${esc(hora(c.evento_horario))}</span><span>📍 ${esc(c.evento_local || 'local a definir')}</span></div>
+          <div class="s"><span class="num">${esc(c.numero_os)}</span> · ${esc(serv)}</div></div>
         <div class="falta">${dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : `em ${dias} dias`}</div>
       </li>`;
     }).join('') || '<li class="vazio">Nenhum evento futuro com data definida.</li>';

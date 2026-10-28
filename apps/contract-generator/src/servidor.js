@@ -174,6 +174,8 @@ const rotas = {
       status: campos.status || '',
       situacao_financeira: campos.situacao_financeira || '',
       valor_total: campos.valor_total || '',
+      evento_horario: campos.evento_horario || '',
+      evento_local: campos.evento_local || '',
     })),
 
   'GET /api/contrato': (q) => {
