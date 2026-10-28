@@ -21,7 +21,8 @@ docs/
 ## Instalar em um computador (Windows)
 
 1. Copie o arquivo **`instalar-sistema.cmd`** (raiz deste repositório) para o computador — por e-mail,
-   pendrive ou pelo Drive — e dê dois cliques.
+   pendrive ou pelo Drive — e dê dois cliques. Abre uma janela com as opções e o status de cada etapa
+   (aguardando → em andamento → ok / aviso / erro), barra de progresso e detalhes.
 2. Ele instala o que faltar via `winget`: **Git**, **Node.js LTS**, **LibreOffice** (PDFs) e
    **Google Drive para computador** (pergunta antes).
 3. Baixa o projeto para `Documentos\gerenciamento-os` (abre o login do GitHub na primeira vez — use uma
@@ -32,7 +33,9 @@ docs/
 Rodar o instalador de novo **atualiza** tudo (projeto e dependências). Além disso, o atalho busca
 atualizações no GitHub sempre que o aplicativo é aberto (desligar com `SEM_ATUALIZAR=1`).
 
-Opções: `instalar-sistema.cmd -Destino C:\outra\pasta -SemPdf -SemDrive`.
+Opções: `instalar-sistema.cmd -Destino C:\outra\pasta -SemPdf -SemDrive -SemInterface` (modo texto).
+
+O `.cmd` é gerado: edite `scripts/instalador/instalador.ps1` e rode `python3 scripts/instalador/montar.py`.
 
 ## Desenvolvimento
 
