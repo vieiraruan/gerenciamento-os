@@ -1,161 +1,137 @@
 'use strict';
 
 /**
- * Roteiro do evento (checklist DESTINATION) — modelo do casal Hanna & Ivan.
+ * Checklist do EVENTO (uso no dia do casamento) — modelo do roteiro do casal Hanna & Ivan.
  *
- * Preenche templates/roteiro_destination.docx com o que o sistema já sabe do contrato e do cliente
- * (dados do contratante, data, horário, local, convidados) e calcula o cronograma do dia a partir
- * do horário da cerimônia (making of da noiva e do noivo, passagem de som, saída para a cerimônia).
- * O restante fica em branco para a assessoria completar no Word.
+ * Monta, a partir do contrato e dos dados do dia (src/evento.js: fornecedores com telefone e chegada,
+ * atividades com horário), o documento templates/checklist_evento.docx. Só é gerado quando não há
+ * pendências (tudo preenchido no aplicativo).
  */
 const fs = require('fs');
 const path = require('path');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const { parseData } = require('./parser');
-const { parseHora, horaFmt } = require('./contrato');
+const { ROTULO_CATEGORIA, CATEGORIAS, linhaDoTempo, exibirHora, pendencias } = require('./evento');
 
 const RAIZ = path.resolve(__dirname, '..');
-const MODELO = path.join(RAIZ, 'templates', 'roteiro_destination.docx');
-const BRANCO = '______________________';
+const MODELO = path.join(RAIZ, 'templates', 'checklist_evento.docx');
 
-const hhmm = (min) => {
-  const t = ((min % 1440) + 1440) % 1440;
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}h${String(t % 60).padStart(2, '0')}`.replace(/h00$/, 'h');
-};
-
-/**
- * Cronograma do dia do casamento (minutos em relação ao início da cerimônia),
- * igual ao roteiro Hanna & Ivan (cerimônia às 15h30).
- */
-const CRONOGRAMA = [
-  [-420, 'Café da manhã dos noivos', []],
-  [-390, 'Banho da noiva', [
-    'Lavar o cabelo apenas com shampoo. Para as loiras, se for preciso, usar um pouco de condicionador apenas para desembaraçar e retirar totalmente o produto na lavagem;',
-    'Após lavado, o cabelo pode ser totalmente seco. Se preferir, pode escovar;',
-    'Dar preferência a camisa de abertura frontal ou robe, peças mais fáceis de retirar sem estragar a maquiagem e o penteado;',
-    'Pele 100% limpa para receber a maquiagem.',
-  ]],
-  [-330, 'Chegada do cabelo e make da noiva', ['Profissional: ________']],
-  [-210, 'Ida do cerimonial ao quarto da noiva', [
-    'Organizar o quarto da noiva;',
-    'Escolher um local do quarto para organizar todos os itens pessoais da noiva (joias, buquê, sapato, vestido) e tirar foto para deixar registrado;',
-    'Verificar se a noiva deseja almoçar;',
-    'Separar uma bolsa com itens pessoais da noiva para a cerimônia e a recepção: maquiagem, perfume, desodorante, sandália, medicação de uso contínuo, medicação para enjoo, vestido extra.',
-  ]],
-  [-150, 'Chegada de foto e vídeo para o making of da noiva', ['Fotografia: ________', 'Vídeo: ________']],
-  [-90, 'Passagem do som | Teste de som', [
-    'Músico da cerimônia 1: ________', 'Músico da cerimônia 2: ________', 'Técnico de som: ________',
-    'Técnico do gerador: ________', 'VJ: ________',
-  ]],
-  [-90, 'Chegada do cerimonial ao local da cerimônia', []],
-  [-90, 'Banho do noivo', ['Fazer a barba e ficar impecável.']],
-  [-60, 'Chegada de foto e vídeo para o making of do noivo', [
-    'Noivo pronto e vestido, faltando abotoar os últimos botões do colarinho e punho da camisa;',
-    'Colocar o blazer com auxílio de um parente próximo (pai, irmão, mãe ou melhor amigo);',
-    'Verificar se o noivo deseja fazer alguma foto em especial.',
-  ]],
-  [-60, 'Fotografia do noivo (com quem estiver no momento)', [
-    'Equipe de foto e vídeo será informada do local do making of do noivo no dia.',
-  ]],
-  [-30, 'Sair com o noivo para a cerimônia', []],
-  [0, 'Sair com a noiva para a cerimônia', []],
-];
-const DURACAO_CERIMONIA = 90; // minutos (Hanna & Ivan: 15h30 às 17h)
-
-function separarLocais(local) {
-  const s = String(local || '').trim();
-  const m = /^(.*?)\s*\(cerim[oô]nia\)\s*(?:e|\/|;|,)\s*(.*?)\s*\(recep[cç][aã]o\)\s*$/i.exec(s);
-  if (m) return { cerimonia: m[1], recepcao: m[2] };
-  const m2 = /^(.*?)\s*\(cerim[oô]nia(?: e recep[cç][aã]o)?\)/i.exec(s);
-  if (m2) return { cerimonia: m2[1], recepcao: /recep/i.test(s) ? m2[1] : BRANCO };
-  return { cerimonia: s || BRANCO, recepcao: s ? 'Mesmo local da cerimônia' : BRANCO };
-}
-
-const dataExt = (d) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 const dataBr = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const somarDias = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const ou = (v, padrao = BRANCO) => (v === undefined || v === null || String(v).trim() === '' ? padrao : String(v).trim());
+const ordemCategoria = Object.fromEntries(CATEGORIAS.map((c, i) => [c.id, i]));
+const minutos = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h || ''); if (!m) return 9999; const t = Number(m[1]) * 60 + Number(m[2]); return t < 300 ? t + 1440 : t; };
 
-/** Dados do roteiro (também usados na prévia do aplicativo). */
-function montarRoteiro(contrato, cliente = {}) {
+function servicoTxt(f) {
+  const cat = ROTULO_CATEGORIA[f.categoria] || '';
+  return f.servico ? f.servico : cat;
+}
+function contatoTxt(f) {
+  const partes = [f.responsavel && `resp.: ${f.responsavel}`, f.telefone].filter(Boolean);
+  return partes.length ? `  ·  ${partes.join(' · ')}` : '';
+}
+function chegadaTxt(f) {
+  if (f.dia === 'nao' || !f.chegada) return '—';
+  const h = exibirHora(f.chegada);
+  return f.dia === 'vespera' ? `Véspera ${h}` : f.dia === 'posterior' ? `Outro dia ${h}` : h;
+}
+
+/** Dados do checklist do evento (também usados no painel do dia e na prévia). */
+function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
   let data = null;
   try { data = contrato.evento_data ? parseData(contrato.evento_data) : null; } catch { data = null; }
-  let ini = null;
-  try { ini = contrato.evento_horario ? parseHora(contrato.evento_horario) : null; } catch { ini = null; }
-  const duracao = Number(String(contrato.evento_duracao_horas || '').replace(',', '.')) || null;
-  const nomes = String(contrato.evento_nomes || '').replace(/\s+/g, ' ').trim();
-  const locais = separarLocais(contrato.evento_local);
-  const conv = contrato.convidados;
+  const i = evento.info || {};
+  const nomes = String(contrato.evento_nomes || '').replace(/\s+/g, ' ').trim() || 'Noiva e Noivo';
+  const tempo = linhaDoTempo(evento);
+  const inicioRecepcao = tempo.find((t) => /in[ií]cio da recep/i.test(t.texto));
+  const forn = (evento.fornecedores || []).slice()
+    .sort((a, b) => (ordemCategoria[a.categoria] ?? 99) - (ordemCategoria[b.categoria] ?? 99) || minutos(a.chegada) - minutos(b.chegada));
+  const lista = (dia) => forn.filter((f) => f.dia === dia && f.chegada)
+    .sort((a, b) => minutos(a.chegada) - minutos(b.chegada))
+    .map((f) => ({ chegada: exibirHora(f.chegada), servico_txt: servicoTxt(f), nome: f.nome, contato_txt: contatoTxt(f) }));
+  const conv = [
+    contrato.convidados && `${contrato.convidados} convidados`,
+    (contrato.padrinhos || contrato.casais_padrinhos) && `${contrato.padrinhos || contrato.casais_padrinhos} casais de padrinhos`,
+    contrato.criancas && `${contrato.criancas} crianças`,
+  ].filter(Boolean).join(' · ');
 
-  const recIni = ini !== null ? ini + DURACAO_CERIMONIA : null;
-  const recFim = ini !== null && duracao ? ini + Math.round(duracao * 60) : null;
-  const horarios = CRONOGRAMA.map(([off, texto, instrucoes]) => ({
-    hora: ini !== null ? hhmm(ini + off) : '__h__', texto, instrucoes,
-  }));
-
-  const quando = data ? `no dia ${dataExt(data)}` : `em data a definir${contrato.evento_periodo ? ` (${contrato.evento_periodo})` : ''}`;
-  const lc = locais.cerimonia === BRANCO ? 'local a definir' : locais.cerimonia;
-  const mesmo = /mesmo local/i.test(locais.recepcao) || locais.recepcao === locais.cerimonia;
-  const ondeTxt = mesmo ? `com cerimônia e recepção em ${lc}`
-    : `com cerimônia em ${lc} e recepção em ${locais.recepcao === BRANCO ? 'local a definir' : locais.recepcao}`;
-  const frase = `Casamento, a realizar-se ${quando}${ini !== null ? `, às ${horaFmt(ini)},` : ','} ${ondeTxt}` +
-    `${recIni !== null ? `, das ${horaFmt(recIni)}${recFim !== null ? ` até ${horaFmt(recFim)}` : ''}` : ''}` +
-    `${conv ? `, para ${conv} convidados` : ''}.`;
-
-  const cli = (k) => cliente[k] ?? contrato[`contratante_${k}`];
+  const montagemVespera = lista('vespera');
+  const posterior = lista('posterior');
   return {
-    titulo_nomes: nomes || 'Noiva e Noivo',
-    subtitulo: [data ? dataExt(data) : (contrato.evento_periodo ? `Data a definir (${contrato.evento_periodo})` : 'Data a definir'),
-      contrato.evento_local || 'Local a definir'].join(' – '),
-    numero_os: ou(contrato.numero_os, '—'),
-    contratante_nome: ou(cli('nome')),
-    primeiros_nomes: nomes || BRANCO,
-    contratante_profissao: ou(cli('profissao')),
-    contratante_estado_civil: ou(cli('estado_civil')),
-    contratante_cpf: ou(cli('cpf_cnpj') ?? contrato.contratante_cpf),
-    contratante_endereco: ou(cli('endereco')),
-    contratante_telefone: ou(cli('telefone')),
-    contratante_email: ou(cli('email')),
-    convidados: ou(conv),
-    criancas: ou(contrato.criancas),
-    padrinhos: ou(contrato.padrinhos || contrato.casais_padrinhos),
-    data_evento: data ? dataBr(data) : 'data a definir',
+    destination,
+    titulo_nomes: nomes,
+    numero_os: contrato.numero_os || '—',
+    data_extenso: data ? data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Data a definir',
+    data_evento: data ? dataBr(data) : 'dia do evento',
     data_vespera: data ? dataBr(somarDias(data, -1)) : 'véspera',
-    data_dia_seguinte: data ? dataBr(somarDias(data, 1)) : '____/____',
-    local_cerimonia: locais.cerimonia,
-    local_recepcao: locais.recepcao,
-    evento_frase: frase,
-    horarios,
-    cerimonia_horario: ini !== null ? `${horaFmt(ini)} às ${horaFmt(ini + DURACAO_CERIMONIA)}` : BRANCO,
-    recepcao_horario: recIni !== null ? `${horaFmt(recIni)} às ${recFim !== null ? horaFmt(recFim) : '________'}` : BRANCO,
-    horas_festa: recIni !== null && recFim !== null ? `${Math.round((recFim - recIni) / 6) / 10}h de festa`.replace('.', ',') : '________',
-    staff: contrato.qtd_equipe ? `${contrato.qtd_equipe} pessoas da equipe Tayná Alves` : '________',
-    tem_horario: ini !== null,
+    convidados_txt: conv || 'convidados a definir',
+    cerimonia_txt: `${exibirHora(i.hora_cerimonia)} · ${i.local_cerimonia || ''}`,
+    recepcao_txt: `${inicioRecepcao ? `${inicioRecepcao.hora ? exibirHora(inicioRecepcao.hora) : ''} · ` : ''}${i.local_recepcao || ''}`,
+    responsavel_montagem: i.responsavel_montagem || 'Tayná Alves',
+    telefone_assessoria: i.telefone_assessoria || '',
+    contato_emergencia: i.contato_emergencia || '',
+    inicio_montagem_vespera: i.inicio_montagem_vespera ? exibirHora(i.inicio_montagem_vespera) : '',
+    inicio_montagem_dia: i.inicio_montagem_dia ? exibirHora(i.inicio_montagem_dia) : '',
+    tem_vespera: montagemVespera.length > 0,
+    montagem_vespera: montagemVespera,
+    montagem_dia: lista('evento'),
+    linha_tempo: tempo.map((t) => ({
+      hora: exibirHora(t.hora),
+      texto: t.texto,
+      extra: [t.responsavel && `  ·  resp.: ${t.responsavel}`, t.tipo === 'chegada' && t.telefone ? `  ·  ${t.telefone}` : '',
+        t.tipo !== 'chegada' && t.fornecedor ? `  ·  ${t.fornecedor}` : ''].filter(Boolean).join(''),
+      detalhes: t.detalhes || [],
+      tipo: t.tipo,
+      telefone: t.telefone || '',
+      responsavel: t.responsavel || '',
+      fornecedor: t.fornecedor || '',
+    })),
+    fornecedores: forn.map((f) => ({
+      servico_txt: servicoTxt(f), categoria: ROTULO_CATEGORIA[f.categoria] || 'Outros', nome: f.nome,
+      responsavel: f.responsavel || '—', telefone: f.telefone || '—', chegada_txt: chegadaTxt(f), observacao: f.observacao || '',
+    })),
+    tem_posterior: posterior.length > 0,
+    posterior,
+    observacoes: i.observacoes || '',
+    gerado_em: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
   };
 }
 
-function nomeArquivoRoteiro(dados, sufixo = '') {
-  const nomes = String(dados.titulo_nomes).replace(/[\\/:*?"<>|]/g, '').trim();
-  return `ROTEIRO DESTINATION - ${nomes}${sufixo}.docx`;
+function nomeArquivo(prefixo, nomes, ext, sufixo = '') {
+  return `${prefixo} - ${String(nomes).replace(/[\\/:*?"<>|]/g, '').trim()}${sufixo}.${ext}`;
+}
+function carimbo() {
+  const d = new Date(); const p = (x) => String(x).padStart(2, '0');
+  return ` (${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}h${p(d.getMinutes())})`;
 }
 
-/** Grava o roteiro na pasta do casal; nunca sobrescreve (novaVersao = cópia com data e hora). */
-function gravarRoteiro(dados, pastaCasal, { novaVersao = false } = {}) {
-  fs.mkdirSync(pastaCasal, { recursive: true });
-  let arquivo = path.join(pastaCasal, nomeArquivoRoteiro(dados));
-  if (fs.existsSync(arquivo)) {
-    if (!novaVersao) return { existe: true, arquivo };
-    const d = new Date();
-    const p = (x) => String(x).padStart(2, '0');
-    arquivo = path.join(pastaCasal, nomeArquivoRoteiro(dados, ` (${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}h${p(d.getMinutes())})`));
+/**
+ * Grava o checklist do evento (.docx) e o painel do dia (.html) na pasta do casal.
+ * Recusa se houver pendências. Nunca sobrescreve: com novaVersao, grava cópias com data e hora.
+ */
+function gravarChecklistEvento(contrato, evento, pastaCasal, { novaVersao = false, destination = true } = {}) {
+  const falta = pendencias(evento);
+  if (falta.length) {
+    const e = new Error(`Preencha antes de gerar: ${falta.slice(0, 8).join('; ')}${falta.length > 8 ? ` (+${falta.length - 8})` : ''}`);
+    e.pendencias = falta;
+    throw e;
   }
-  const doc = new Docxtemplater(new PizZip(fs.readFileSync(MODELO)), {
-    paragraphLoop: true, linebreaks: true, nullGetter: () => '',
-  });
+  const dados = montarChecklistEvento(contrato, evento, { destination });
+  fs.mkdirSync(pastaCasal, { recursive: true });
+  let docx = path.join(pastaCasal, nomeArquivo('CHECKLIST DO EVENTO', dados.titulo_nomes, 'docx'));
+  let html = path.join(pastaCasal, nomeArquivo('PAINEL DO EVENTO', dados.titulo_nomes, 'html'));
+  if (fs.existsSync(docx) || fs.existsSync(html)) {
+    if (!novaVersao) return { existe: true, arquivo: fs.existsSync(docx) ? docx : html };
+    const c = carimbo();
+    docx = path.join(pastaCasal, nomeArquivo('CHECKLIST DO EVENTO', dados.titulo_nomes, 'docx', c));
+    html = path.join(pastaCasal, nomeArquivo('PAINEL DO EVENTO', dados.titulo_nomes, 'html', c));
+  }
+  const doc = new Docxtemplater(new PizZip(fs.readFileSync(MODELO)), { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
   doc.render(dados);
-  fs.writeFileSync(arquivo, doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
-  return { existe: false, arquivo };
+  fs.writeFileSync(docx, doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
+  const { gerarPainel } = require('./painel');
+  fs.writeFileSync(html, gerarPainel(dados));
+  return { existe: false, arquivo: docx, arquivos: [docx, html] };
 }
 
-module.exports = { montarRoteiro, gravarRoteiro, nomeArquivoRoteiro, CRONOGRAMA };
+module.exports = { montarChecklistEvento, gravarChecklistEvento };

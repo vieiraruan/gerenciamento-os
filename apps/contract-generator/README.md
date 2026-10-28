@@ -129,16 +129,34 @@ formatação no meio. Para recriar os modelos do zero: `python scripts/criar_mod
 
 ## Gerador de Checklist
 
-Tela **Checklist** do aplicativo (`/checklist`): escolha o casal e a vertente (destination pronta; sem destination
-em breve). Gera na pasta do casal (`CONTRATOS/ASSESSORIA` ou `CERIMONIAL`), sem nunca sobrescrever:
+Tela **Checklist** do aplicativo (`/checklist`). Escolha o casal e a vertente (destination pronta; sem
+destination em breve). Arquivos gravados na pasta do casal (`CONTRATOS/ASSESSORIA` ou `CERIMONIAL`), sem nunca
+sobrescrever ("Gerar nova versão").
 
-1. **Checklist do evento (roteiro)** — `ROTEIRO DESTINATION - <casal>.docx`, no modelo do roteiro do casal
-   Hanna & Ivan: dados do contrato, hospedagem e site, nome e filiação, restrições, personalizados e kits,
-   cronograma de montagem (véspera e dia, com chegada de cada fornecedor), local, serviços contratados,
-   cronograma do dia (making of da noiva e do noivo, passagem de som, saída para a cerimônia — horários
-   calculados a partir do horário da cerimônia), cerimônia (músicas, protocolo de fotos), recepção, previsão
-   artística e programação dos outros dias. Modelo: `templates/roteiro_destination.docx`
-   (gerado por `python3 scripts/criar_roteiro.py`); dados: `src/roteiro.js`.
-2. **Cronograma de tarefas** — `CHECKLIST DESTINATION - <casal>.xlsx`: 106 tarefas de 12 meses a 1 mês antes,
-   com período de cada etapa, lista de status com cores, valores e fornecedor
-   (`templates/checklists/destination.json`, `src/checklist.js`, `src/xlsx.js`).
+### Checklist do evento + painel do dia (modelo do roteiro Hanna & Ivan)
+
+Para o **dia do casamento**: fornecedores com responsável, telefone e horário de chegada, montagem (véspera e dia),
+cronograma do dia com horário de cada atividade e programação dos outros dias.
+
+1. **Informações do dia**: horário da cerimônia, locais, responsável e telefone da assessoria, emergência, início
+   da montagem.
+2. **Fornecedores**: "Importar do controle financeiro" lê a aba FINANCEIRO da planilha de assessoria (.xlsx) da pasta
+   do casal (fornecedor e descrição). O que não está no controle financeiro (telefone, responsável, quando chega e
+   horário) é preenchido na tela. Planilhas no Google Planilhas: baixar como .xlsx na pasta do casal.
+3. **Atividades do dia**: sugestões do roteiro (making of, saída para a cerimônia, recepção, bolo, buquê...) com
+   horários calculados pelo horário da cerimônia; todas editáveis. As chegadas dos fornecedores entram sozinhas.
+4. Só gera quando **tudo estiver preenchido** (a tela lista o que falta). Salvo automaticamente em
+   `_DADOS DO SISTEMA/eventos/<contrato>.json`.
+
+Saída: `CHECKLIST DO EVENTO - <casal>.docx` (modelo `templates/checklist_evento.docx`, gerado por
+`python3 scripts/criar_roteiro.py`) e `PAINEL DO EVENTO - <casal>.html` — página única que funciona sem internet
+para a equipe no iPad: cronograma com marcar concluído, relógio, próximo item, atrasados em vermelho, fornecedores
+com Ligar/WhatsApp, montagem e informações. As marcações ficam salvas no aparelho.
+Código: `src/evento.js`, `src/roteiro.js`, `src/painel.js`, `src/xlsxLeitor.js`.
+
+### Cronograma de tarefas
+
+`CHECKLIST DESTINATION - <casal>.xlsx`: 106 tarefas do cronograma de 12 meses (planilha Hanna & Ivan),
+**recalculadas pelos meses que faltam** até o casamento (ex.: faltando 8 meses, as tarefas de 12 e 11 meses vão para
+a etapa atual). Status com cores, valores e fornecedor. `templates/checklists/destination.json`, `src/checklist.js`,
+`src/xlsx.js`.

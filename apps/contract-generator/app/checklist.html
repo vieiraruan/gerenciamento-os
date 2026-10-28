@@ -83,6 +83,27 @@
   .itens.horas li { grid-template-columns: 54px 1fr; gap: 14px; }
   .itens.horas .o { color: var(--marca); }
   .novo { font-size: 10px; font-weight: 700; color: #1f4e78; background: #e3eef6; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+  .grade { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px 12px; }
+  .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
+  @media (max-width: 900px) { .c3, .c4, .c6 { grid-column: span 12; } }
+  label.l { display: block; font-size: 11px; font-weight: 700; color: var(--suave); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .3px; }
+  .card input, .card select, .card textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--borda); border-radius: 7px; font: inherit; font-size: 14px; background: #fffdfb; }
+  .card textarea { min-height: 60px; }
+  .card input.falta, .card select.falta { border-color: var(--erro); background: #fff6f5; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 4px 4px 6px; }
+  table.t td { padding: 3px 4px; vertical-align: top; border-top: 1px solid #f3ebe6; }
+  table.t input, table.t select { padding: 6px 7px; font-size: 13px; }
+  table.t select[data-c=categoria] { min-width: 165px; } table.t select[data-c=dia] { min-width: 175px; }
+  table.t select[data-c=fornecedor_id] { min-width: 160px; } table.t input[type=time] { min-width: 105px; }
+  .x { border: 0; background: none; color: var(--suave); font-size: 18px; cursor: pointer; padding: 4px 6px; }
+  .x:hover { color: var(--erro); }
+  .linha-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .pend { list-style: none; margin: 6px 0 0; padding: 0; max-height: 180px; overflow: auto; font-size: 13px; color: var(--erro); }
+  .pend li::before { content: '• '; }
+  .ok-tudo { color: var(--ok); font-weight: 600; }
+  .salvo { font-size: 12px; color: var(--suave); }
+  .passo { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--marca); color: #fff; font-size: 12px; margin-right: 6px; }
 </style>
 </head>
 <body>
@@ -91,7 +112,7 @@
   <div class="sep"></div>
   <div>
     <h1>Gerador de Checklist</h1>
-    <div class="sub">Roteiro do evento e cronograma de tarefas, a partir do contrato</div>
+    <div class="sub">Checklist e painel do dia do evento, e cronograma de tarefas até o casamento</div>
   </div>
   <div class="esp"></div>
   <a class="voltar" href="/">← Início</a>
@@ -158,9 +179,13 @@ async function selecionar(arquivo) {
   }
 }
 
+let EV = null;          // dados do dia do evento
+let META = { categorias: [], dias: {}, planilha: {} };
+let PEND = [];
+let tSalvar = null;
+
 function renderChecklist(ck) {
   const e = ck.evento;
-  const r = ck.roteiro;
   const cont = { vencida: 0, atual: 0, futura: 0 };
   ck.secoes.forEach((s) => { if (s.situacao) cont[s.situacao] += s.itens.length; });
   const novos = ck.secoes.reduce((n, s) => n + s.itens.filter((i) => i.sugerido).length, 0);
@@ -177,14 +202,14 @@ function renderChecklist(ck) {
           <h3>${esc(e.nomes)}</h3>
           <dl>
             <dt>Data</dt><dd>${e.data ? `${esc(e.data)} · ${esc(e.data_extenso)}` : `a definir${e.periodo ? ' (' + esc(e.periodo) + ')' : ''}`}</dd>
-            <dt>Horário</dt><dd>${esc(e.horario || 'a definir')}</dd>
             <dt>Local</dt><dd>${esc(e.local || 'a definir')}</dd>
             <dt>Convidados</dt><dd>${esc(e.convidados || '–')}${e.padrinhos ? ` · ${esc(e.padrinhos)} casais de padrinhos` : ''}${e.criancas ? ` · ${esc(e.criancas)} crianças` : ''}</dd>
           </dl>
         </div>
         <div class="acoes">
           <div class="seg" id="seg">${segs}</div>
-          <button class="btn primario" id="btnRoteiro">Gerar checklist do evento (roteiro .docx)</button>
+          <button class="btn primario" id="btnEvento" disabled>Gerar checklist do evento + painel do dia</button>
+          <div id="statusPend" class="salvo"></div>
           <button class="btn" id="btnCrono">Gerar cronograma de tarefas (planilha)</button>
           <div class="det" style="font-size:12px;color:var(--suave)">Pasta: ${esc(ck.pasta)}${ck.pasta_existe ? '' : ' <b>(será criada)</b>'}</div>
           <div id="resultado"></div>
@@ -194,22 +219,37 @@ function renderChecklist(ck) {
     </div>
 
     <div class="card">
-      <h2>Checklist do evento · roteiro (modelo Hanna &amp; Ivan)</h2>
-      <p style="margin:0 0 10px">${esc(r.evento_frase)}</p>
-      ${r.tem_horario ? '' : '<div class="aviso info" style="margin:0 0 10px">Sem horário da cerimônia no contrato: os horários do dia saem em branco para preencher.</div>'}
-      <ul class="itens horas" style="padding:0">${r.horarios.map((h) => `<li><span class="o">${esc(h.hora)}</span><span>${esc(h.texto)}${h.instrucoes.length ? `<span style="font-size:12px;color:var(--suave)"> · ${h.instrucoes.length} ${h.instrucoes.length > 1 ? 'orientações' : 'orientação'}</span>` : ''}</span></li>`).join('')}</ul>
-      <dl class="topo" style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0 0;font-size:14px">
-        <dt style="color:var(--suave)">Cerimônia</dt><dd style="margin:0">${esc(r.cerimonia_horario)} · ${esc(r.local_cerimonia)}</dd>
-        <dt style="color:var(--suave)">Recepção</dt><dd style="margin:0">${esc(r.recepcao_horario)} · ${esc(r.local_recepcao)}</dd>
-        <dt style="color:var(--suave)">Montagem</dt><dd style="margin:0">véspera ${esc(r.data_vespera)} e dia ${esc(r.data_evento)}</dd>
-      </dl>
-      <p class="det" style="font-size:13px;color:var(--suave);margin:12px 0 0">O documento também traz, para completar no Word: dados do contrato, hospedagem e site,
-        nome e filiação, restrições, personalizados e kits, cronograma de montagem com chegada de cada fornecedor, tabela de serviços
-        contratados, informações e músicas da cerimônia, protocolo de fotos, recepção, previsão artística e programação dos outros dias.</p>
+      <h2><span class="passo">1</span>Informações do dia <span class="salvo" id="salvo"></span></h2>
+      <div class="grade" id="info"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="passo">2</span>Fornecedores <span class="salvo" id="qtdForn"></span></h2>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Vêm do controle financeiro (aba FINANCEIRO da planilha do casal). Complete telefone,
+        responsável e horário de chegada. "Sem horário" = só contato (ex.: local, papelaria entregue antes).</div>
+      <div class="linha-acoes" style="margin:0 0 10px">
+        <button class="btn" id="btnImportar">Importar do controle financeiro</button>
+        <span class="salvo" id="fonte"></span>
+      </div>
+      <div style="overflow-x:auto"><table class="t" id="tForn"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddForn">+ Adicionar fornecedor</button></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="passo">3</span>Atividades do dia</h2>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Todas precisam de horário. As chegadas dos fornecedores entram sozinhas no cronograma do dia.</div>
+      <div style="overflow-x:auto"><table class="t" id="tAtiv"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddAtiv">+ Adicionar atividade</button>
+        <button class="btn" id="btnOrdenar">Ordenar por horário</button></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="passo">4</span>Antes de gerar</h2>
+      <div id="pendencias"></div>
     </div>
 
     <details class="card" style="padding:0">
-      <summary style="padding:16px 20px;cursor:pointer;font-weight:600;color:var(--marca)">Cronograma de tarefas (12 meses até o evento) · ${ck.total_itens} tarefas
+      <summary style="padding:16px 20px;cursor:pointer;font-weight:600;color:var(--marca)">Cronograma de tarefas · ${ck.meses_restantes ? `${ck.meses_restantes} ${ck.meses_restantes > 1 ? 'meses' : 'mês'} até o casamento${ck.comprimido ? ' (tarefas redistribuídas no tempo que falta)' : ''}` : 'evento já realizado ou sem data'} · ${ck.total_itens} tarefas
         ${e.data ? ` · <span style="color:var(--erro)">${cont.vencida} com prazo passado</span> · <span style="color:var(--ok)">${cont.atual} para agora</span>` : ''}</summary>
       <div style="padding:0 20px 16px">
       ${novos ? `<p class="det" style="font-size:13px;color:var(--suave)">${novos} itens sugeridos para revisar (marcados com <span class="novo" style="margin:0">novo</span>)</p>` : ''}
@@ -231,32 +271,175 @@ function renderChecklist(ck) {
     if (b.disabled) return;
     vertente = b.dataset.v; selecionar(atual);
   });
-  $('#btnRoteiro').onclick = () => gerar('roteiro', false);
+  $('#btnEvento').onclick = () => gerar('evento', false);
   $('#btnCrono').onclick = () => gerar('cronograma', false);
+  $('#btnImportar').onclick = importar;
+  $('#btnAddForn').onclick = () => { EV.fornecedores.push({ id: novoId(), nome: '', servico: '', categoria: 'outros', responsavel: '', telefone: '', dia: 'evento', chegada: '', observacao: '', origem: 'manual' }); renderForn(); agendar(); };
+  $('#btnAddAtiv').onclick = () => { EV.atividades.push({ id: novoId(), hora: '', texto: '', responsavel: '', detalhes: [], origem: 'manual' }); renderAtiv(); agendar(); };
+  $('#btnOrdenar').onclick = () => { EV.atividades.sort((a, b) => minutos(a.hora) - minutos(b.hora)); renderAtiv(); agendar(); };
+  carregarEvento();
+}
+
+const novoId = () => Math.random().toString(36).slice(2, 10);
+const minutos = (h) => { const m = /^(\d{1,2}):(\d{2})$/.exec(h || ''); if (!m) return 9999; const t = +m[1] * 60 + +m[2]; return t < 300 ? t + 1440 : t; };
+const horaOk = (h) => /^([01]?\d|2[0-3]):([0-5]\d)$/.test(h || '');
+const telOk = (t) => String(t || '').replace(/\D/g, '').length >= 10;
+
+async function carregarEvento() {
+  try {
+    const r = await api(`/api/evento?arquivo=${encodeURIComponent(atual)}`);
+    EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha }; PEND = r.pendencias;
+    renderInfo(); renderForn(); renderAtiv(); renderPend(); renderFonte();
+  } catch (e) { $('#pendencias').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; }
+}
+
+function renderFonte() {
+  const p = META.planilha || {};
+  $('#fonte').textContent = p.arquivo ? `Planilha: ${p.arquivo.split(/[\\/]/).pop()}` + (EV.importado_em ? ` · importado em ${new Date(EV.importado_em).toLocaleString('pt-BR')}` : '')
+    : p.gsheet ? 'Planilha no Google Planilhas: baixe como .xlsx na pasta do casal para importar' : 'Planilha de assessoria (.xlsx) não encontrada na pasta do casal';
+}
+
+const INFO = [
+  ['hora_cerimonia', 'Horário da cerimônia *', 'time', 'c3'],
+  ['local_cerimonia', 'Local da cerimônia *', 'text', 'c4'],
+  ['local_recepcao', 'Local da recepção *', 'text', 'c5'],
+  ['responsavel_montagem', 'Responsável pela montagem', 'text', 'c4'],
+  ['telefone_assessoria', 'Telefone da assessoria (no dia)', 'tel', 'c4'],
+  ['contato_emergencia', 'Contato de emergência (nome e telefone)', 'text', 'c4'],
+  ['inicio_montagem_vespera', 'Início da montagem na véspera', 'time', 'c4'],
+  ['inicio_montagem_dia', 'Início da montagem no dia', 'time', 'c4'],
+  ['observacoes', 'Observações gerais', 'textarea', 'c12'],
+];
+function renderInfo() {
+  $('#info').innerHTML = INFO.map(([k, rot, tipo, c]) => `<div class="${c === 'c5' ? 'c4' : c}"><label class="l">${esc(rot)}</label>
+    ${tipo === 'textarea' ? `<textarea data-i="${k}">${esc(EV.info[k] || '')}</textarea>` : `<input type="${tipo}" data-i="${k}" value="${esc(EV.info[k] || '')}">`}</div>`).join('');
+  document.querySelectorAll('[data-i]').forEach((el) => el.oninput = () => { EV.info[el.dataset.i] = el.value; marcarFaltas(); agendar(); });
+  marcarFaltas();
+}
+
+function renderForn() {
+  const cats = META.categorias.map((c) => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  const dias = Object.entries(META.dias).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('#qtdForn').textContent = `· ${EV.fornecedores.length} cadastrados`;
+  $('#tForn').innerHTML = `<tr><th style="min-width:140px">Fornecedor *</th><th style="min-width:140px">Serviço</th><th>Categoria</th><th>Responsável</th>
+      <th style="min-width:130px">Telefone *</th><th>Quando</th><th>Chegada *</th><th style="min-width:120px">Observação</th><th></th></tr>` +
+    EV.fornecedores.map((f, i) => `<tr data-f="${i}">
+      <td><input data-c="nome" value="${esc(f.nome)}"></td>
+      <td><input data-c="servico" value="${esc(f.servico)}"></td>
+      <td><select data-c="categoria">${cats}</select></td>
+      <td><input data-c="responsavel" value="${esc(f.responsavel)}"></td>
+      <td><input data-c="telefone" type="tel" placeholder="(81) 9 0000-0000" value="${esc(f.telefone)}"></td>
+      <td><select data-c="dia">${dias}</select></td>
+      <td><input data-c="chegada" type="time" value="${esc(f.chegada)}"></td>
+      <td><input data-c="observacao" value="${esc(f.observacao)}"></td>
+      <td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
+  document.querySelectorAll('#tForn tr[data-f]').forEach((tr) => {
+    const f = EV.fornecedores[+tr.dataset.f];
+    tr.querySelector('[data-c=categoria]').value = f.categoria || 'outros';
+    tr.querySelector('[data-c=dia]').value = f.dia || 'evento';
+    tr.querySelectorAll('[data-c]').forEach((el) => {
+      el.oninput = el.onchange = () => { f[el.dataset.c] = el.value; if (el.dataset.c === 'dia') renderForn(); else marcarFaltas(); agendar(); };
+    });
+  });
+  document.querySelectorAll('#tForn [data-del]').forEach((b) => b.onclick = () => {
+    if (!confirm('Remover este fornecedor do checklist?')) return;
+    EV.fornecedores.splice(+b.dataset.del, 1); renderForn(); agendar();
+  });
+  marcarFaltas();
+}
+
+function renderAtiv() {
+  const opcoes = '<option value="">—</option>' + EV.fornecedores.map((f) => `<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  $('#tAtiv').innerHTML = `<tr><th>Horário *</th><th style="min-width:280px">Atividade *</th><th>Responsável</th><th>Fornecedor</th><th></th></tr>` +
+    EV.atividades.map((a, i) => `<tr data-a="${i}">
+      <td style="width:110px"><input type="time" data-c="hora" value="${esc(a.hora)}"></td>
+      <td><input data-c="texto" value="${esc(a.texto)}">${(a.detalhes || []).length ? `<div class="salvo">${a.detalhes.length} orientações no checklist</div>` : ''}</td>
+      <td><input data-c="responsavel" value="${esc(a.responsavel || '')}"></td>
+      <td><select data-c="fornecedor_id">${opcoes}</select></td>
+      <td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
+  document.querySelectorAll('#tAtiv tr[data-a]').forEach((tr) => {
+    const a = EV.atividades[+tr.dataset.a];
+    tr.querySelector('[data-c=fornecedor_id]').value = a.fornecedor_id || '';
+    tr.querySelectorAll('[data-c]').forEach((el) => { el.oninput = el.onchange = () => { a[el.dataset.c] = el.value; marcarFaltas(); agendar(); }; });
+  });
+  document.querySelectorAll('#tAtiv [data-del]').forEach((b) => b.onclick = () => { EV.atividades.splice(+b.dataset.del, 1); renderAtiv(); agendar(); });
+  marcarFaltas();
+}
+
+function marcarFaltas() {
+  document.querySelectorAll('[data-i=hora_cerimonia]').forEach((el) => el.classList.toggle('falta', !horaOk(el.value)));
+  ['local_cerimonia', 'local_recepcao'].forEach((k) => document.querySelectorAll(`[data-i=${k}]`).forEach((el) => el.classList.toggle('falta', !el.value.trim())));
+  document.querySelectorAll('#tForn tr[data-f]').forEach((tr) => {
+    const f = EV.fornecedores[+tr.dataset.f];
+    tr.querySelector('[data-c=nome]').classList.toggle('falta', !String(f.nome || '').trim());
+    tr.querySelector('[data-c=telefone]').classList.toggle('falta', !telOk(f.telefone));
+    const ch = tr.querySelector('[data-c=chegada]');
+    ch.disabled = f.dia === 'nao';
+    ch.classList.toggle('falta', f.dia !== 'nao' && !horaOk(f.chegada));
+  });
+  document.querySelectorAll('#tAtiv tr[data-a]').forEach((tr) => {
+    const a = EV.atividades[+tr.dataset.a];
+    tr.querySelector('[data-c=hora]').classList.toggle('falta', !horaOk(a.hora));
+    tr.querySelector('[data-c=texto]').classList.toggle('falta', !String(a.texto || '').trim());
+  });
+}
+
+function renderPend() {
+  const n = PEND.length;
+  $('#btnEvento').disabled = n > 0;
+  $('#statusPend').innerHTML = n ? `<span style="color:var(--erro)">Faltam ${n} informações para gerar (veja o passo 4)</span>` : '<span class="ok-tudo">Tudo preenchido — pronto para gerar</span>';
+  $('#pendencias').innerHTML = n
+    ? `<div>Faltam <b>${n}</b> informações. Os campos em vermelho acima precisam ser preenchidos:</div><ul class="pend">${PEND.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`
+    : '<div class="ok-tudo">Tudo preenchido. Gere o checklist do evento e o painel do dia no botão do topo.</div>';
+}
+
+function agendar() {
+  $('#salvo').textContent = '· salvando…';
+  clearTimeout(tSalvar);
+  tSalvar = setTimeout(async () => {
+    try {
+      const r = await api('/api/evento', { arquivo: atual, evento: EV });
+      PEND = r.pendencias; renderPend();
+      $('#salvo').textContent = `· salvo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch (e) { $('#salvo').textContent = `· erro ao salvar: ${e.message}`; }
+  }, 600);
+}
+
+async function importar() {
+  const b = $('#btnImportar'); b.disabled = true;
+  try {
+    const r = await api('/api/evento/importar', { arquivo: atual });
+    EV = r.evento; PEND = r.pendencias; META.planilha = r.planilha;
+    renderForn(); renderAtiv(); renderPend(); renderFonte();
+    $('#fonte').textContent += ` · ${r.novos} novo(s) fornecedor(es)`;
+  } catch (e) { alert(e.message); } finally { b.disabled = false; }
 }
 
 async function gerar(tipo, novaVersao) {
   const out = $('#resultado');
-  const botoes = [$('#btnRoteiro'), $('#btnCrono')];
+  const botoes = [$('#btnEvento'), $('#btnCrono')];
   botoes.forEach((b) => { b.disabled = true; });
   out.innerHTML = '<div class="aviso info">Gerando…</div>';
   try {
+    clearTimeout(tSalvar);
+    if (tipo === 'evento') { const s = await api('/api/evento', { arquivo: atual, evento: EV }); PEND = s.pendencias; }
     const r = await api('/api/checklist/gerar', { arquivo: atual, vertente, tipo, novaVersao });
-    const nome = esc(r.arquivo.split(/[\\/]/).pop());
+    const nomes = (r.arquivos || [r.arquivo]).map((a) => `<b>${esc(a.split(/[\\/]/).pop())}</b>`).join('<br>');
     if (r.existe) {
-      out.innerHTML = `<div class="aviso info">Já existe na pasta do casal: <b>${nome}</b>.
+      out.innerHTML = `<div class="aviso info">Já existe na pasta do casal: <b>${esc(r.arquivo.split(/[\\/]/).pop())}</b>.
         Não foi alterado, para não perder o que já foi preenchido.<br>
         <button class="btn" id="bPasta">Abrir pasta</button><button class="btn" id="bNova">Gerar nova versão</button></div>`;
       $('#bNova').onclick = () => gerar(tipo, true);
     } else {
       document.querySelectorAll('.acoes .det b').forEach((b) => b.remove());
-      out.innerHTML = `<div class="aviso ok">Criado: <b>${nome}</b><br><button class="btn" id="bPasta">Abrir pasta</button></div>`;
+      out.innerHTML = `<div class="aviso ok">Criado:<br>${nomes}${tipo === 'evento' ? '<br><span style="font-size:12px">Envie o PAINEL (.html) para o iPad da equipe.</span>' : ''}<br><button class="btn" id="bPasta">Abrir pasta</button></div>`;
     }
     $('#bPasta').onclick = () => api('/api/abrir', { caminho: r.pasta }).catch((e) => alert(e.message));
   } catch (e) {
     out.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`;
   } finally {
-    botoes.forEach((b) => { b.disabled = false; });
+    $('#btnCrono').disabled = false;
+    renderPend();
   }
 }
 

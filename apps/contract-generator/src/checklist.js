@@ -63,25 +63,41 @@ function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(
   let evento = null;
   try { evento = contrato.evento_data ? parseData(contrato.evento_data) : null; } catch { evento = null; }
 
+  // Meses que faltam: as 12 etapas do modelo são redistribuídas no tempo restante até o casamento.
+  // Ex.: faltando 8 meses, as tarefas de "12 meses" e "11 meses" vão para a etapa de 8 meses, e assim por diante.
+  let meses = 12;
+  if (evento && evento > hoje) {
+    meses = (evento.getFullYear() - hoje.getFullYear()) * 12 + (evento.getMonth() - hoje.getMonth());
+    if (evento.getDate() < hoje.getDate()) meses -= 1;
+    meses = Math.max(1, Math.min(12, meses + 1)); // conta o mês corrente
+  }
+  const comprimido = Boolean(evento && evento > hoje && meses < 12);
+
+  const grupos = new Map();
+  modelo.secoes.slice().sort((a, b) => b.meses - a.meses).forEach((s) => {
+    const b = comprimido ? Math.max(1, Math.ceil((s.meses * meses) / 12)) : s.meses;
+    if (!grupos.has(b)) grupos.set(b, []);
+    grupos.get(b).push(...s.itens);
+  });
+
   let ordem = 0;
-  const secoes = modelo.secoes
-    .slice().sort((a, b) => b.meses - a.meses)
-    .map((s) => {
-      let inicio = null; let fim = null; let situacao = null;
-      if (evento) {
-        inicio = somarMeses(evento, -s.meses);
-        fim = somarDias(s.meses > 1 ? somarMeses(evento, -(s.meses - 1)) : evento, -1);
-        situacao = hoje > fim ? 'vencida' : hoje >= inicio ? 'atual' : 'futura';
-      }
-      return {
-        meses: s.meses,
-        rotulo: rotuloMeses(s.meses),
-        inicio: inicio && dataBr(inicio),
-        fim: fim && dataBr(fim),
-        situacao,
-        itens: s.itens.map((i) => ({ ordem: ++ordem, texto: i.texto, sugerido: Boolean(i.sugerido) })),
-      };
-    });
+  const secoes = [...grupos.entries()].sort((a, b) => b[0] - a[0]).map(([m, itens]) => {
+    let inicio = null; let fim = null; let situacao = null;
+    if (evento) {
+      inicio = somarMeses(evento, -m);
+      if (comprimido && m === meses && inicio < hoje) inicio = hoje;
+      fim = somarDias(m > 1 ? somarMeses(evento, -(m - 1)) : evento, -1);
+      situacao = hoje > fim ? 'vencida' : hoje >= inicio ? 'atual' : 'futura';
+    }
+    return {
+      meses: m,
+      rotulo: rotuloMeses(m),
+      inicio: inicio && dataBr(inicio),
+      fim: fim && dataBr(fim),
+      situacao,
+      itens: itens.map((i) => ({ ordem: ++ordem, texto: i.texto, sugerido: Boolean(i.sugerido) })),
+    };
+  });
 
   return {
     vertente,
@@ -100,6 +116,9 @@ function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(
       criancas: contrato.criancas || '',
     },
     total_itens: ordem,
+    meses_restantes: evento && evento > hoje ? meses : 0,
+    comprimido,
+    gerado_em: dataBr(hoje),
     secoes,
   };
 }
@@ -163,7 +182,9 @@ function planilhaChecklist(ck) {
     alturaTexto(e.local || '', 90));
   mesclas.push('C7:E7');
 
-  linha(9, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: i ? undefined : ck.titulo, s: 'cab' }])), 24);
+  const sobre = ck.meses_restantes
+    ? ` · ${ck.meses_restantes === 1 ? '1 MÊS' : `${ck.meses_restantes} MESES`} ATÉ O CASAMENTO (calculado em ${ck.gerado_em})` : '';
+  linha(9, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: i ? undefined : `${ck.titulo}${sobre}`, s: 'cab' }])), 24);
   mesclas.push('B9:H9');
   const cab = ['ORDEM', 'ITENS', 'STATUS', 'OBSERVAÇÕES', 'ESTIMATIVA (R$)', 'VALOR FINAL (R$)', 'FORNECEDOR'];
   linha(10, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: cab[i], s: 'colcab' }])), 20);

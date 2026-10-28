@@ -22,8 +22,8 @@ const { gerarContrato } = require('./index');
 
 const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
 const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
-const { montarRoteiro, gravarRoteiro } = require('./roteiro');
-const { buscarCliente } = require('./cadastros');
+const { gravarChecklistEvento } = require('./roteiro');
+const ev = require('./evento');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -71,10 +71,12 @@ function paraTxt(campos, cabecalho) {
 
 const lerTxt = (arq) => parseTxt(fs.readFileSync(arq, 'utf8'));
 
-/** Cadastro do cliente do contrato (pelo CPF ou nome do arquivo); vazio se não houver. */
-function clienteDoContrato(campos) {
-  if (!campos.cliente) return {};
-  try { return buscarCliente(campos.cliente, DIR_CLIENTES); } catch { return {}; }
+/** Contrato pelo nome do arquivo (.txt em _DADOS DO SISTEMA). */
+function contratoDe(nome) {
+  const arquivo = nomeArquivo(nome);
+  const arq = path.join(DADOS, arquivo);
+  if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
+  return { arquivo, campos: lerTxt(arq) };
 }
 
 function listarTxt(dir) {
@@ -260,30 +262,52 @@ const rotas = {
   'GET /api/checklist/vertentes': () => listarVertentes(),
 
   'GET /api/checklist/previa': (q) => {
-    const arq = path.join(DADOS, nomeArquivo(q.get('arquivo')));
-    if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
-    const campos = lerTxt(arq);
+    const { campos } = contratoDe(q.get('arquivo'));
     const ck = montarChecklist(campos, q.get('vertente') || 'destination');
     const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    return { ...ck, destination_contrato: /^s/i.test(campos.destination || ''), pasta: destino.pasta, pasta_existe: destino.existe };
+  },
+
+  // ---- Dados do dia do evento (fornecedores, telefones, chegadas, atividades) ----
+  'GET /api/evento': (q) => {
+    const { arquivo, campos } = contratoDe(q.get('arquivo'));
+    const evento = ev.carregarEvento(DADOS, arquivo, campos);
+    const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     return {
-      ...ck,
-      roteiro: montarRoteiro(campos, clienteDoContrato(campos)),
-      destination_contrato: /^s/i.test(campos.destination || ''),
-      pasta: destino.pasta,
-      pasta_existe: destino.existe,
+      evento, pendencias: ev.pendencias(evento), planilha: ev.localizarPlanilha(pasta),
+      categorias: ev.CATEGORIAS, dias: ev.DIAS,
     };
   },
 
-  // tipo: 'roteiro' (checklist destination, .docx) ou 'cronograma' (tarefas de 12 meses, .xlsx)
-  'POST /api/checklist/gerar': (q, corpo) => {
-    const arq = path.join(DADOS, nomeArquivo(corpo.arquivo));
-    if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
-    const campos = lerTxt(arq);
+  'POST /api/evento': (q, corpo) => {
+    const { arquivo } = contratoDe(corpo.arquivo);
+    const salvo = ev.salvarEvento(DADOS, arquivo, corpo.evento || {});
+    return { evento: salvo, pendencias: ev.pendencias(salvo) };
+  },
+
+  'POST /api/evento/importar': (q, corpo) => {
+    const { arquivo, campos } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
-    const opc = { novaVersao: Boolean(corpo.novaVersao) };
+    const pl = ev.localizarPlanilha(pasta);
+    if (!pl.arquivo) {
+      throw new Error(pl.gsheet
+        ? 'A planilha deste casal está no Google Planilhas. No Google Drive, abra a planilha e use Arquivo > Fazer download > .xlsx, salve na pasta do casal e importe de novo (ou cadastre os fornecedores aqui).'
+        : 'Não encontrei a planilha de assessoria (.xlsx) na pasta do casal. Cadastre os fornecedores aqui ou coloque a planilha na pasta.');
+    }
+    const atual = ev.carregarEvento(DADOS, arquivo, campos);
+    const junto = ev.importarFornecedores(atual, ev.lerFinanceiro(pl.arquivo), path.basename(pl.arquivo));
+    const salvo = ev.salvarEvento(DADOS, arquivo, junto);
+    return { evento: salvo, novos: junto.novos, planilha: pl, pendencias: ev.pendencias(salvo) };
+  },
+
+  // tipo: 'evento' (checklist do evento .docx + painel do dia .html) ou 'cronograma' (tarefas, .xlsx)
+  'POST /api/checklist/gerar': (q, corpo) => {
+    const { arquivo, campos } = contratoDe(corpo.arquivo);
+    const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const opc = { novaVersao: Boolean(corpo.novaVersao), destination: (corpo.vertente || 'destination') === 'destination' };
     const r = corpo.tipo === 'cronograma'
       ? gravarChecklist(montarChecklist(campos, corpo.vertente || 'destination'), pasta, opc)
-      : gravarRoteiro(montarRoteiro(campos, clienteDoContrato(campos)), pasta, opc);
+      : gravarChecklistEvento(campos, ev.carregarEvento(DADOS, arquivo, campos), pasta, opc);
     return { ...r, pasta };
   },
 
