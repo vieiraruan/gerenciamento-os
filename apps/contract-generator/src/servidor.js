@@ -270,7 +270,11 @@ const servidor = http.createServer(async (req, res) => {
     // Tela inicial (painel de aplicativos) e aplicativos
     const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
-      return responder(res, 200, fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8'), 'text/html; charset=utf-8');
+      // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
+      const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
+      const html = fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8')
+        .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`);
+      return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
     if (req.method === 'GET' && marca) {
