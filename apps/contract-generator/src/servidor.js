@@ -22,6 +22,8 @@ const { gerarContrato } = require('./index');
 
 const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
 const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
+const { montarRoteiro, gravarRoteiro } = require('./roteiro');
+const { buscarCliente } = require('./cadastros');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -68,6 +70,12 @@ function paraTxt(campos, cabecalho) {
 }
 
 const lerTxt = (arq) => parseTxt(fs.readFileSync(arq, 'utf8'));
+
+/** Cadastro do cliente do contrato (pelo CPF ou nome do arquivo); vazio se não houver. */
+function clienteDoContrato(campos) {
+  if (!campos.cliente) return {};
+  try { return buscarCliente(campos.cliente, DIR_CLIENTES); } catch { return {}; }
+}
 
 function listarTxt(dir) {
   return fs.readdirSync(dir)
@@ -257,16 +265,25 @@ const rotas = {
     const campos = lerTxt(arq);
     const ck = montarChecklist(campos, q.get('vertente') || 'destination');
     const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
-    return { ...ck, destination_contrato: /^s/i.test(campos.destination || ''), pasta: destino.pasta, pasta_existe: destino.existe };
+    return {
+      ...ck,
+      roteiro: montarRoteiro(campos, clienteDoContrato(campos)),
+      destination_contrato: /^s/i.test(campos.destination || ''),
+      pasta: destino.pasta,
+      pasta_existe: destino.existe,
+    };
   },
 
+  // tipo: 'roteiro' (checklist destination, .docx) ou 'cronograma' (tarefas de 12 meses, .xlsx)
   'POST /api/checklist/gerar': (q, corpo) => {
     const arq = path.join(DADOS, nomeArquivo(corpo.arquivo));
     if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
     const campos = lerTxt(arq);
-    const ck = montarChecklist(campos, corpo.vertente || 'destination');
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
-    const r = gravarChecklist(ck, pasta, { novaVersao: Boolean(corpo.novaVersao) });
+    const opc = { novaVersao: Boolean(corpo.novaVersao) };
+    const r = corpo.tipo === 'cronograma'
+      ? gravarChecklist(montarChecklist(campos, corpo.vertente || 'destination'), pasta, opc)
+      : gravarRoteiro(montarRoteiro(campos, clienteDoContrato(campos)), pasta, opc);
     return { ...r, pasta };
   },
 

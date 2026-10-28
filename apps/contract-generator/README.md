@@ -129,13 +129,16 @@ formatação no meio. Para recriar os modelos do zero: `python scripts/criar_mod
 
 ## Gerador de Checklist
 
-Tela **Checklist** do aplicativo (`/checklist`): escolha o casal, a vertente e gere a planilha
-`CHECKLIST DESTINATION - <casal>.xlsx` na pasta do casal (`CONTRATOS/ASSESSORIA` ou `CERIMONIAL`).
+Tela **Checklist** do aplicativo (`/checklist`): escolha o casal e a vertente (destination pronta; sem destination
+em breve). Gera na pasta do casal (`CONTRATOS/ASSESSORIA` ou `CERIMONIAL`), sem nunca sobrescrever:
 
-- Modelo: `templates/checklists/destination.json` — cronograma do casal Hanna & Ivan (12 meses → 1 mês antes),
-  106 tarefas; itens com `"sugerido": true` foram acrescentados a partir das pastas de fornecedores do casal.
-- Com a data do evento, cada etapa ganha o período (de/até) e a situação: prazo passou / agora / próxima.
-- A planilha tem lista de status (EM ANDAMENTO, EM COTAÇÃO, NÃO SE APLICA, NÃO DESEJO, FINALIZADO) com cores,
-  colunas de observações, estimativa, valor final (com total) e fornecedor. Nunca sobrescreve: se já existir,
-  oferece "Gerar nova versão".
-- Vertente **sem destination**: em breve (`templates/checklists/padrao.json`).
+1. **Checklist do evento (roteiro)** — `ROTEIRO DESTINATION - <casal>.docx`, no modelo do roteiro do casal
+   Hanna & Ivan: dados do contrato, hospedagem e site, nome e filiação, restrições, personalizados e kits,
+   cronograma de montagem (véspera e dia, com chegada de cada fornecedor), local, serviços contratados,
+   cronograma do dia (making of da noiva e do noivo, passagem de som, saída para a cerimônia — horários
+   calculados a partir do horário da cerimônia), cerimônia (músicas, protocolo de fotos), recepção, previsão
+   artística e programação dos outros dias. Modelo: `templates/roteiro_destination.docx`
+   (gerado por `python3 scripts/criar_roteiro.py`); dados: `src/roteiro.js`.
+2. **Cronograma de tarefas** — `CHECKLIST DESTINATION - <casal>.xlsx`: 106 tarefas de 12 meses a 1 mês antes,
+   com período de cada etapa, lista de status com cores, valores e fornecedor
+   (`templates/checklists/destination.json`, `src/checklist.js`, `src/xlsx.js`).

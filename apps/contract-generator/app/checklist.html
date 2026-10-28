@@ -80,6 +80,8 @@
   .itens li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid #f3ebe6; font-size: 14px; }
   .itens li:first-child { border-top: 0; }
   .itens .o { color: var(--suave); font-weight: 700; text-align: right; }
+  .itens.horas li { grid-template-columns: 54px 1fr; gap: 14px; }
+  .itens.horas .o { color: var(--marca); }
   .novo { font-size: 10px; font-weight: 700; color: #1f4e78; background: #e3eef6; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
 </style>
 </head>
@@ -89,7 +91,7 @@
   <div class="sep"></div>
   <div>
     <h1>Gerador de Checklist</h1>
-    <div class="sub">Cronograma de tarefas do casamento, a partir da data do evento</div>
+    <div class="sub">Roteiro do evento e cronograma de tarefas, a partir do contrato</div>
   </div>
   <div class="esp"></div>
   <a class="voltar" href="/">← Início</a>
@@ -158,6 +160,7 @@ async function selecionar(arquivo) {
 
 function renderChecklist(ck) {
   const e = ck.evento;
+  const r = ck.roteiro;
   const cont = { vencida: 0, atual: 0, futura: 0 };
   ck.secoes.forEach((s) => { if (s.situacao) cont[s.situacao] += s.itens.length; });
   const novos = ck.secoes.reduce((n, s) => n + s.itens.filter((i) => i.sugerido).length, 0);
@@ -181,60 +184,79 @@ function renderChecklist(ck) {
         </div>
         <div class="acoes">
           <div class="seg" id="seg">${segs}</div>
-          <button class="btn primario" id="btnGerar">Gerar planilha na pasta do casal</button>
+          <button class="btn primario" id="btnRoteiro">Gerar checklist do evento (roteiro .docx)</button>
+          <button class="btn" id="btnCrono">Gerar cronograma de tarefas (planilha)</button>
           <div class="det" style="font-size:12px;color:var(--suave)">Pasta: ${esc(ck.pasta)}${ck.pasta_existe ? '' : ' <b>(será criada)</b>'}</div>
           <div id="resultado"></div>
         </div>
       </div>
       ${alerta}
     </div>
-    <div class="resumo">
-      <span><b>${ck.total_itens}</b> tarefas</span>
-      ${e.data ? `<span style="color:var(--erro)"><b>${cont.vencida}</b> com prazo passado</span>
-      <span style="color:var(--ok)"><b>${cont.atual}</b> para agora</span>
-      <span><b>${cont.futura}</b> próximas</span>` : '<span>Sem data do evento: os prazos aparecem quando a data for definida</span>'}
-      ${novos ? `<span>${novos} itens sugeridos para revisar (marcados com <span class="novo" style="margin:0">novo</span>)</span>` : ''}
+
+    <div class="card">
+      <h2>Checklist do evento · roteiro (modelo Hanna &amp; Ivan)</h2>
+      <p style="margin:0 0 10px">${esc(r.evento_frase)}</p>
+      ${r.tem_horario ? '' : '<div class="aviso info" style="margin:0 0 10px">Sem horário da cerimônia no contrato: os horários do dia saem em branco para preencher.</div>'}
+      <ul class="itens horas" style="padding:0">${r.horarios.map((h) => `<li><span class="o">${esc(h.hora)}</span><span>${esc(h.texto)}${h.instrucoes.length ? `<span style="font-size:12px;color:var(--suave)"> · ${h.instrucoes.length} ${h.instrucoes.length > 1 ? 'orientações' : 'orientação'}</span>` : ''}</span></li>`).join('')}</ul>
+      <dl class="topo" style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0 0;font-size:14px">
+        <dt style="color:var(--suave)">Cerimônia</dt><dd style="margin:0">${esc(r.cerimonia_horario)} · ${esc(r.local_cerimonia)}</dd>
+        <dt style="color:var(--suave)">Recepção</dt><dd style="margin:0">${esc(r.recepcao_horario)} · ${esc(r.local_recepcao)}</dd>
+        <dt style="color:var(--suave)">Montagem</dt><dd style="margin:0">véspera ${esc(r.data_vespera)} e dia ${esc(r.data_evento)}</dd>
+      </dl>
+      <p class="det" style="font-size:13px;color:var(--suave);margin:12px 0 0">O documento também traz, para completar no Word: dados do contrato, hospedagem e site,
+        nome e filiação, restrições, personalizados e kits, cronograma de montagem com chegada de cada fornecedor, tabela de serviços
+        contratados, informações e músicas da cerimônia, protocolo de fotos, recepção, previsão artística e programação dos outros dias.</p>
     </div>
-    ${ck.secoes.map((s) => `
-      <details class="secao" ${s.situacao !== 'futura' ? 'open' : ''}>
-        <summary>
-          <span class="rot">${esc(s.rotulo)}</span>
-          ${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
-          ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}
-          <span class="qtd">${s.itens.length} tarefas</span>
-        </summary>
-        <ul class="itens">${s.itens.map((i) => `<li><span class="o">${i.ordem}</span>
-          <span>${esc(i.texto)}${i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : ''}</span></li>`).join('')}</ul>
-      </details>`).join('')}`;
+
+    <details class="card" style="padding:0">
+      <summary style="padding:16px 20px;cursor:pointer;font-weight:600;color:var(--marca)">Cronograma de tarefas (12 meses até o evento) · ${ck.total_itens} tarefas
+        ${e.data ? ` · <span style="color:var(--erro)">${cont.vencida} com prazo passado</span> · <span style="color:var(--ok)">${cont.atual} para agora</span>` : ''}</summary>
+      <div style="padding:0 20px 16px">
+      ${novos ? `<p class="det" style="font-size:13px;color:var(--suave)">${novos} itens sugeridos para revisar (marcados com <span class="novo" style="margin:0">novo</span>)</p>` : ''}
+      ${ck.secoes.map((s) => `
+        <details class="secao" ${s.situacao === 'atual' ? 'open' : ''}>
+          <summary>
+            <span class="rot">${esc(s.rotulo)}</span>
+            ${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
+            ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}
+            <span class="qtd">${s.itens.length} tarefas</span>
+          </summary>
+          <ul class="itens">${s.itens.map((i) => `<li><span class="o">${i.ordem}</span>
+            <span>${esc(i.texto)}${i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : ''}</span></li>`).join('')}</ul>
+        </details>`).join('')}
+      </div>
+    </details>`;
 
   document.querySelectorAll('#seg button[data-v]').forEach((b) => b.onclick = () => {
     if (b.disabled) return;
     vertente = b.dataset.v; selecionar(atual);
   });
-  $('#btnGerar').onclick = () => gerar(false);
+  $('#btnRoteiro').onclick = () => gerar('roteiro', false);
+  $('#btnCrono').onclick = () => gerar('cronograma', false);
 }
 
-async function gerar(novaVersao) {
+async function gerar(tipo, novaVersao) {
   const out = $('#resultado');
-  $('#btnGerar').disabled = true;
+  const botoes = [$('#btnRoteiro'), $('#btnCrono')];
+  botoes.forEach((b) => { b.disabled = true; });
   out.innerHTML = '<div class="aviso info">Gerando…</div>';
   try {
-    const r = await api('/api/checklist/gerar', { arquivo: atual, vertente, novaVersao });
+    const r = await api('/api/checklist/gerar', { arquivo: atual, vertente, tipo, novaVersao });
+    const nome = esc(r.arquivo.split(/[\\/]/).pop());
     if (r.existe) {
-      out.innerHTML = `<div class="aviso info">Já existe um checklist na pasta deste casal (${esc(r.arquivo.split(/[\\/]/).pop())}).
-        Ele não foi alterado para não perder o que já foi preenchido.<br>
+      out.innerHTML = `<div class="aviso info">Já existe na pasta do casal: <b>${nome}</b>.
+        Não foi alterado, para não perder o que já foi preenchido.<br>
         <button class="btn" id="bPasta">Abrir pasta</button><button class="btn" id="bNova">Gerar nova versão</button></div>`;
-      $('#bNova').onclick = () => gerar(true);
+      $('#bNova').onclick = () => gerar(tipo, true);
     } else {
       document.querySelectorAll('.acoes .det b').forEach((b) => b.remove());
-      out.innerHTML = `<div class="aviso ok">Planilha criada: <b>${esc(r.arquivo.split(/[\\/]/).pop())}</b><br>
-        <button class="btn" id="bPasta">Abrir pasta</button></div>`;
+      out.innerHTML = `<div class="aviso ok">Criado: <b>${nome}</b><br><button class="btn" id="bPasta">Abrir pasta</button></div>`;
     }
     $('#bPasta').onclick = () => api('/api/abrir', { caminho: r.pasta }).catch((e) => alert(e.message));
   } catch (e) {
     out.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`;
   } finally {
-    $('#btnGerar').disabled = false;
+    botoes.forEach((b) => { b.disabled = false; });
   }
 }
 
