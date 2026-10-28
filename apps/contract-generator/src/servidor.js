@@ -274,7 +274,7 @@ const servidor = http.createServer(async (req, res) => {
     }
     const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
     if (req.method === 'GET' && marca) {
-      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=86400' });
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'templates', 'marca', `${marca[1]}.png`)));
     }
     const rota = rotas[`${req.method} ${url.pathname}`];
