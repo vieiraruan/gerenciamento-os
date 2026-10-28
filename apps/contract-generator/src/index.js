@@ -120,9 +120,9 @@ async function gerarContrato(arquivoTxt, opcoes = {}) {
   const dados = enriquecer({ ...brutos, ...contrato, numero_os: numero }, empresa);
 
   // Pasta do casal no padrão do Drive, dentro de CONTRATOS/ASSESSORIA ou CONTRATOS/CERIMONIAL:
-  //   ASSESSORIA/(AS-0042) ASSESSORIA DIDIER E MANUELA/
+  //   ASSESSORIA/(AS-0043) ASSESSORIA NOIVA E NOIVO/
   //   ├── 001. Tayná Alves Assessoria/   contrato + ordem de serviço
-  //   └── PLANILHA DE ASSESSORIA Didier & Manuela.xlsx
+  //   └── PLANILHA DE ASSESSORIA Noiva & Noivo.xlsx
   const linhaNome = contrato.linha === 'AS' ? 'ASSESSORIA' : 'CERIMONIAL';
   const pastaCasal = path.join(saida, linhaNome, `(${numero}) ${linhaNome} ${slug(brutos.evento_nomes)}`);
   const nomeEmpresa = String(empresa.nome_fantasia || empresa.razao_social).replace(/[\\/:*?"<>|]/g, '');

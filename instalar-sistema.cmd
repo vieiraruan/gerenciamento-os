@@ -28,6 +28,7 @@ exit /b %RC%
 #>
 param(
   [string]$Destino = '',
+  [string]$Repositorio = 'https://github.com/vieiraruan/gerenciamento-os.git',
   [switch]$SemPdf,
   [switch]$SemDrive,
   [switch]$SemInterface
@@ -39,7 +40,12 @@ param(
 
 $ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$REPO     = 'https://github.com/vieiraruan/gerenciamento-os.git'
+# downloads diretos (GitHub, nodejs.org, Google) exigem TLS 1.2
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
+# o projeto é público: nunca pedir login do GitHub
+$env:GIT_TERMINAL_PROMPT = '0'
+$env:GCM_INTERACTIVE = 'never'
+$REPO     = $Repositorio
 $NODE_MIN = [version]'22.20.0'
 $APP_REL  = 'apps\contract-generator'
 $ATALHO   = 'Tayna Alves Assessoria'
@@ -150,7 +156,7 @@ function Executar([string]$exe, [string[]]$argumentos, [string]$pasta = '') {
 
 function Winget($id, $nome, [switch]$Atualizar) {
   if (-not (Tem winget)) {
-    Log "winget não encontrado: não dá para instalar $nome automaticamente."
+    Log "winget não encontrado: $nome será baixado direto do site oficial."
     return $false
   }
   $acao = if ($Atualizar) { 'upgrade' } else { 'install' }
@@ -158,6 +164,106 @@ function Winget($id, $nome, [switch]$Atualizar) {
   [void](Executar 'winget' @($acao, '--id', $id, '-e', '--silent', '--accept-source-agreements', '--accept-package-agreements'))
   AtualizarPath
   return $true
+}
+
+# Baixa um arquivo mostrando o percentual na etapa, sem travar a janela.
+function Baixar([string]$url, [string]$destino, [string]$nome) {
+  Log "Baixando $url"
+  try {
+    $req = [System.Net.HttpWebRequest]::Create($url)
+    $req.UserAgent = 'instalador-tayna-alves'
+    $resp = $req.GetResponse()
+    $total = $resp.ContentLength
+    $entrada = $resp.GetResponseStream()
+    $saida = [System.IO.File]::Create($destino)
+    $buf = New-Object byte[] 262144
+    $lido = 0; $ultimo = [DateTime]::MinValue
+    try {
+      while (($n = $entrada.Read($buf, 0, $buf.Length)) -gt 0) {
+        $saida.Write($buf, 0, $n); $lido += $n
+        if (([DateTime]::Now - $ultimo).TotalMilliseconds -gt 300) {
+          $ultimo = [DateTime]::Now
+          $mb = [Math]::Round($lido / 1MB, 1)
+          $txt = if ($total -gt 0) { "Baixando $nome... $([int](100 * $lido / $total))% ($mb MB)" } else { "Baixando $nome... $mb MB" }
+          if ($GUI) { $script:linhas[$script:etapaAtual].Status.Text = $txt }
+          Bombear
+        }
+        if ($script:cancelado) { throw 'cancelado' }
+      }
+    } finally { $saida.Close(); $entrada.Close(); $resp.Close() }
+    return $true
+  } catch {
+    Log "Falha no download: $($_.Exception.Message)"
+    return $false
+  }
+}
+function TextoWeb([string]$url) {
+  $wc = New-Object System.Net.WebClient
+  $wc.Headers.Add('User-Agent', 'instalador-tayna-alves')
+  $wc.Encoding = [System.Text.Encoding]::UTF8
+  return $wc.DownloadString($url)
+}
+# Roda um instalador pedindo permissão de administrador e espera sem travar a janela.
+function InstalarComoAdmin([string]$exe, [string]$argumentos, [string]$nome) {
+  Etapa-Detalhe "Instalando $nome... (confirme a permissão de administrador)"
+  Log "> $exe $argumentos (como administrador)"
+  try { $p = Start-Process -FilePath $exe -ArgumentList $argumentos -Verb RunAs -PassThru }
+  catch { Log "Instalação não autorizada: $($_.Exception.Message)"; return $false }
+  while (-not $p.HasExited) { Bombear; Start-Sleep -Milliseconds 200; if ($script:cancelado) { return $false } }
+  Log "Código de saída: $($p.ExitCode)"
+  AtualizarPath
+  return ($p.ExitCode -in 0, 3010)
+}
+$ARQ = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') { 'arm64' } else { 'x64' }
+$PASTA_TMP = Join-Path $env:TEMP 'instalador-tayna-alves'
+function GitDireto {
+  Etapa-Detalhe 'Procurando a versão mais recente do Git...'
+  try {
+    $rel = TextoWeb 'https://api.github.com/repos/git-for-windows/git/releases/latest' | ConvertFrom-Json
+    $padrao = if ($ARQ -eq 'arm64') { '^Git-.*-arm64\.exe$' } else { '^Git-.*-64-bit\.exe$' }
+    $asset = $rel.assets | Where-Object { $_.name -match $padrao } | Select-Object -First 1
+    if (-not $asset) { Log 'Instalador do Git não encontrado na página de versões.'; return }
+    New-Item -ItemType Directory -Force $PASTA_TMP | Out-Null
+    $exe = Join-Path $PASTA_TMP $asset.name
+    if (Baixar $asset.browser_download_url $exe 'Git') {
+      [void](InstalarComoAdmin $exe '/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES' 'Git')
+    }
+  } catch { Log "Falha ao instalar o Git direto: $($_.Exception.Message)" }
+}
+function NodeDireto {
+  Etapa-Detalhe 'Procurando a versão LTS mais recente do Node.js...'
+  try {
+    $lista = TextoWeb 'https://nodejs.org/dist/index.json' | ConvertFrom-Json
+    $v = ($lista | Where-Object { $_.lts -and $_.lts -ne $false } | Select-Object -First 1).version
+    if (-not $v) { Log 'Versão LTS do Node.js não encontrada.'; return }
+    New-Item -ItemType Directory -Force $PASTA_TMP | Out-Null
+    $msi = Join-Path $PASTA_TMP "node-$v-$ARQ.msi"
+    if (Baixar "https://nodejs.org/dist/$v/node-$v-$ARQ.msi" $msi "Node.js $v") {
+      [void](InstalarComoAdmin 'msiexec.exe' "/i `"$msi`" /qn /norestart" "Node.js $v")
+    }
+  } catch { Log "Falha ao instalar o Node.js direto: $($_.Exception.Message)" }
+}
+function LibreOfficeDireto {
+  Etapa-Detalhe 'Procurando a versão estável do LibreOffice...'
+  try {
+    $base = 'https://download.documentfoundation.org/libreoffice/stable/'
+    $versoes = [regex]::Matches((TextoWeb $base), 'href="(\d+\.\d+\.\d+)/"') | ForEach-Object { [version]$_.Groups[1].Value }
+    $v = ($versoes | Sort-Object -Descending | Select-Object -First 1).ToString()
+    $pasta = if ($ARQ -eq 'arm64') { 'aarch64' } else { 'x86_64' }
+    $nomeMsi = if ($ARQ -eq 'arm64') { "LibreOffice_$($v)_Win_aarch64.msi" } else { "LibreOffice_$($v)_Win_x86-64.msi" }
+    New-Item -ItemType Directory -Force $PASTA_TMP | Out-Null
+    $msi = Join-Path $PASTA_TMP $nomeMsi
+    if (Baixar "$base$v/win/$pasta/$nomeMsi" $msi "LibreOffice $v") {
+      [void](InstalarComoAdmin 'msiexec.exe' "/i `"$msi`" /qn /norestart" "LibreOffice $v")
+    }
+  } catch { Log "Falha ao instalar o LibreOffice direto: $($_.Exception.Message)" }
+}
+function DriveDireto {
+  New-Item -ItemType Directory -Force $PASTA_TMP | Out-Null
+  $exe = Join-Path $PASTA_TMP 'GoogleDriveSetup.exe'
+  if (Baixar 'https://dl.google.com/drive-file-stream/GoogleDriveSetup.exe' $exe 'Google Drive') {
+    [void](InstalarComoAdmin $exe '--silent --desktop_shortcut' 'Google Drive')
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -222,6 +328,7 @@ function Rodar-Instalacao {
   # 2. Git
   Etapa-Inicio 'git'
   if (-not (Tem git)) { [void](Winget 'Git.Git' 'Git') }
+  if (-not (Tem git)) { GitDireto }
   if (Tem git) { Etapa-Fim 'ok' ((& git --version) -replace 'git version ', 'Versão ') }
   else { Etapa-Fim 'erro' 'Git não foi instalado.' }
   if ($script:cancelado) { return }
@@ -230,10 +337,12 @@ function Rodar-Instalacao {
   Etapa-Inicio 'node'
   $vn = VersaoNode
   if (-not $vn) { [void](Winget 'OpenJS.NodeJS.LTS' 'Node.js'); $vn = VersaoNode }
+  if (-not $vn) { NodeDireto; $vn = VersaoNode }
   elseif ($vn -lt $NODE_MIN) {
     Etapa-Detalhe "Versão $vn é antiga; atualizando..."
     [void](Winget 'OpenJS.NodeJS.LTS' 'Node.js' -Atualizar); $vn = VersaoNode
     if ($vn -lt $NODE_MIN) { [void](Winget 'OpenJS.NodeJS.LTS' 'Node.js'); $vn = VersaoNode }
+    if ($vn -lt $NODE_MIN) { NodeDireto; $vn = VersaoNode }
   }
   if ($vn -and $vn -ge $NODE_MIN) { Etapa-Fim 'ok' "Versão $vn" }
   elseif ($vn) { Etapa-Fim 'aviso' "Versão $vn (recomendado $NODE_MIN ou mais nova)" }
@@ -247,8 +356,9 @@ function Rodar-Instalacao {
   elseif (-not $instalarOffice) { Etapa-Fim 'pulada' 'Não instalar: contratos só em .docx (ou PDF pelo Word, se houver)' }
   else {
     [void](Winget 'TheDocumentFoundation.LibreOffice' 'LibreOffice (cerca de 350 MB)')
+    if (-not (AcharSoffice)) { LibreOfficeDireto }
     if (AcharSoffice) { Etapa-Fim 'ok' 'Instalado' }
-    else { Etapa-Fim 'aviso' 'Não confirmado: os PDFs podem não ser gerados.' }
+    else { Etapa-Fim 'aviso' 'Não confirmado: os PDFs podem não ser gerados (instale por libreoffice.org).' }
   }
   if ($script:cancelado) { return }
 
@@ -260,14 +370,13 @@ function Rodar-Instalacao {
   elseif (-not $instalarDrive) { Etapa-Fim 'pulada' 'Não instalar: contratos ficam numa pasta local' }
   elseif ($driveApp) { Etapa-Fim 'aviso' 'Instalado, mas sem conta conectada: abra o Google Drive e entre com a conta da empresa.' }
   else {
-    [void](Winget 'Google.GoogleDrive' 'Google Drive')
+    if (-not (Winget 'Google.GoogleDrive' 'Google Drive')) { DriveDireto }
     Etapa-Fim 'aviso' 'Abra o Google Drive e entre com contatotaynaassessoria@gmail.com; depois rode o instalador de novo.'
   }
   if ($script:cancelado) { return }
 
   # 6. Projeto
   Etapa-Inicio 'repo'
-  $env:GIT_TERMINAL_PROMPT = '0'
   if (-not (Tem git)) { Etapa-Fim 'erro' 'Sem Git não dá para baixar o projeto.' }
   elseif (Test-Path (Join-Path $dest '.git')) {
     Etapa-Detalhe 'Projeto já existe; buscando atualizações...'
@@ -283,9 +392,10 @@ function Rodar-Instalacao {
     Etapa-Fim 'erro' "A pasta $dest já existe e não é uma cópia do projeto. Escolha outra pasta."
   }
   else {
-    Etapa-Detalhe 'Baixando... se abrir a janela do GitHub, entre com uma conta com acesso.'
-    if ((Executar 'git' @('clone', '--progress', $REPO, $dest)) -eq 0) { Etapa-Fim 'ok' "Baixado em $dest" }
-    else { Etapa-Fim 'erro' 'Falha ao baixar: verifique a internet e o acesso da conta ao repositório vieiraruan/gerenciamento-os.' }
+    Etapa-Detalhe 'Baixando o projeto do GitHub...'
+    # público: sem credenciais (credential.helper vazio evita qualquer janela de login)
+    if ((Executar 'git' @('-c', 'credential.helper=', 'clone', '--progress', $REPO, $dest)) -eq 0) { Etapa-Fim 'ok' "Baixado em $dest" }
+    else { Etapa-Fim 'erro' "Falha ao baixar de $REPO. Verifique a internet (e se o repositório está público)." }
   }
   if ($script:cancelado) { return }
 

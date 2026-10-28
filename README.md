@@ -23,17 +23,18 @@ docs/
 1. Copie o arquivo **`instalar-sistema.cmd`** (raiz deste repositório) para o computador — por e-mail,
    pendrive ou pelo Drive — e dê dois cliques. Abre uma janela com as opções e o status de cada etapa
    (aguardando → em andamento → ok / aviso / erro), barra de progresso e detalhes.
-2. Ele instala o que faltar via `winget`: **Git**, **Node.js LTS**, **LibreOffice** (PDFs) e
-   **Google Drive para computador** (pergunta antes).
-3. Baixa o projeto para `Documentos\gerenciamento-os` (abre o login do GitHub na primeira vez — use uma
-   conta com acesso ao repositório), roda `npm ci`, verifica o aplicativo e cria o atalho
-   **"Tayna Alves Assessoria"** na Área de Trabalho.
+2. Só precisa de internet. Instala o que faltar — **Git**, **Node.js LTS**, **LibreOffice** (PDFs) e
+   **Google Drive para computador** — pelo `winget` ou, se ele não existir, baixando dos sites oficiais
+   (pode pedir permissão de administrador).
+3. Baixa o projeto (repositório público, sem login) para `Documentos\gerenciamento-os`, roda `npm ci`,
+   verifica o aplicativo e cria o atalho **"Tayna Alves Assessoria"** na Área de Trabalho.
 4. Entre no Google Drive com a conta da empresa para o sistema usar a pasta `Meu Drive\CONTRATOS`.
 
 Rodar o instalador de novo **atualiza** tudo (projeto e dependências). Além disso, o atalho busca
 atualizações no GitHub sempre que o aplicativo é aberto (desligar com `SEM_ATUALIZAR=1`).
 
-Opções: `instalar-sistema.cmd -Destino C:\outra\pasta -SemPdf -SemDrive -SemInterface` (modo texto).
+Opções: `instalar-sistema.cmd -Destino C:\outra\pasta -SemPdf -SemDrive -SemInterface` (modo texto)
+`-Repositorio <url>` (outro endereço do projeto).
 
 O `.cmd` é gerado: edite `scripts/instalador/instalador.ps1` e rode `python3 scripts/instalador/montar.py`.
 
