@@ -333,6 +333,10 @@ function renderFonte() {
   else t = 'Planilha de assessoria não encontrada na pasta do casal: cadastre aqui ou cole do Google Planilhas';
   if (EV.importado_em) t += ` · aplicada em ${quando(EV.importado_em)}`;
   $('#fonte').textContent = t;
+  const dv = (EV.planilha || {}).divergencias || [];
+  let av = document.getElementById('divergencias');
+  if (!av) { av = document.createElement('div'); av.id = 'divergencias'; $('#fonte').parentNode.after(av); }
+  av.innerHTML = dv.length ? `<div class="aviso erro" style="margin:0 0 10px">A planilha do casal diz diferente — confira: ${dv.map(esc).join(' · ')}</div>` : '';
 }
 
 const INFO = [

@@ -233,12 +233,14 @@ function atividadesPadrao(horaCerimonia) {
 function novoEvento(contrato) {
   const local = String(contrato.evento_local || '');
   const m = /^(.*?)\s*\(cerim[oô]nia\)\s*(?:e|\/|;|,)\s*(.*?)\s*\(recep[cç][aã]o\)\s*$/i.exec(local);
+  const recepcaoADefinir = /recep[cç][aã]o\s+(?:a|à)\s+definir/i.test(local);
   return {
     versao: 1,
     info: {
       hora_cerimonia: contrato.evento_horario ? normalizarHora(contrato.evento_horario) : '',
-      local_cerimonia: m ? m[1] : local.replace(/\s*\(cerim[oô]nia e recep[cç][aã]o\)/i, ''),
-      local_recepcao: m ? m[2] : (local ? 'Mesmo local da cerimônia' : ''),
+      local_cerimonia: m ? m[1] : recepcaoADefinir ? local.replace(/\s*\(cerim[oô]nia\)\s*[;,/].*$/i, '').trim()
+        : local.replace(/\s*\(cerim[oô]nia e recep[cç][aã]o\)/i, ''),
+      local_recepcao: m ? m[2] : (local && !recepcaoADefinir ? 'Mesmo local da cerimônia' : ''),
       convidados: contrato.convidados || '',
       padrinhos: contrato.padrinhos || contrato.casais_padrinhos || '',
       criancas: contrato.criancas || '',
@@ -387,9 +389,16 @@ function aplicarPlanilha(evento, dados) {
       return p && p.hora ? { ...a, hora: p.hora } : a;
     });
   }
+  // o que a planilha diz diferente do que está no app (contrato/edições): avisar, não sobrescrever
+  const divergencias = [];
+  if (hora && info.hora_cerimonia && hora !== info.hora_cerimonia) divergencias.push(`Horário da cerimônia: app ${info.hora_cerimonia}, planilha ${hora}`);
+  const nConv = String(d.convidados || '').replace(/\D/g, '');
+  if (nConv && String(info.convidados || '').replace(/\D/g, '') && Number(nConv) !== Number(String(info.convidados).replace(/\D/g, ''))) {
+    divergencias.push(`Convidados: app ${info.convidados}, planilha ${d.convidados}`);
+  }
   return {
     ...junto, info, atividades,
-    planilha: { assinatura: planilha.assinatura(dados), titulo: dados.fonte?.titulo || '', url: dados.fonte?.url || '', lido_em: dados.lido_em, aplicada_em: new Date().toISOString() },
+    planilha: { divergencias, assinatura: planilha.assinatura(dados), titulo: dados.fonte?.titulo || '', url: dados.fonte?.url || '', lido_em: dados.lido_em, aplicada_em: new Date().toISOString() },
   };
 }
 
