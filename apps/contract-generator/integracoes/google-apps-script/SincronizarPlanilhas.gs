@@ -1,0 +1,132 @@
+/**
+ * Tayná Alves Assessoria — cópia diária das planilhas de assessoria (Google Planilhas) para o aplicativo.
+ *
+ * Roda no Google (Apps Script), na conta dona do Drive da empresa, uma vez por dia. Para cada pasta de casal
+ * em  Meu Drive / CONTRATOS / ASSESSORIA  e  CERIMONIAL  — "(AS-0031) ASSESSORIA NOMES" —, encontra a planilha
+ * de assessoria (Google Planilhas, ou atalho para ela) e grava as abas FINANCEIRO e ASSESSORIA em
+ *     CONTRATOS / CONTRATOS GERADOS / _DADOS DO SISTEMA / planilhas / AS-0031.json
+ * O Google Drive para computador traz o arquivo para o PC e o aplicativo pré-preenche o checklist com ele.
+ * Só regrava quando a planilha mudou. A situação da última execução fica em planilhas/_sincronizacao.json.
+ *
+ * Instalação (uma vez): ver INSTALAR.md nesta pasta — colar este código em script.google.com, executar
+ * `instalar` e autorizar. Nada é enviado para fora do Google Drive da própria conta.
+ */
+
+const RAIZ = 'CONTRATOS';
+const LINHAS = ['ASSESSORIA', 'CERIMONIAL'];
+const CAMINHO_DADOS = ['CONTRATOS GERADOS', '_DADOS DO SISTEMA'];
+const ABAS = ['FINANCEIRO', 'ASSESSORIA'];
+const HORA = 6; // por volta das 6h (fuso do projeto: America/Recife)
+
+/** Executar uma vez: cria o gatilho diário e faz a primeira cópia. */
+function instalar() {
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'sincronizar')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('sincronizar').timeBased().everyDays(1).atHour(HORA).create();
+  sincronizar();
+}
+
+/** Remove o gatilho diário. */
+function desinstalar() {
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'sincronizar')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+}
+
+function sincronizar() {
+  const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
+  if (!raiz) throw new Error(`Pasta "${RAIZ}" não encontrada no Meu Drive.`);
+  let dados = raiz;
+  CAMINHO_DADOS.forEach((n) => { dados = pasta_(dados, n) || dados.createFolder(n); });
+  const destino = pasta_(dados, 'planilhas') || dados.createFolder('planilhas');
+
+  const itens = [];
+  LINHAS.forEach((nomeLinha) => {
+    const linha = pasta_(raiz, nomeLinha);
+    if (!linha) return;
+    const it = linha.getFolders();
+    while (it.hasNext()) {
+      const casal = it.next();
+      const m = /^\(((?:AS|CE)-\d{4})\)/i.exec(casal.getName());
+      if (!m) continue;
+      const numero = m[1].toUpperCase();
+      const item = { numero, pasta: casal.getName() };
+      try {
+        const pl = acharPlanilha_(casal, 0);
+        if (!pl) { item.sem_planilha = true; itens.push(item); continue; }
+        item.planilha = pl.nome;
+        const modificada = pl.atualizada.toISOString();
+        const arqNome = `${numero}.json`;
+        const existente = arquivo_(destino, arqNome);
+        if (existente) {
+          try {
+            const antigo = JSON.parse(existente.getBlob().getDataAsString('UTF-8'));
+            if (antigo.fonte && antigo.fonte.id === pl.id && antigo.fonte.modificada_em === modificada) {
+              item.sem_mudanca = true; itens.push(item); continue;
+            }
+          } catch (e) { /* regrava */ }
+        }
+        const ss = SpreadsheetApp.openById(pl.id);
+        const abas = {};
+        ABAS.forEach((n) => {
+          const sh = ss.getSheetByName(n);
+          if (sh) abas[n] = sh.getDataRange().getDisplayValues();
+        });
+        const json = JSON.stringify({
+          formato: 2,
+          fonte: { tipo: 'google', id: pl.id, titulo: ss.getName(), url: ss.getUrl(), modificada_em: modificada, pasta: casal.getName(), numero },
+          lido_em: new Date().toISOString(),
+          abas,
+        });
+        if (existente) existente.setContent(json);
+        else destino.createFile(arqNome, json, 'application/json');
+        item.atualizada = true;
+      } catch (e) {
+        item.erro = String(e && e.message || e);
+      }
+      itens.push(item);
+    }
+  });
+
+  const situacao = JSON.stringify({ executado_em: new Date().toISOString(), itens }, null, 1);
+  const s = arquivo_(destino, '_sincronizacao.json');
+  if (s) s.setContent(situacao); else destino.createFile('_sincronizacao.json', situacao, 'application/json');
+}
+
+// Planilha de assessoria do casal: Google Planilhas (ou atalho) com "planilha"/"assessoria" no nome; a mais
+// recente. Procura na pasta do casal e um nível abaixo.
+function acharPlanilha_(pasta, nivel) {
+  let melhor = null;
+  const considerar = (id, nome, atualizada) => {
+    if (!/planilha|assessoria/i.test(nome) || /compilado|comparativ|or[cç]amento|convidados/i.test(nome)) return;
+    if (!melhor || atualizada > melhor.atualizada) melhor = { id, nome, atualizada };
+  };
+  const arquivos = pasta.getFiles();
+  while (arquivos.hasNext()) {
+    const f = arquivos.next();
+    const tipo = f.getMimeType();
+    if (tipo === MimeType.GOOGLE_SHEETS) considerar(f.getId(), f.getName(), f.getLastUpdated());
+    else if (tipo === MimeType.SHORTCUT && f.getTargetMimeType() === MimeType.GOOGLE_SHEETS) {
+      try { const alvo = DriveApp.getFileById(f.getTargetId()); considerar(alvo.getId(), f.getName(), alvo.getLastUpdated()); } catch (e) { /* sem acesso */ }
+    }
+  }
+  if (nivel < 1) {
+    const subs = pasta.getFolders();
+    while (subs.hasNext()) {
+      const r = acharPlanilha_(subs.next(), nivel + 1);
+      if (r && (!melhor || r.atualizada > melhor.atualizada)) melhor = r;
+    }
+  }
+  return melhor;
+}
+
+function pasta_(pai, nome) {
+  const it = pai.getFoldersByName(nome);
+  return it.hasNext() ? it.next() : null;
+}
+
+function arquivo_(pai, nome) {
+  const it = pai.getFilesByName(nome);
+  return it.hasNext() ? it.next() : null;
+}

@@ -110,6 +110,7 @@
       <button data-abrir="ASSESSORIA">📂 Pasta ASSESSORIA</button>
       <button data-abrir="CERIMONIAL">📂 Pasta CERIMONIAL</button>
       <div class="msg" id="msgAtalho"></div>
+      <div id="sinc" style="margin-top:12px;font-size:12.5px;color:var(--suave)"></div>
     </div>
   </section>
 </main>
@@ -230,6 +231,21 @@ document.getElementById('btnEncerrar').addEventListener('click', async () => {
 
 renderApps();
 carregar();
+
+// Cópia diária das planilhas do Google (Apps Script na conta da empresa)
+(async () => {
+  const el = document.getElementById('sinc');
+  try {
+    const r = await (await fetch('/api/sincronizacao')).json();
+    if (!r.instalada) { el.innerHTML = '⚠️ Cópia diária das planilhas do Google ainda não instalada (ver <code>integracoes/google-apps-script/INSTALAR.md</code>).'; return; }
+    const quando = r.executado_em ? new Date(r.executado_em) : null;
+    const horas = quando ? (Date.now() - quando) / 36e5 : Infinity;
+    const txt = quando ? quando.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+    el.innerHTML = `${horas > 30 ? '⚠️' : '✔️'} Planilhas do Google copiadas em ${txt} (${r.casais || 0} casais)`
+      + (horas > 30 ? ' — <b>a cópia diária não rodou nas últimas 24 horas</b>' : '')
+      + ((r.erros || []).length ? `<br><span style="color:var(--erro)">Erros: ${r.erros.map((x) => x.replace(/[<>&]/g, '')).join('; ')}</span>` : '');
+  } catch { el.textContent = ''; }
+})();
 </script>
 </body>
 </html>

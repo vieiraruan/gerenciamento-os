@@ -124,74 +124,165 @@ function infoDeLinhas(linhas) {
     const prox = l.slice(i + 1).find((c) => limpa(c));
     return prox ? limpa(prox) : '';
   };
+  // .xlsx traz números crus: 80.0 → 80; horário como fração do dia (0.6458 → 15:30)
+  const num = (v) => (v === undefined ? v : String(v).replace(/^(\d+)\.0+$/, '$1'));
+  const hora = (v) => {
+    const x = Number(v);
+    if (v === undefined || !/^0?\.\d+$/.test(String(v).trim()) || !(x > 0 && x < 1)) return v;
+    const min = Math.round(x * 1440);
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  };
   for (const l of linhas.slice(0, 15)) {
-    const conv = valorApos(l, /qtd\.?\s*convidados/i); if (conv !== undefined && !/qtd/i.test(conv)) info.convidados = conv;
-    const pad = valorApos(l, /casal de padrinho/i); if (pad !== undefined && !/qtd/i.test(pad)) info.padrinhos = pad;
-    const cri = valorApos(l, /qtd\.?\s*de\s*crian/i); if (cri !== undefined) info.criancas = cri;
+    const conv = num(valorApos(l, /qtd\.?\s*convidados/i)); if (conv !== undefined && !/qtd/i.test(conv)) info.convidados = conv;
+    const pad = num(valorApos(l, /casal de padrinho/i)); if (pad !== undefined && !/qtd/i.test(pad)) info.padrinhos = pad;
+    const cri = num(valorApos(l, /qtd\.?\s*de\s*crian/i)); if (cri !== undefined) info.criancas = cri;
     const loc = valorApos(l, /local da cerim/i); if (loc !== undefined) info.local = loc;
-    const hor = valorApos(l, /hor[aá]rio da cerim/i); if (hor !== undefined) info.horario = hor;
+    const hor = hora(valorApos(l, /hor[aá]rio da cerim/i)); if (hor !== undefined) info.horario = hor;
     const dat = valorApos(l, /^\s*data\s*:/i); if (dat !== undefined) info.data = dat;
   }
   return info;
+}
+
+// ---------------------------------------------------------------------------
+// Leitura a partir das linhas das abas (arrays de células, coluna A = índice 0). Serve para o .xlsx
+// da pasta e para a cópia diária das planilhas do Google (formato 2, gravada pelo Apps Script).
+// ---------------------------------------------------------------------------
+const celula = (v) => String(v ?? '').trim();
+
+/** "12 MESES", "6 MESES Antes do casamento", "1 ANO E 4 MESES" → meses; senão null. */
+function mesesDaSecao(texto) {
+  const t = chave(texto);
+  const anos = /(\d+)\s*ano/.exec(t); const meses = /(\d+)\s*m[e]?s/.exec(t.replace(/\d+\s*ano[s]?/, ''));
+  if (!anos && !meses) return null;
+  return (anos ? Number(anos[1]) * 12 : 0) + (meses ? Number(meses[1]) : 0);
+}
+const ehSecao = (t) => mesesDaSecao(t) !== null && chave(t).split(' ').length <= 8
+  || /^(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*\d{2,4}$/.test(chave(t));
+
+function fornecedoresDeLinhas(linhas) {
+  const lista = [];
+  const iCab = linhas.findIndex((l) => l.some((c) => /^\s*fornecedor\s*$/i.test(c || '')));
+  if (iCab < 0) return lista;
+  const cab = linhas[iCab].map(celula);
+  const col = (re) => cab.findIndex((c) => re.test(c));
+  const cN = col(/^fornecedor$/i); const cD = col(/descri/i); const cP = col(/^pix$/i);
+  for (const l of linhas.slice(iCab + 1)) {
+    if (l.some((c) => /^\s*total\s*:?\s*$/i.test(c || ''))) break;
+    lista.push({ nome: celula(l[cN]), descricao: cD >= 0 ? celula(l[cD]) : '', pix: cP >= 0 ? celula(l[cP]) : '' });
+  }
+  return lista;
+}
+
+function tarefasDeLinhas(linhas) {
+  const tarefas = [];
+  let cols = null;
+  let meses;
+  for (const l of linhas) {
+    const cel = l.map(celula);
+    const iItens = cel.findIndex((c) => /^itens$/i.test(c));
+    if (iItens >= 0) { // cabeçalho (o modelo novo repete a cada etapa)
+      const f = (re) => cel.findIndex((c) => re.test(c));
+      cols = { i: iItens, s: f(/^status$/i), o: f(/observa/i), f: f(/^fornecedor/i) };
+      continue;
+    }
+    // título de etapa ("12 MESES", "outubro 2025"): só texto nas primeiras colunas, sem status
+    const preenchidas = cel.filter(Boolean);
+    if (preenchidas.length === 1 && ehSecao(preenchidas[0]) && cel.indexOf(preenchidas[0]) <= (cols ? cols.i : 3)) {
+      const m = mesesDaSecao(preenchidas[0]); meses = m === null ? undefined : m; continue;
+    }
+    if (!cols) continue;
+    const pega = (i) => (i >= 0 ? cel[i] || '' : '');
+    const texto = pega(cols.i);
+    if (!texto || /^\d+$/.test(texto)) continue;
+    tarefas.push({
+      item: texto, status: pega(cols.s), obs: pega(cols.o), fornecedor: pega(cols.f), ...(meses !== undefined ? { meses } : {}),
+    });
+  }
+  return tarefas;
+}
+
+/** Monta os dados do casal a partir das linhas das abas FINANCEIRO e ASSESSORIA. */
+function extrairDeLinhas(financeiro, assessoria) {
+  return {
+    info: assessoria ? infoDeLinhas(assessoria.map((l) => l.map(celula).filter(Boolean))) : {},
+    fornecedores: financeiro ? fornecedoresDeLinhas(financeiro) : [],
+    tarefas: assessoria ? tarefasDeLinhas(assessoria) : [],
+  };
+}
+
+/** Linhas de uma aba do .xlsx como arrays (coluna A = índice 0). */
+function linhasDaAba(aba) {
+  const idx = (letras) => [...letras].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  return aba.linhas.map((l) => {
+    const arr = [];
+    for (const [k, v] of Object.entries(l.c)) arr[idx(k)] = v;
+    return Array.from(arr, (v) => v ?? '');
+  });
 }
 
 /** Lê uma planilha .xlsx (abas FINANCEIRO e ASSESSORIA) no mesmo formato da cópia sincronizada. */
 function lerPlanilhaXlsx(arquivo) {
   const fin = lerAba(arquivo, 'FINANCEIRO');
   if (!fin) throw new Error('A planilha do casal não tem a aba FINANCEIRO.');
-  const cols = (l) => Object.keys(l.c);
-  const cab = fin.linhas.find((l) => cols(l).some((k) => /^\s*fornecedor\s*$/i.test(l.c[k])));
-  const fornecedores = [];
-  if (cab) {
-    const col = (re) => cols(cab).find((k) => re.test(cab.c[k]));
-    const cN = col(/^\s*fornecedor\s*$/i); const cD = col(/descri/i); const cP = col(/^\s*pix\s*$/i);
-    for (const l of fin.linhas) {
-      if (l.n <= cab.n) continue;
-      if (/^\s*total/i.test(l.c[cN] || '') || Object.values(l.c).some((v) => /^\s*total\s*:?\s*$/i.test(v))) break;
-      fornecedores.push({ nome: l.c[cN] || '', descricao: (cD && l.c[cD]) || '', pix: (cP && l.c[cP]) || '' });
-    }
-  }
   const ass = lerAba(arquivo, 'ASSESSORIA');
-  const letras = (l) => { const ks = Object.keys(l.c).sort((a, b) => a.length - b.length || a.localeCompare(b)); return ks.map((k) => l.c[k]); };
-  const info = ass ? infoDeLinhas(ass.linhas.map(letras)) : {};
-  // cronograma (CRONOGRAMA - CHECK LIST): ITENS / STATUS / OBSERVAÇÕES / FORNECEDOR
-  const tarefas = [];
-  if (ass) {
-    const cabT = ass.linhas.find((l) => Object.values(l.c).some((v) => /^\s*itens\s*$/i.test(v)));
-    if (cabT) {
-      const col = (re) => Object.keys(cabT.c).find((k) => re.test(cabT.c[k]));
-      const cI = col(/^\s*itens\s*$/i); const cS = col(/^\s*status\s*$/i); const cO = col(/observa/i); const cF = col(/fornecedor/i);
-      for (const l of ass.linhas) {
-        if (l.n <= cabT.n || !l.c[cI] || /^\s*\d+\s*m[eê]s(es)?\b/i.test(l.c[cI])) continue;
-        tarefas.push({ item: l.c[cI], status: (cS && l.c[cS]) || '', obs: (cO && l.c[cO]) || '', fornecedor: (cF && l.c[cF]) || '' });
-      }
-    }
-  }
+  const mtime = new Date(fs.statSync(arquivo).mtimeMs).toISOString();
   return {
-    fonte: { tipo: 'xlsx', titulo: path.basename(arquivo), arquivo },
-    lido_em: new Date(fs.statSync(arquivo).mtimeMs).toISOString(),
-    info, fornecedores, tarefas,
+    fonte: { tipo: 'xlsx', titulo: path.basename(arquivo), arquivo, modificada_em: mtime },
+    lido_em: mtime,
+    ...extrairDeLinhas(linhasDaAba(fin), ass ? linhasDaAba(ass) : null),
   };
 }
 
-const arquivoCopia = (dirDados, contratoArquivo) => path.join(dirDados, 'planilhas', String(contratoArquivo).replace(/\.txt$/i, '.json'));
+/** Cópia diária gravada pelo Apps Script (formato 2: abas cruas) → mesmo formato das outras fontes. */
+function deCopiaGoogle(json) {
+  if (!json || json.formato !== 2) return json;
+  const abas = json.abas || {};
+  return { fonte: json.fonte, lido_em: json.lido_em, ...extrairDeLinhas(abas.FINANCEIRO || null, abas.ASSESSORIA || null) };
+}
 
-function lerCopiaSincronizada(dirDados, contratoArquivo) {
-  const arq = arquivoCopia(dirDados, contratoArquivo);
-  if (!fs.existsSync(arq)) return null;
-  try { return JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, '')); } catch { return null; }
+const arquivoCopia = (dirDados, contratoArquivo) => path.join(dirDados, 'planilhas', String(contratoArquivo).replace(/\.txt$/i, '.json'));
+const quando = (d) => new Date((d && (d.fonte?.modificada_em || d.lido_em)) || 0).getTime();
+
+/**
+ * Cópia da planilha do Google: a gravada pelo Apps Script (planilhas/<AS-0031>.json, todo dia) ou a feita à mão
+ * pelo Claude (planilhas/<contrato>.json). Vale a mais recente.
+ */
+function lerCopiaSincronizada(dirDados, contratoArquivo, numeroOs) {
+  const candidatos = [arquivoCopia(dirDados, contratoArquivo)];
+  if (numeroOs) candidatos.push(path.join(dirDados, 'planilhas', `${String(numeroOs).trim()}.json`));
+  let melhor = null;
+  for (const arq of candidatos) {
+    if (!fs.existsSync(arq)) continue;
+    try {
+      const d = deCopiaGoogle(JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, '')));
+      if (!melhor || quando(d) > quando(melhor)) melhor = d;
+    } catch { /* arquivo incompleto (Drive sincronizando): ignora */ }
+  }
+  return melhor;
 }
 
 /** A fonte mais recente entre o .xlsx da pasta e a cópia sincronizada do Google. */
-function fonteDoCasal(dirDados, contratoArquivo, xlsx) {
-  const copia = lerCopiaSincronizada(dirDados, contratoArquivo);
+function fonteDoCasal(dirDados, contratoArquivo, xlsx, numeroOs) {
+  const copia = lerCopiaSincronizada(dirDados, contratoArquivo, numeroOs);
   let doXlsx = null;
   if (xlsx) { try { doXlsx = lerPlanilhaXlsx(xlsx); } catch { doXlsx = null; } }
-  if (copia && doXlsx) return new Date(copia.lido_em) >= new Date(doXlsx.lido_em) ? copia : doXlsx;
+  if (copia && doXlsx) return quando(copia) >= quando(doXlsx) ? copia : doXlsx;
   return copia || doXlsx;
 }
 
-const assinatura = (dados) => (dados ? `${dados.fonte?.tipo}:${dados.fonte?.id || dados.fonte?.titulo}:${dados.lido_em}` : '');
+/** Muda só quando a planilha muda (a cópia diária regrava o arquivo, mas a data de modificação é a da planilha). */
+const assinatura = (dados) => (dados ? `${dados.fonte?.tipo}:${dados.fonte?.id || dados.fonte?.titulo}:${dados.fonte?.modificada_em || dados.lido_em}` : '');
+
+/** Situação da cópia diária (arquivo _sincronizacao.json gravado pelo Apps Script). */
+function situacaoSincronizacao(dirDados) {
+  const arq = path.join(dirDados, 'planilhas', '_sincronizacao.json');
+  if (!fs.existsSync(arq)) return { instalada: false };
+  try {
+    const j = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, ''));
+    return { instalada: true, executado_em: j.executado_em, casais: (j.itens || []).length,
+      erros: (j.itens || []).filter((x) => x.erro).map((x) => `${x.pasta}: ${x.erro}`) };
+  } catch { return { instalada: true, erro: 'arquivo de situação ilegível' }; }
+}
 
 /** Separa "Cerimônia - X, Festa - Y" quando a planilha traz os dois locais juntos. */
 function separarLocais(texto) {
@@ -207,6 +298,7 @@ function separarLocais(texto) {
 const ehServicoGenerico = (s) => SERVICO_GENERICO.test(chave(s));
 
 module.exports = {
+  extrairDeLinhas, deCopiaGoogle, situacaoSincronizacao, mesesDaSecao,
   ehServicoGenerico, normalizarFornecedores, infoDeLinhas, lerPlanilhaXlsx, lerCopiaSincronizada, arquivoCopia, fonteDoCasal,
   assinatura, separarLocais, lerHorario, acharCelular, aDefinir,
 };

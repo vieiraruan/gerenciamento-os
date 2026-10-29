@@ -147,9 +147,9 @@ cronograma do dia com horário de cada atividade e programação dos outros dias
      (com horário quando a descrição traz "22h às 0h");
    - aba ASSESSORIA: horário da cerimônia, locais, convidados, casais de padrinhos e crianças.
    Só preenche o que está vazio: o que foi editado no app é mantido. Quando a planilha muda, a próxima abertura
-   completa o que for novo. Fontes: o .xlsx da pasta do casal ou a cópia sincronizada de uma planilha do Google
-   (`_DADOS DO SISTEMA/planilhas/<contrato>.json`, gravada pela sincronização com o conector do Google; formato em
-   `src/planilha.js`). Sem nenhuma das duas, ainda dá para "Colar do Google Planilhas" (aba FINANCEIRO).
+   completa o que for novo. Fontes: o .xlsx da pasta do casal ou a **cópia diária** das planilhas do Google
+   (`_DADOS DO SISTEMA/planilhas/AS-0031.json`), gravada todo dia por um Apps Script na conta da empresa —
+   instalação em `integracoes/google-apps-script/INSTALAR.md`; a tela inicial mostra quando foi a última cópia. Sem nenhuma das duas, ainda dá para "Colar do Google Planilhas" (aba FINANCEIRO).
    Telefone, responsável e horário de chegada que não estão na planilha são preenchidos na tela.
 3. **Atividades do dia**: sugestões do roteiro (making of, saída para a cerimônia, recepção, bolo, buquê...) com
    horários calculados pelo horário da cerimônia; todas editáveis. As chegadas dos fornecedores entram sozinhas.

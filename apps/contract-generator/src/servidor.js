@@ -159,6 +159,9 @@ function lerCorpo(req) {
 }
 
 const rotas = {
+  // cópia diária das planilhas do Google (Apps Script) — integracoes/google-apps-script/INSTALAR.md
+  'GET /api/sincronizacao': () => planilhaCasal.situacaoSincronizacao(DADOS),
+
   'GET /api/config': () => ({
     modo: PASTAS.modo,
     pasta: DIR_GERADOS,
@@ -282,7 +285,7 @@ const rotas = {
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const pl = ev.localizarPlanilha(pasta);
     // planilha nova ou atualizada desde a última vez: pré-preenche (só o que está vazio) e salva
-    const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+    const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo, campos.numero_os);
     let aplicada = null;
     if (dados && planilhaCasal.assinatura(dados) !== (evento.planilha || {}).assinatura) {
       const junto = ev.aplicarPlanilha(evento, dados);
@@ -314,7 +317,7 @@ const rotas = {
       if (!lista.length) throw new Error('Não reconheci fornecedores no texto colado. Copie as colunas Fornecedor e Descrição da aba FINANCEIRO.');
       junto = ev.importarFornecedores(atual, lista, 'Google Planilhas (colado)');
     } else {
-      const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+      const dados = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo, campos.numero_os);
       if (!dados) {
         throw new Error(pl.gsheet
           ? 'A planilha deste casal está no Google Planilhas e ainda não foi sincronizada. Use "Colar do Google Planilhas": copie a aba FINANCEIRO e cole aqui.'
@@ -325,7 +328,7 @@ const rotas = {
     const { novos, atualizados } = junto;
     delete junto.novos; delete junto.atualizados;
     const salvo = ev.salvarEvento(DADOS, arquivo, junto);
-    const dadosPl = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo);
+    const dadosPl = planilhaCasal.fonteDoCasal(DADOS, arquivo, pl.arquivo, campos.numero_os);
     const sincronizada = dadosPl ? { titulo: dadosPl.fonte?.titulo, url: dadosPl.fonte?.url, tipo: dadosPl.fonte?.tipo, lido_em: dadosPl.lido_em } : null;
     return { evento: salvo, novos, atualizados, planilha: { ...pl, sincronizada }, pendencias: ev.pendencias(salvo) };
   },
