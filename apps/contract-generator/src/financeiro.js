@@ -395,7 +395,6 @@ function importarLinhas(linhas, pastaCasal) {
     if (nPagas) item.parcelas.pagas_importadas = Math.min(nPagas, item.parcelas.quantidade || nPagas);
     const obs = v(l, 'obs');
     if (obs) item.historico.push(...obs.split(/\n+/).map((x) => x.trim()).filter(Boolean));
-    item.historico.push(`${dataBr(hojeIso())} - Importado da planilha de assessoria.`);
     const pasta = acharPastaExistente(pastaCasal, item, { usadas: new Set(fin.itens.map((i) => i.pasta).filter(Boolean)) });
     if (pasta) item.pasta = pasta;
     fin.itens.push(item);

@@ -217,14 +217,18 @@ const rotas = {
     const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     let dados = fin.carregar(DADOS, arquivo);
     let importado = null;
-    if (!dados) {
-      // 1ª vez: importa a aba FINANCEIRO da planilha do casal (cópia diária do Google ou .xlsx)
-      const pl = ev.localizarPlanilha(pasta);
-      const bruto = planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
-      if (bruto) {
+    // enquanto nada foi lançado no sistema para o casal, acompanha a planilha (reimporta quando ela muda)
+    const soImportado = (d) => d && d.importado_de && d.itens.every((i) => i.importado && !i.removido
+      && (i.pagamentos || []).every((p) => p.importado) && !i.contrato && !i.atualizado_em);
+    const pl0 = ev.localizarPlanilha(pasta);
+    const bruto = (!dados || soImportado(dados)) ? planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl0.arquivo, campos.numero_os) : null;
+    if (bruto && (!dados || Number(bruto.quando) > Number(dados.importado_de.quando || 0))) {
+      {
+        // importa a aba FINANCEIRO da planilha do casal (cópia diária do Google ou .xlsx)
         dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
-        dados.importado_de = { ...bruto.fonte, em: new Date().toISOString() };
-        fin.salvar(DADOS, arquivo, dados, campos.numero_os);
+        dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
+        // só importado: a planilha continua igual, nada a escrever de volta no Google ainda
+        fin.salvar(DADOS, arquivo, dados);
         importado = dados.itens.length;
       }
     }
