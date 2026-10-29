@@ -1,0 +1,362 @@
+{
+ "_comentario": "Checklist SEM DESTINATION (casamento na Região Metropolitana do Recife): cronograma padrão da NOVA PLANILHA DE ASSESSORIA usada pela Tayná (aba ASSESSORIA). 'meses' = quantos meses antes do evento a etapa começa.",
+ "nome": "Sem destination",
+ "titulo": "CRONOGRAMA - CHECK LIST",
+ "status": [
+  "EM ANDAMENTO",
+  "EM COTAÇÃO",
+  "NÃO SE APLICA",
+  "NÃO DESEJO",
+  "FINALIZADO"
+ ],
+ "secoes": [
+  {
+   "meses": 12,
+   "itens": [
+    {
+     "texto": "Definição da data do casamento"
+    },
+    {
+     "texto": "Quantidade de convidados / fazer a lista completa"
+    },
+    {
+     "texto": "Definição do orçamento total do casamento"
+    },
+    {
+     "texto": "Definir estilo da festa e da cerimônia (informal, clássica, rústica, boho e outras)"
+    },
+    {
+     "texto": "Ter ideia da paleta de cores (a definição final será após reunião com o decorador)"
+    },
+    {
+     "texto": "Fazer reunião de briefing | Definir os itens que vai querer e quais fornecedores cotar"
+    },
+    {
+     "texto": "Criar pasta de compartilhamento"
+    },
+    {
+     "texto": "Criar planilha de orçamento | Análise de budget"
+    },
+    {
+     "texto": "Elaborar planilha de fluxo de pagamento | Preencher com o que já foi contratado"
+    },
+    {
+     "texto": "Contratar o espaço para cerimônia e festa"
+    },
+    {
+     "texto": "Iniciar a pesquisa de fornecedores: buffet, música, bebidas, decoração, foto, vídeo e outros"
+    }
+   ]
+  },
+  {
+   "meses": 11,
+   "itens": [
+    {
+     "texto": "Contratar buffet"
+    },
+    {
+     "texto": "Contratar decoração da cerimônia e recepção / adesivo de pista"
+    },
+    {
+     "texto": "Contratar mesas e cadeiras (se não estiver incluso no contrato da decoração)"
+    },
+    {
+     "texto": "Contratar audiovisual (palco, sonorização, iluminação cênica e de pista)"
+    },
+    {
+     "texto": "Contratar estrutura necessária (fechamentos, cobertura, piso e outros)"
+    },
+    {
+     "texto": "Contratar gerador"
+    },
+    {
+     "texto": "Contratar banda da cerimônia"
+    },
+    {
+     "texto": "Contratar DJ"
+    },
+    {
+     "texto": "Contratar banda / dupla sertaneja / bloco de carnaval"
+    }
+   ]
+  },
+  {
+   "meses": 10,
+   "itens": [
+    {
+     "texto": "Começar a pesquisar o vestido de noiva"
+    },
+    {
+     "texto": "Contratar celebrante"
+    },
+    {
+     "texto": "Contratar equipe de cabelo e maquiagem"
+    },
+    {
+     "texto": "Contratar foto"
+    },
+    {
+     "texto": "Contratar vídeo"
+    }
+   ]
+  },
+  {
+   "meses": 9,
+   "itens": [
+    {
+     "texto": "Pesquisar destino de lua de mel"
+    },
+    {
+     "texto": "Definir e comprar presente para padrinhos, madrinhas, pajens e daminhas (entregar junto ao convite)"
+    },
+    {
+     "texto": "Pegar tamanho de cada item dos presentes de padrinhos e madrinhas, para definir o tamanho das caixas"
+    },
+    {
+     "texto": "Contratar cabine fotográfica"
+    }
+   ]
+  },
+  {
+   "meses": 8,
+   "itens": [
+    {
+     "texto": "Contratar convites"
+    },
+    {
+     "texto": "Itens de papelaria (tag para bem-casado / lágrima de alegria / chuva de arroz / kit toalete / tag para lembranças)"
+    },
+    {
+     "texto": "Comprar os robes das madrinhas e da noiva"
+    },
+    {
+     "texto": "Definir onde os padrinhos, daminhas e pajens irão alugar ou comprar o traje (para colocar a informação no convite)"
+    },
+    {
+     "texto": "Escrever cartinha \"Por que foi escolhido\" para cada padrinho e madrinha | Colocar junto ao convite"
+    },
+    {
+     "texto": "Fazer o convite dos padrinhos, madrinhas, damas e pajens | Passar as informações de roupas e acessórios"
+    },
+    {
+     "texto": "Contratar o vestido de noiva"
+    }
+   ]
+  },
+  {
+   "meses": 7,
+   "itens": [
+    {
+     "texto": "Contratar doces"
+    },
+    {
+     "texto": "Contratar bolo"
+    },
+    {
+     "texto": "Definir as lembrancinhas dos convidados (homens e mulheres)"
+    },
+    {
+     "texto": "Definir acessórios da noiva (joias, sapato, grinalda)"
+    },
+    {
+     "texto": "Reservar o dia da noiva e a noite de núpcias"
+    },
+    {
+     "texto": "Fazer site dos noivos (informações de maquiagem e cabelo, mapa, horários)"
+    },
+    {
+     "texto": "Fazer a lista de presentes"
+    },
+    {
+     "texto": "Fazer o save-the-date (colocar o site)"
+    }
+   ]
+  },
+  {
+   "meses": 6,
+   "itens": [
+    {
+     "texto": "Contratar equipe de recreação"
+    },
+    {
+     "texto": "Comprar lembrancinhas (suculentas / sandália / cabine de foto)"
+    },
+    {
+     "texto": "Contratar carrinho de comidinhas ou food bike"
+    },
+    {
+     "texto": "Roupa do noivo"
+    },
+    {
+     "texto": "Contratar outra atração para a festa (live music, sax, atração de pista de dança e outros)"
+    },
+    {
+     "texto": "Enviar o save-the-date"
+    },
+    {
+     "texto": "Definir lua de mel"
+    },
+    {
+     "texto": "Roupa das crianças"
+    },
+    {
+     "texto": "Roupa dos pais"
+    },
+    {
+     "texto": "Contratar bem-casados (escolher papel e fita)"
+    },
+    {
+     "texto": "Locar bandeja dos doces e bolo (alinhar diâmetro do bolo com o fornecedor)"
+    },
+    {
+     "texto": "Enviar os convites para a calígrafa"
+    }
+   ]
+  },
+  {
+   "meses": 5,
+   "itens": [
+    {
+     "texto": "Comprar as alianças"
+    },
+    {
+     "texto": "Contratar copeira / serviços gerais / manobrista / segurança"
+    },
+    {
+     "texto": "Contratar bebidas: uísque / espumante / chopp / cerveja"
+    },
+    {
+     "texto": "Contratar drinks / barman"
+    },
+    {
+     "texto": "Comprar kit toalete (caixa e itens necessários)"
+    },
+    {
+     "texto": "Contratar serviço de valet, segurança e limpeza (vassourinhas e camareiras para toaletes)"
+    },
+    {
+     "texto": "Escolher e comprar ou fazer a almofadinha/pratinho para a entrada das alianças"
+    },
+    {
+     "texto": "Comprar topo de bolo (depende do prazo de cada fornecedor e modelo escolhido)"
+    }
+   ]
+  },
+  {
+   "meses": 4,
+   "itens": [
+    {
+     "texto": "Comprar leques (caso seja no verão)"
+    },
+    {
+     "texto": "Organizar chá de cozinha / chá bar / chá de lingerie"
+    },
+    {
+     "texto": "Definir dia do noivo: massagem / barbearia"
+    },
+    {
+     "texto": "Comprar chinelos"
+    },
+    {
+     "texto": "Contratar fornecedor para buquê, lapelas e acessórios das daminhas (caso a decoradora não faça)"
+    },
+    {
+     "texto": "Comprar acessórios de pista (chapéus, máscaras, bastões de LED)"
+    },
+    {
+     "texto": "Escolher o local do dia da noiva"
+    },
+    {
+     "texto": "Contratar carro da noiva | carro de sobras | carro para levar coisas para o espaço"
+    }
+   ]
+  },
+  {
+   "meses": 3,
+   "itens": [
+    {
+     "texto": "Contratar climatizadores"
+    },
+    {
+     "texto": "Contratar A&B para o almoço do making of da noiva | noivo"
+    },
+    {
+     "texto": "Dar entrada na documentação do cartório | igreja"
+    },
+    {
+     "texto": "Providenciar hospedagem para a equipe de decoração e assessoria (se necessário)"
+    }
+   ]
+  },
+  {
+   "meses": 2,
+   "itens": [
+    {
+     "texto": "Taxas de ECAD (direitos autorais dos músicos) / CREA (responsabilidade técnica de banda, luz, gerador e estrutura)"
+    },
+    {
+     "texto": "Reunião com o decorador para escolher os pontos finais"
+    },
+    {
+     "texto": "Comprar ou alinhar com o fornecedor as forminhas dos doces"
+    },
+    {
+     "texto": "Fazer kit para distrair as crianças (caso haja muitas crianças no casamento)"
+    },
+    {
+     "texto": "Entregar os convites"
+    },
+    {
+     "texto": "Começar o RSVP receptivo (serviço adicional), caso tenha contratado"
+    },
+    {
+     "texto": "Reunião com a banda e o DJ | músicos da cerimônia (se for necessário)"
+    },
+    {
+     "texto": "Fazer VT com os principais fornecedores"
+    },
+    {
+     "texto": "Degustação do menu para escolher o cardápio final do casamento"
+    },
+    {
+     "texto": "Enviar o cardápio final para a gráfica imprimir os menus e o restante da papelaria"
+    },
+    {
+     "texto": "Organização do cronograma, cortejo e todos os materiais"
+    }
+   ]
+  },
+  {
+   "meses": 1,
+   "itens": [
+    {
+     "texto": "Imprimir fotos (de acordo com as medidas dos porta-retratos da decoradora)"
+    },
+    {
+     "texto": "Começar o RSVP ativo, caso tenha contratado"
+    },
+    {
+     "texto": "Comprar almoço para o camarim da banda (pães de metro, refrigerante, água)"
+    },
+    {
+     "texto": "Aumentar quantidade de doces e bem-casados, mobiliário, buffet, staff, segurança, valet, vassourinha, chinelos, lembrancinhas e recreação, se necessário"
+    },
+    {
+     "texto": "Confirmar quantidade de crianças com a equipe de recreação"
+    },
+    {
+     "texto": "Fazer teste de cabelo e maquiagem | última prova do vestido"
+    },
+    {
+     "texto": "Reunir com o celebrante e montar o fluxo da cerimônia"
+    },
+    {
+     "texto": "Verificar se os pagamentos estão em ordem"
+    },
+    {
+     "texto": "Retirar o vestido de noiva e a roupa do noivo"
+    }
+   ]
+  }
+ ]
+}

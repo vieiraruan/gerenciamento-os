@@ -16,6 +16,8 @@ const { ROTULO_CATEGORIA, CATEGORIAS, linhaDoTempo, exibirHora, pendencias, iten
 
 const RAIZ = path.resolve(__dirname, '..');
 const MODELO = path.join(RAIZ, 'templates', 'checklist_evento.docx');
+const MODELO_PADRAO = path.join(RAIZ, 'templates', 'checklist_evento_padrao.docx');
+const { linhasServicos } = require('./eventoPadrao');
 
 const dataBr = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const somarDias = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -38,6 +40,7 @@ function chegadaTxt(f) {
 
 /** Dados do checklist do evento (também usados no painel do dia e na prévia). */
 function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
+  const vertente = destination ? 'destination' : 'padrao';
   let data = null;
   try { data = contrato.evento_data ? parseData(contrato.evento_data) : null; } catch { data = null; }
   const i = evento.info || {};
@@ -93,8 +96,9 @@ function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
       servico_txt: servicoTxt(f), categoria: ROTULO_CATEGORIA[f.categoria] || 'Outros', nome: f.nome,
       responsavel: f.responsavel || '—', telefone: f.telefone || '—', chegada_txt: chegadaTxt(f), observacao: f.observacao || '',
     })),
-    cerimonia_itens: itensPreenchidos('cerimonia', evento.cerimonia),
-    festa_itens: itensPreenchidos('festa', evento.festa),
+    cerimonia_itens: itensPreenchidos('cerimonia', evento.cerimonia, vertente),
+    festa_itens: itensPreenchidos('festa', evento.festa, vertente),
+    ...(destination ? {} : dadosPadrao(contrato, evento, tempo, data)),
     atracoes: (evento.atracoes || []).slice().sort((a, b) => minutos(a.inicio) - minutos(b.inicio)).map((a) => ({
       nome: a.nome, inicio: exibirHora(a.inicio), fim: exibirHora(a.fim), obs_txt: a.obs ? `  ·  ${a.obs}` : '',
     })),
@@ -102,6 +106,54 @@ function montarChecklistEvento(contrato, evento, { destination = true } = {}) {
     posterior,
     observacoes: i.observacoes || '',
     gerado_em: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+  };
+}
+
+const sn = (v) => String(v || '').trim();
+const achatar = (prefixo, obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [`${prefixo}_${k}`, v]));
+
+/** Dados extras do modelo sem destination (CHECK LIST Mariana & Marco). */
+function dadosPadrao(contrato, evento, tempo, data) {
+  const i = evento.info || {};
+  const c = evento.casal || {};
+  const fam = evento.familia || {};
+  const pessoa = (x = {}) => ({ nome: sn(x.nome), pais: sn(x.pais), telefone: sn(x.telefone), email: sn(x.email) });
+  const familia = (x = {}) => ({ pais_separados: sn(x.pais_separados), irmaos: sn(x.irmaos), avos: sn(x.avos), obs: sn(x.obs) });
+  const qConv = i.convidados || contrato.convidados;
+  return {
+    padrao: true,
+    data_curta: data ? dataBr(data) : 'a definir',
+    horario_convite: exibirHora(i.hora_cerimonia),
+    previsao_atraso: sn(i.previsao_atraso),
+    chegada_padrinhos: exibirHora(i.chegada_padrinhos) || sn(i.chegada_padrinhos),
+    quantidade_convidados: sn(qConv),
+    ...achatar('noiva', pessoa(c.noiva)), ...achatar('noivo', pessoa(c.noivo)),
+    ...achatar('familia_noiva', familia(fam.noiva)), ...achatar('familia_noivo', familia(fam.noivo)),
+    tem_atracoes: (evento.atracoes || []).length > 0,
+    tem_padrinhos: (evento.padrinhos_lista || []).some((x) => x.tipo !== 'madrinha'),
+    tem_madrinhas: (evento.padrinhos_lista || []).some((x) => x.tipo === 'madrinha'),
+    tem_montagem_dia: (evento.fornecedores || []).some((f) => f.dia === 'evento' && f.chegada),
+    local_cerimonia: sn(i.local_cerimonia), local_recepcao: sn(i.local_recepcao),
+    cerimonia_responsavel: sn(i.cerimonia_responsavel), cerimonia_contato: sn(i.cerimonia_contato),
+    recepcao_responsavel: sn(i.recepcao_responsavel), recepcao_contato: sn(i.recepcao_contato),
+    tipo_cerimonia: sn((evento.cerimonia || {}).tipo), fe: sn((evento.cerimonia || {}).fe),
+    servicos: linhasServicos(evento).filter((l) => sn(l.fornecedor) || sn(l.detalhes)).map((l) => ({
+      servico: l.servico, fornecedor: sn(l.fornecedor), responsavel: sn(l.responsavel), detalhes: sn(l.detalhes),
+      contato: sn(l.contato),
+    })),
+    cortejo: (evento.cortejo || []).map((x, n) => ({ n: n + 1, entrada: sn(x.entrada), musica: sn(x.musica), quem: sn(x.quem) })),
+    criancas_cortejo: (evento.criancas_cortejo || []).map((x) => ({
+      nome: sn(x.nome), funcao: sn(x.funcao), idade: sn(x.idade), responsavel: sn(x.responsavel),
+    })),
+    tem_criancas: (evento.criancas_cortejo || []).length > 0,
+    padrinhos: (evento.padrinhos_lista || []).filter((x) => x.tipo !== 'madrinha').map((x) => ({ nome: sn(x.nome), contato: sn(x.contato), obs: sn(x.obs) })),
+    madrinhas: (evento.padrinhos_lista || []).filter((x) => x.tipo === 'madrinha').map((x) => ({ nome: sn(x.nome), contato: sn(x.contato), obs: sn(x.obs) })),
+    notas_cerimonial: sn(i.notas_cerimonial),
+    // cronograma Horário | Serviço | Duração | Objetos (sem as chegadas dos fornecedores, que vão na montagem)
+    cronograma: tempo.filter((t) => t.tipo !== 'chegada').map((t) => ({
+      hora: exibirHora(t.hora), servico: t.tipo === 'atracao' ? t.nome : t.texto, duracao: sn(t.duracao),
+      objetos: [...(t.detalhes || []), t.responsavel && `Resp.: ${t.responsavel}`].filter(Boolean).join('\n'),
+    })),
   };
 }
 
@@ -134,7 +186,7 @@ function gravarChecklistEvento(contrato, evento, pastaCasal, { novaVersao = fals
     docx = path.join(pastaCasal, nomeArquivo('CHECKLIST DO EVENTO', dados.titulo_nomes, 'docx', c));
     html = path.join(pastaCasal, nomeArquivo('PAINEL DO EVENTO', dados.titulo_nomes, 'html', c));
   }
-  const doc = new Docxtemplater(new PizZip(fs.readFileSync(MODELO)), { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
+  const doc = new Docxtemplater(new PizZip(fs.readFileSync(destination ? MODELO : MODELO_PADRAO)), { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
   doc.render(dados);
   fs.writeFileSync(docx, doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' }));
   const { gerarPainel } = require('./painel');

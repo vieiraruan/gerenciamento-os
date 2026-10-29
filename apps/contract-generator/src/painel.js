@@ -147,6 +147,7 @@ function gerarPainel(d) {
   <nav id="abas">
     <button class="on" data-s="crono">Cronograma</button>
     <button data-s="ceri">Cerimônia</button>
+    ${d.padrao ? '<button data-s="cortejo">Cortejo</button>' : ''}
     <button data-s="festa">Festa</button>
     <button data-s="forn">Fornecedores</button>
     <button data-s="mont">Montagem</button>
@@ -159,6 +160,19 @@ function gerarPainel(d) {
     <ul class="lista">${d.linha_tempo.map(itemTempo).join('')}</ul>
   </section>
   <section id="ceri">${blocoInfo(d.cerimonia_itens || [])}</section>
+  ${d.padrao ? `<section id="cortejo">
+    <h2>Músicas e ordem do cortejo</h2>
+    <ul class="lista">${(d.cortejo || []).map((c, i) => `<li class="it" data-id="c${i}">
+      <label class="ck"><input type="checkbox" data-k="c${i}"><span></span></label>
+      <div class="hora">${c.n}</div>
+      <div class="corpo"><div class="tx">${esc(c.entrada)}</div><div class="sub">${esc(c.musica)}${c.quem ? ` · ${esc(c.quem)}` : ''}</div></div></li>`).join('')}</ul>
+    ${(d.criancas_cortejo || []).length ? `<h2>Crianças do cortejo</h2>${d.criancas_cortejo.map((x) => `<div class="forn"><div class="fl"><b>${esc(x.nome)}</b><span>${esc(x.funcao)}${x.idade ? ` · ${esc(x.idade)} anos` : ''}</span></div>
+      ${x.responsavel ? `<div class="acoes">${telefoneLinks(x.responsavel)}<span class="num">${esc(x.responsavel)}</span></div>` : ''}</div>`).join('')}` : ''}
+    ${[['Padrinhos', d.padrinhos], ['Madrinhas', d.madrinhas]].filter(([, l]) => (l || []).length).map(([t, l]) => `<h2>${t}</h2>${l.map((x) => `<div class="forn">
+      <div class="fl"><b>${esc(x.nome)}</b>${x.obs ? `<span>${esc(x.obs)}</span>` : ''}</div>
+      ${x.contato ? `<div class="acoes">${telefoneLinks(x.contato)}<span class="num">${esc(x.contato)}</span><label class="chegou"><input type="checkbox" data-k="p-${esc(x.nome)}"> chegou</label></div>` : ''}</div>`).join('')}`).join('')}
+    ${d.notas_cerimonial ? `<div class="card"><b>Para o cerimonial</b><p style="white-space:pre-wrap;margin:6px 0 0">${esc(d.notas_cerimonial)}</p></div>` : ''}
+  </section>` : ''}
   <section id="festa">
     ${atracoes ? `<h2>Previsão artística</h2><ul class="lista">${atracoes}</ul>` : ''}
     <h2>Informações da festa</h2>
@@ -181,10 +195,15 @@ function gerarPainel(d) {
       <dt>Cerimônia</dt><dd>${esc(d.cerimonia_txt)}</dd>
       <dt>Recepção</dt><dd>${esc(d.recepcao_txt)}</dd>
       <dt>Convidados</dt><dd>${esc(d.convidados_txt)}</dd>
+      ${d.padrao ? `<dt>Previsão de atraso</dt><dd>${esc(d.previsao_atraso)}</dd><dt>Chegada dos padrinhos</dt><dd>${esc(d.chegada_padrinhos)}</dd>` : ''}
       <dt>Montagem</dt><dd>${esc(d.responsavel_montagem)}${d.telefone_assessoria ? ` · ${esc(d.telefone_assessoria)}` : ''}</dd>
       ${d.contato_emergencia ? `<dt>Emergência</dt><dd>${esc(d.contato_emergencia)}</dd>` : ''}
     </dl>
     ${d.telefone_assessoria ? `<div class="acoes">${telefoneLinks(d.telefone_assessoria)}</div>` : ''}</div>
+    ${d.padrao ? ['noiva', 'noivo'].map((l) => `<div class="card"><b>${l === 'noiva' ? 'Noiva' : 'Noivo'}: ${esc(d[`${l}_nome`])}</b>
+      <div class="fl2">Pais: ${esc(d[`${l}_pais`])}</div>
+      <div class="fl2">Fotos – pais separados: ${esc(d[`familia_${l}_pais_separados`])} · irmãos: ${esc(d[`familia_${l}_irmaos`])} · avós: ${esc(d[`familia_${l}_avos`])}${d[`familia_${l}_obs`] ? ` · ${esc(d[`familia_${l}_obs`])}` : ''}</div>
+      ${d[`${l}_telefone`] ? `<div class="acoes">${telefoneLinks(d[`${l}_telefone`])}<span class="num">${esc(d[`${l}_telefone`])}</span></div>` : ''}</div>`).join('') : ''}
     ${d.observacoes ? `<div class="card"><b>Observações</b><p style="white-space:pre-wrap;margin:6px 0 0">${esc(d.observacoes)}</p></div>` : ''}
   </section>
   <div class="rodape">Gerado em ${esc(d.gerado_em)} · Tayná Alves Assessoria · as marcações ficam salvas neste aparelho

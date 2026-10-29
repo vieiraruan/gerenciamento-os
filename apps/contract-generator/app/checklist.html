@@ -163,7 +163,7 @@ const SIT = { vencida: 'prazo passou', atual: 'agora', futura: 'próxima' };
 let contratos = [];
 let vertentes = [];
 let atual = null;     // arquivo do contrato selecionado
-let vertente = 'destination';
+let vertente = null;
 
 function renderLista() {
   const q = $('#busca').value.trim().toLowerCase();
@@ -183,12 +183,15 @@ function renderLista() {
   document.querySelectorAll('#lista li[data-a]').forEach((li) => li.onclick = () => selecionar(li.dataset.a));
 }
 
-async function selecionar(arquivo) {
+async function selecionar(arquivo, v) {
+  if (arquivo !== atual) vertente = null;
   atual = arquivo;
+  if (v) vertente = v;
   renderLista();
   $('#principal').innerHTML = '<div class="card"><div class="vazio">Montando checklist…</div></div>';
   try {
-    const ck = await api(`/api/checklist/previa?arquivo=${encodeURIComponent(arquivo)}&vertente=${vertente}`);
+    const ck = await api(`/api/checklist/previa?arquivo=${encodeURIComponent(arquivo)}${vertente ? `&vertente=${vertente}` : ''}`);
+    vertente = ck.vertente;
     renderChecklist(ck);
   } catch (e) {
     $('#principal').innerHTML = `<div class="card"><div class="aviso erro">${esc(e.message)}</div></div>`;
@@ -238,6 +241,10 @@ function renderChecklist(ck) {
       <h2><span class="passo">1</span>Informações do dia <span class="salvo" id="salvo"></span></h2>
       <div class="grade" id="info"></div>
     </div>
+    ${vertente === 'padrao' ? `<div class="card">
+      <h2><span class="passo">1b</span>Nome, filiação e comunicação do casal</h2>
+      <div class="grade" id="gCasal"></div>
+    </div>` : ''}
 
     <div class="card">
       <h2><span class="passo">2</span>Fornecedores <span class="salvo" id="qtdForn"></span></h2>
@@ -259,6 +266,13 @@ function renderChecklist(ck) {
       <div class="linha-acoes"><button class="btn" id="btnAddForn">+ Adicionar fornecedor</button></div>
     </div>
 
+    ${vertente === 'padrao' ? `<div class="card">
+      <h2><span class="passo">2b</span>Serviços contratados</h2>
+      <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Linhas do CHECK LIST. O fornecedor vem sugerido da lista acima (em azul) — confirme,
+        complete quantidades, cores e modelos. Se não houver, escreva "não terá" ou "noiva comprou". Fornecedores que não se encaixam numa linha entram no fim da tabela.</div>
+      <div style="overflow-x:auto"><table class="t" id="tServ"></table></div>
+    </div>` : ''}
+
     <div class="card">
       <h2><span class="passo">3</span>Atividades do dia</h2>
       <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Todas precisam de horário. As chegadas dos fornecedores entram sozinhas no cronograma do dia.</div>
@@ -272,6 +286,17 @@ function renderChecklist(ck) {
       <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Tudo aparece no painel do dia. Se algo não vai acontecer, escreva "não terá".</div>
       <div class="grade" id="gCerimonia"></div>
     </div>
+    ${vertente === 'padrao' ? `<div class="card">
+      <h2><span class="passo">4b</span>Músicas e ordem do cortejo</h2>
+      <div style="overflow-x:auto"><table class="t" id="tCortejo"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddCortejo">+ Adicionar entrada</button></div>
+      <h2 style="margin-top:16px;font-size:14px">Crianças do cortejo</h2>
+      <div style="overflow-x:auto"><table class="t" id="tCriancas"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddCrianca">+ Adicionar criança</button></div>
+      <h2 style="margin-top:16px;font-size:14px">Padrinhos e madrinhas *</h2>
+      <div style="overflow-x:auto"><table class="t" id="tPadrinhos"></table></div>
+      <div class="linha-acoes"><button class="btn" id="btnAddPadrinho">+ Adicionar padrinho/madrinha</button></div>
+    </div>` : ''}
 
     <div class="card">
       <h2><span class="passo">5</span>Festa</h2>
@@ -281,6 +306,10 @@ function renderChecklist(ck) {
       <div style="overflow-x:auto"><table class="t" id="tAtr"></table></div>
       <div class="linha-acoes"><button class="btn" id="btnAddAtr">+ Adicionar atração</button></div>
     </div>
+    ${vertente === 'padrao' ? `<div class="card">
+      <h2><span class="passo">5b</span>Informações familiares para as fotos (altar e mesa do bolo)</h2>
+      <div class="grade" id="gFamilia"></div>
+    </div>` : ''}
 
     <div class="card">
       <h2><span class="passo">6</span>Antes de gerar</h2>
@@ -290,9 +319,10 @@ function renderChecklist(ck) {
     <div class="card" id="crono"></div>`;
 
   renderCrono(ck);
-  document.querySelectorAll('#seg button[data-v]').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#seg button[data-v]').forEach((b) => b.onclick = async () => {
     if (b.disabled) return;
-    vertente = b.dataset.v; selecionar(atual);
+    if (EV) { EV.vertente = b.dataset.v; clearTimeout(tSalvar); try { await api('/api/evento', { arquivo: atual, evento: EV }); } catch (e) { /* segue */ } }
+    selecionar(atual, b.dataset.v);
   });
   $('#btnEvento').onclick = () => gerar('evento', false);
   $('#btnCrono').onclick = () => gerar('cronograma', false);
@@ -304,6 +334,11 @@ function renderChecklist(ck) {
   $('#btnAddAtiv').onclick = () => { EV.atividades.push({ id: novoId(), hora: '', texto: '', responsavel: '', detalhes: [], origem: 'manual' }); renderAtiv(); agendar(); };
   $('#btnAddAtr').onclick = () => { EV.atracoes.push({ id: novoId(), nome: '', inicio: '', fim: '', obs: '' }); renderAtr(); agendar(); };
   $('#btnOrdenar').onclick = () => { EV.atividades.sort((a, b) => minutos(a.hora) - minutos(b.hora)); renderAtiv(); agendar(); };
+  if (vertente === 'padrao') {
+    $('#btnAddCortejo').onclick = () => { EV.cortejo.push({ id: novoId(), entrada: '', musica: '', quem: '' }); renderCortejo(); agendar(); };
+    $('#btnAddCrianca').onclick = () => { EV.criancas_cortejo.push({ id: novoId(), nome: '', funcao: '', idade: '', responsavel: '' }); renderListaSimples('criancas_cortejo'); agendar(); };
+    $('#btnAddPadrinho').onclick = () => { EV.padrinhos_lista.push({ id: novoId(), nome: '', tipo: 'padrinho', contato: '', obs: '' }); renderListaSimples('padrinhos_lista'); agendar(); };
+  }
   carregarEvento();
 }
 
@@ -315,8 +350,10 @@ const telOk = (t) => String(t || '').replace(/\D/g, '').length >= 10;
 async function carregarEvento() {
   try {
     const r = await api(`/api/evento?arquivo=${encodeURIComponent(atual)}`);
-    EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha, campos: r.campos }; PEND = r.pendencias;
+    EV = r.evento; META = { categorias: r.categorias, dias: r.dias, planilha: r.planilha, campos: r.campos, servicos: r.servicos }; PEND = r.pendencias;
+    EV.vertente = vertente;
     renderInfo(); renderForn(); renderAtiv(); renderGrupo('cerimonia', '#gCerimonia'); renderGrupo('festa', '#gFesta'); renderAtr(); renderPend(); renderFonte();
+    renderPadrao();
     if (r.aplicada) $('#fonte').textContent += ` · agora: ${r.aplicada.novos} novo(s), ${r.aplicada.atualizados} completado(s)`;
   } catch (e) { $('#pendencias').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; }
 }
@@ -352,8 +389,18 @@ const INFO = [
   ['inicio_montagem_dia', 'Início da montagem no dia', 'time', 'c4'],
   ['observacoes', 'Observações gerais', 'textarea', 'c12'],
 ];
+const INFO_PADRAO = [
+  ['previsao_atraso', 'Previsão de atraso *', 'text', 'c4'],
+  ['chegada_padrinhos', 'Horário de chegada dos padrinhos *', 'time', 'c4'],
+  ['cerimonia_responsavel', 'Local da cerimônia – responsável', 'text', 'c4'],
+  ['cerimonia_contato', 'Local da cerimônia – contato', 'tel', 'c4'],
+  ['recepcao_responsavel', 'Local da recepção – responsável', 'text', 'c4'],
+  ['recepcao_contato', 'Local da recepção – contato', 'tel', 'c4'],
+  ['notas_cerimonial', 'Para preenchimento do cerimonial (porta-aliança, o que levar...)', 'textarea', 'c12'],
+];
 function renderInfo() {
-  $('#info').innerHTML = INFO.map(([k, rot, tipo, c]) => `<div class="${c === 'c5' ? 'c4' : c}"><label class="l">${esc(rot)}</label>
+  const lista = vertente === 'padrao' ? [...INFO.slice(0, -1), ...INFO_PADRAO, INFO[INFO.length - 1]] : INFO;
+  $('#info').innerHTML = lista.map(([k, rot, tipo, c]) => `<div class="${c === 'c5' ? 'c4' : c}"><label class="l">${esc(rot)}</label>
     ${tipo === 'textarea' ? `<textarea data-i="${k}">${esc(EV.info[k] || '')}</textarea>` : `<input type="${tipo}" data-i="${k}" value="${esc(EV.info[k] || '')}">`}</div>`).join('');
   document.querySelectorAll('[data-i]').forEach((el) => el.oninput = () => { EV.info[el.dataset.i] = el.value; marcarFaltas(); agendar(); });
   marcarFaltas();
@@ -361,7 +408,7 @@ function renderInfo() {
 
 function renderGrupo(grupo, alvo) {
   const dados = EV[grupo] = EV[grupo] || {};
-  $(alvo).innerHTML = META.campos[grupo].map((c) => {
+  $(alvo).innerHTML = camposVisiveis(grupo).map((c) => {
     const v = dados[c.id];
     const larg = c.tipo === 'lista' || c.tipo === 'longo' ? 'c6' : 'c4';
     const rot = `<label class="l">${esc(c.rotulo)}${c.opcional ? '' : ' *'}</label>`;
@@ -432,10 +479,11 @@ function renderForn() {
 
 function renderAtiv() {
   const opcoes = '<option value="">—</option>' + EV.fornecedores.map((f) => `<option value="${f.id}">${esc(f.nome)}</option>`).join('');
-  $('#tAtiv').innerHTML = `<tr><th>Horário *</th><th style="min-width:280px">Atividade *</th><th>Responsável</th><th>Fornecedor</th><th></th></tr>` +
+  $('#tAtiv').innerHTML = `<tr><th>Horário *</th><th style="min-width:280px">Atividade *</th><th>Duração</th><th>Responsável</th><th>Fornecedor</th><th></th></tr>` +
     EV.atividades.map((a, i) => `<tr data-a="${i}">
       <td style="width:110px"><input type="time" data-c="hora" value="${esc(a.hora)}"></td>
       <td><input data-c="texto" value="${esc(a.texto)}">${(a.detalhes || []).length ? `<div class="salvo">${a.detalhes.length} orientações no checklist</div>` : ''}</td>
+      <td style="width:110px"><input data-c="duracao" value="${esc(a.duracao || '')}" placeholder="ex.: 1 hora"></td>
       <td><input data-c="responsavel" value="${esc(a.responsavel || '')}"></td>
       <td><select data-c="fornecedor_id">${opcoes}</select></td>
       <td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
@@ -448,10 +496,86 @@ function renderAtiv() {
   marcarFaltas();
 }
 
+// ---- Modelo sem destination (CHECK LIST): casal, serviços, cortejo, crianças, padrinhos, família ----
+const camposVisiveis = (grupo) => (META.campos[grupo] || []).filter((c) => !c.so || c.so === vertente);
+function renderPadrao() {
+  if (vertente !== 'padrao' || !$('#gCasal')) return;
+  EV.casal = EV.casal || { noiva: {}, noivo: {} };
+  EV.familia = EV.familia || { noiva: {}, noivo: {} };
+  EV.cortejo = EV.cortejo || []; EV.criancas_cortejo = EV.criancas_cortejo || []; EV.padrinhos_lista = EV.padrinhos_lista || []; EV.servicos = EV.servicos || {};
+  const grade = (alvo, obj, campos) => {
+    $(alvo).innerHTML = ['noiva', 'noivo'].map((lado) => campos.map(([k, rot, tipo, c, opc]) => `<div class="${c}"><label class="l">${esc(rot)} – ${lado}${opc ? '' : ' *'}</label>
+      <input ${tipo ? `type="${tipo}"` : ''} data-p="${lado}.${k}" value="${esc((obj[lado] || {})[k] || '')}"></div>`).join('')).join('');
+    $(alvo).querySelectorAll('[data-p]').forEach((el) => el.oninput = () => {
+      const [lado, k] = el.dataset.p.split('.'); obj[lado] = obj[lado] || {}; obj[lado][k] = el.value; agendar();
+    });
+  };
+  grade('#gCasal', EV.casal, [['nome', 'Nome completo', '', 'c6'], ['pais', 'Nome dos pais', '', 'c6'], ['telefone', 'Celular', 'tel', 'c6'], ['email', 'E-mail', 'email', 'c6', true]]);
+  grade('#gFamilia', EV.familia, [['pais_separados', 'Pais separados? (sim/não, viúvo...)', '', 'c6'], ['irmaos', 'Irmãos (nomes ou "não")', '', 'c6'],
+    ['avos', 'Avós (nomes ou "não")', '', 'c6'], ['obs', 'Observação', '', 'c6', true]]);
+  renderServicos(); renderCortejo(); renderListaSimples('criancas_cortejo'); renderListaSimples('padrinhos_lista');
+}
+function renderServicos() {
+  if (!$('#tServ')) return;
+  const linhas = META.servicos || [];
+  $('#tServ').innerHTML = `<tr><th style="min-width:170px">Serviço</th><th style="min-width:170px">Fornecedor *</th><th style="min-width:220px">Detalhes (qtd., cor, modelo...)</th><th>Responsável</th><th>Contato</th></tr>` +
+    linhas.map((l) => `<tr data-s="${esc(l.id)}">
+      <td><b>${esc(l.servico)}</b>${l.extra ? ' <span class="salvo">(da lista de fornecedores)</span>' : ''}</td>
+      ${l.extra ? `<td>${esc(l.fornecedor)}</td><td>${esc(l.detalhes)}</td><td>${esc(l.responsavel)}</td><td>${esc(l.contato)}</td>` : `
+      <td><input data-c="fornecedor" value="${esc(l.fornecedor)}" ${l.sugerido ? 'style="color:#1f4e78" title="Sugerido da lista de fornecedores — edite para confirmar"' : ''} class="${String(l.fornecedor || '').trim() ? '' : 'falta'}"></td>
+      <td><input data-c="detalhes" value="${esc(l.detalhes)}" placeholder="${esc(l.dica || '')}"></td>
+      <td><input data-c="responsavel" value="${esc(l.responsavel)}"></td>
+      <td><input data-c="contato" value="${esc(l.contato)}"></td>`}</tr>`).join('');
+  $('#tServ').querySelectorAll('tr[data-s]').forEach((tr) => {
+    const l = linhas.find((x) => x.id === tr.dataset.s);
+    tr.querySelectorAll('[data-c]').forEach((el) => el.oninput = () => {
+      const atual = EV.servicos[l.id] || { fornecedor: l.fornecedor, detalhes: l.detalhes, responsavel: l.responsavel, contato: l.contato };
+      atual[el.dataset.c] = el.value; EV.servicos[l.id] = atual;
+      if (el.dataset.c === 'fornecedor') el.classList.toggle('falta', !el.value.trim());
+      agendar();
+    });
+  });
+}
+function renderCortejo() {
+  if (!$('#tCortejo')) return;
+  $('#tCortejo').innerHTML = `<tr><th>Nº</th><th style="min-width:200px">Entrada *</th><th style="min-width:240px">Música *</th><th style="min-width:200px">Quem entra / observação</th><th></th><th></th></tr>` +
+    EV.cortejo.map((c, i) => `<tr data-k="${i}"><td>${i + 1}</td>
+      <td><input data-c="entrada" value="${esc(c.entrada)}" class="${c.entrada ? '' : 'falta'}"></td>
+      <td><input data-c="musica" value="${esc(c.musica)}" placeholder='música – artista, ou "não terá"' class="${c.musica ? '' : 'falta'}"></td>
+      <td><input data-c="quem" value="${esc(c.quem)}"></td>
+      <td><button class="x" title="Subir" data-up="${i}">↑</button></td>
+      <td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
+  $('#tCortejo').querySelectorAll('tr[data-k]').forEach((tr) => {
+    const c = EV.cortejo[+tr.dataset.k];
+    tr.querySelectorAll('[data-c]').forEach((el) => el.oninput = () => { c[el.dataset.c] = el.value; el.classList.toggle('falta', el.dataset.c !== 'quem' && !el.value.trim()); agendar(); });
+  });
+  $('#tCortejo').querySelectorAll('[data-del]').forEach((b) => b.onclick = () => { EV.cortejo.splice(+b.dataset.del, 1); renderCortejo(); agendar(); });
+  $('#tCortejo').querySelectorAll('[data-up]').forEach((b) => b.onclick = () => {
+    const i = +b.dataset.up; if (!i) return; [EV.cortejo[i - 1], EV.cortejo[i]] = [EV.cortejo[i], EV.cortejo[i - 1]]; renderCortejo(); agendar();
+  });
+}
+const LISTAS = {
+  criancas_cortejo: { alvo: '#tCriancas', cols: [['nome', 'Nome *'], ['funcao', 'Função (florista, daminha, pajem, porta-aliança) *'], ['idade', 'Idade'], ['responsavel', 'Fone do responsável']] },
+  padrinhos_lista: { alvo: '#tPadrinhos', cols: [['nome', 'Nome *'], ['tipo', 'Padrinho / madrinha'], ['contato', 'Contato'], ['obs', 'Observação (entra com, casado com...)']] },
+};
+function renderListaSimples(nome) {
+  const def = LISTAS[nome]; if (!$(def.alvo)) return;
+  const lista = EV[nome];
+  $(def.alvo).innerHTML = `<tr>${def.cols.map(([, r]) => `<th>${esc(r)}</th>`).join('')}<th></th></tr>` +
+    lista.map((x, i) => `<tr data-k="${i}">${def.cols.map(([k]) => `<td>${k === 'tipo'
+      ? `<select data-c="tipo"><option value="padrinho"${x.tipo !== 'madrinha' ? ' selected' : ''}>Padrinho</option><option value="madrinha"${x.tipo === 'madrinha' ? ' selected' : ''}>Madrinha</option></select>`
+      : `<input data-c="${k}" value="${esc(x[k] || '')}">`}</td>`).join('')}<td><button class="x" title="Remover" data-del="${i}">×</button></td></tr>`).join('');
+  $(def.alvo).querySelectorAll('tr[data-k]').forEach((tr) => {
+    const x = lista[+tr.dataset.k];
+    tr.querySelectorAll('[data-c]').forEach((el) => el.oninput = el.onchange = () => { x[el.dataset.c] = el.value; agendar(); });
+  });
+  $(def.alvo).querySelectorAll('[data-del]').forEach((b) => b.onclick = () => { lista.splice(+b.dataset.del, 1); renderListaSimples(nome); agendar(); });
+}
+
 function marcarFaltas() {
   for (const [grupo, alvo] of [['cerimonia', '#gCerimonia'], ['festa', '#gFesta']]) {
     if (!META.campos || !$(alvo)) continue;
-    META.campos[grupo].forEach((c) => {
+    camposVisiveis(grupo).forEach((c) => {
       const el = $(alvo).querySelector(`[data-g="${c.id}"]`);
       if (!el || c.opcional) return;
       const v = EV[grupo][c.id];
@@ -567,6 +691,7 @@ function agendar(depois) {
     try {
       const r = await api('/api/evento', { arquivo: atual, evento: EV });
       PEND = r.pendencias; renderPend();
+      if (r.servicos) { META.servicos = r.servicos; if (!(document.activeElement && document.activeElement.closest('#tServ'))) renderServicos(); }
       const f = depoisDeSalvar; depoisDeSalvar = null;
       if (f) f();
       $('#salvo').textContent = `· salvo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;

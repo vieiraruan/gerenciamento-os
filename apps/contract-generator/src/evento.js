@@ -15,6 +15,7 @@ const path = require('path');
 const { lerAba } = require('./xlsxLeitor');
 const { parseHora } = require('./contrato');
 const planilha = require('./planilha');
+const padrao = require('./eventoPadrao');
 
 // Categorias (para agrupar no painel e sugerir a etapa de montagem). Ordem = ordem de exibição.
 const CATEGORIAS = [
@@ -95,24 +96,25 @@ const ATIVIDADES_PADRAO = [
 // ---------------------------------------------------------------------------
 const CAMPOS = {
   cerimonia: [
-    { id: 'tipo', rotulo: 'Tipo de cerimônia', tipo: 'opcao', opcoes: ['Religiosa', 'Civil', 'Afetiva / simbólica', 'Ecumênica', 'Outra'] },
+    { id: 'tipo', rotulo: 'Tipo de cerimônia', tipo: 'opcao', opcoes: ['Religiosa', 'Religiosa com efeito civil', 'Civil', 'Afetiva / simbólica', 'Ecumênica', 'Outra'] },
+    { id: 'fe', rotulo: 'Fé / religião', tipo: 'texto', opcional: true, so: 'padrao' },
     { id: 'celebrante', rotulo: 'Celebrante (nome e contato)', tipo: 'texto' },
     { id: 'decoracao', rotulo: 'Cor / estilo da decoração da cerimônia', tipo: 'texto' },
     { id: 'homenagem', rotulo: 'Homenagem ou estrutura especial', tipo: 'texto', dica: 'ex.: aos pais falecidos do noivo, com balões' },
     { id: 'aliancas_com', rotulo: 'Com quem estarão as alianças', tipo: 'texto' },
     { id: 'buque', rotulo: 'Quem busca / entrega o buquê', tipo: 'texto' },
     { id: 'necessidades', rotulo: 'Convidados com necessidades especiais', tipo: 'texto', dica: 'nomes e cuidados, ou "não há"' },
-    { id: 'saida_com', rotulo: 'Saída dos noivos com', tipo: 'opcao', opcoes: ['Pétalas', 'Sparkles', 'Chuva de prata', 'Bolhas de sabão', 'Chuva de arroz', 'Balões', 'Nada'] },
-    { id: 'sala_espera', rotulo: 'Sala de espera (música / atração)', tipo: 'texto' },
-    { id: 'padrinhos_musicas', rotulo: 'Entrada dos padrinhos – músicas, em ordem', tipo: 'lista', dica: 'uma por linha' },
-    { id: 'padrinhos_como', rotulo: 'Como entram os padrinhos', tipo: 'texto', dica: 'ex.: separados, pelas três passarelas' },
-    { id: 'noivo_musica', rotulo: 'Entrada do noivo – música', tipo: 'texto' },
-    { id: 'noivo_com', rotulo: 'Noivo entra com', tipo: 'texto' },
-    { id: 'noiva_musica', rotulo: 'Entrada da noiva – música', tipo: 'texto' },
-    { id: 'noiva_com', rotulo: 'Noiva entra com', tipo: 'texto' },
-    { id: 'aliancas_musica', rotulo: 'Entrada das alianças – música e quem leva', tipo: 'texto' },
-    { id: 'homenagem_musica', rotulo: 'Homenagem – música e quem participa', tipo: 'texto', dica: 'ou "não terá"' },
-    { id: 'saida_musica', rotulo: 'Saída dos noivos – música', tipo: 'texto' },
+    { id: 'saida_com', rotulo: 'Saída dos noivos com', tipo: 'texto', dica: 'ex.: pétalas, chuva de arroz + lavanda, sparkles, ou "nada"' },
+    { id: 'sala_espera', rotulo: 'Sala de espera (música / atração)', tipo: 'texto', so: 'destination' },
+    { id: 'padrinhos_musicas', rotulo: 'Entrada dos padrinhos – músicas, em ordem', tipo: 'lista', dica: 'uma por linha', so: 'destination' },
+    { id: 'padrinhos_como', rotulo: 'Como entram os padrinhos', tipo: 'texto', dica: 'ex.: separados, pelas três passarelas', so: 'destination' },
+    { id: 'noivo_musica', rotulo: 'Entrada do noivo – música', tipo: 'texto', so: 'destination' },
+    { id: 'noivo_com', rotulo: 'Noivo entra com', tipo: 'texto', so: 'destination' },
+    { id: 'noiva_musica', rotulo: 'Entrada da noiva – música', tipo: 'texto', so: 'destination' },
+    { id: 'noiva_com', rotulo: 'Noiva entra com', tipo: 'texto', so: 'destination' },
+    { id: 'aliancas_musica', rotulo: 'Entrada das alianças – música e quem leva', tipo: 'texto', so: 'destination' },
+    { id: 'homenagem_musica', rotulo: 'Homenagem – música e quem participa', tipo: 'texto', dica: 'ou "não terá"', so: 'destination' },
+    { id: 'saida_musica', rotulo: 'Saída dos noivos – música', tipo: 'texto', so: 'destination' },
     { id: 'protocolo_fotos', rotulo: 'Protocolo de fotos no altar (ordem)', tipo: 'lista',
       padrao: ['Celebrante(s)', 'Pais da noiva', 'Pais do noivo', 'Porta-alianças', 'Padrinhos e madrinhas', 'Crianças'] },
     { id: 'obs', rotulo: 'Observações da cerimônia', tipo: 'longo', opcional: true },
@@ -130,6 +132,10 @@ const CAMPOS = {
     { id: 'fotos_bolo', rotulo: 'Fotos na mesa do bolo (grupos, em ordem)', tipo: 'lista',
       padrao: ['Somente os noivos', 'Noivos + pais da noiva', 'Noivos + pais do noivo', 'Noivos + padrinhos'] },
     { id: 'restricoes', rotulo: 'Convidados com restrição / alergia alimentar', tipo: 'texto', dica: 'nomes e restrição, ou "não há"' },
+    { id: 'entrada_convidados', rotulo: 'Entrada dos convidados (senha, lista, mesa marcada?)', tipo: 'texto', so: 'padrao',
+      dica: 'ex.: nome na lista em ordem alfabética, com mesa marcada' },
+    { id: 'jantar', rotulo: 'Horário do jantar', tipo: 'texto', so: 'padrao' },
+    { id: 'reserva_mesas', rotulo: 'Reserva das mesas / placas de reserva', tipo: 'texto', so: 'padrao', dica: 'ex.: mesa marcada; placa só para os noivos' },
     { id: 'obs', rotulo: 'Observações da festa', tipo: 'longo', opcional: true },
   ],
 };
@@ -140,8 +146,10 @@ function camposPadrao(grupo) {
 const listaDe = (v) => (Array.isArray(v) ? v : String(v || '').split('\n')).map((x) => String(x).trim()).filter(Boolean);
 
 /** Pares rótulo/valor preenchidos (documento e painel). */
-function itensPreenchidos(grupo, dados) {
-  return CAMPOS[grupo].map((c) => {
+const camposDa = (grupo, vertente) => CAMPOS[grupo].filter((c) => !c.so || c.so === vertente);
+
+function itensPreenchidos(grupo, dados, vertente = 'destination') {
+  return camposDa(grupo, vertente).map((c) => {
     const v = c.tipo === 'lista' ? listaDe(dados?.[c.id]) : String(dados?.[c.id] || '').trim();
     return { rotulo: c.rotulo, valor: Array.isArray(v) ? v.join('\n') : v, lista: Array.isArray(v) ? v : null, tipo: c.tipo };
   }).filter((x) => (x.lista ? x.lista.length : x.valor));
@@ -230,7 +238,7 @@ function atividadesPadrao(horaCerimonia) {
   }));
 }
 
-function novoEvento(contrato) {
+function novoEvento(contrato, cliente) {
   const local = String(contrato.evento_local || '');
   const m = /^(.*?)\s*\(cerim[oô]nia\)\s*(?:e|\/|;|,)\s*(.*?)\s*\(recep[cç][aã]o\)\s*$/i.exec(local);
   const recepcaoADefinir = /recep[cç][aã]o\s+(?:a|à)\s+definir/i.test(local);
@@ -249,8 +257,17 @@ function novoEvento(contrato) {
       contato_emergencia: '',
       inicio_montagem_vespera: '',
       inicio_montagem_dia: '',
+      previsao_atraso: '',
+      chegada_padrinhos: '',
+      cerimonia_responsavel: '',
+      cerimonia_contato: '',
+      recepcao_responsavel: '',
+      recepcao_contato: '',
+      notas_cerimonial: '',
       observacoes: '',
     },
+    vertente: /^s/i.test(contrato.destination || '') ? 'destination' : 'padrao',
+    ...padrao.camposPadrao(contrato, cliente),
     cerimonia: camposPadrao('cerimonia'),
     festa: camposPadrao('festa'),
     atracoes: [],
@@ -261,20 +278,25 @@ function novoEvento(contrato) {
   };
 }
 
-function carregarEvento(dirDados, contratoArquivo, contrato) {
+function carregarEvento(dirDados, contratoArquivo, contrato, cliente) {
   const arq = arquivoEvento(dirDados, contratoArquivo);
   if (fs.existsSync(arq)) {
-    const ev = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, ''));
-    const base = novoEvento(contrato);
+    const ev = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, ''));
+    const base = novoEvento(contrato, cliente);
+    const dois = (b, e) => ({ noiva: { ...b.noiva, ...((e || {}).noiva || {}) }, noivo: { ...b.noivo, ...((e || {}).noivo || {}) } });
     return {
       ...base, ...ev,
       info: { ...base.info, ...(ev.info || {}) },
       cerimonia: { ...base.cerimonia, ...(ev.cerimonia || {}) },
       festa: { ...base.festa, ...(ev.festa || {}) },
       atracoes: ev.atracoes || [],
+      casal: dois(base.casal, ev.casal),
+      familia: dois(base.familia, ev.familia),
+      cortejo: ev.cortejo || base.cortejo,
+      servicos: ev.servicos || {},
     };
   }
-  return novoEvento(contrato);
+  return novoEvento(contrato, cliente);
 }
 
 function salvarEvento(dirDados, contratoArquivo, evento) {
@@ -417,8 +439,9 @@ function pendencias(evento) {
     if (String(f.telefone || '').replace(/\D/g, '').length < 10) p.push(`${nome}: telefone`);
     if (f.dia !== 'nao' && !horaValida(f.chegada)) p.push(`${nome}: horário de chegada`);
   }
+  const vertente = evento.vertente || 'destination';
   for (const [grupo, nome] of [['cerimonia', 'Cerimônia'], ['festa', 'Festa']]) {
-    for (const c of CAMPOS[grupo]) {
+    for (const c of camposDa(grupo, vertente)) {
       if (c.opcional) continue;
       const v = evento[grupo]?.[c.id];
       const vazio = c.tipo === 'lista' ? listaDe(v).length === 0 : !String(v || '').trim();
@@ -434,14 +457,24 @@ function pendencias(evento) {
     if (!String(a.texto || '').trim()) p.push('Atividade sem descrição');
     else if (!horaValida(a.hora)) p.push(`Atividade "${a.texto}": horário`);
   }
+  if (vertente === 'padrao') p.push(...padrao.pendenciasPadrao(evento));
   return p;
+}
+
+function duracaoEntre(ini, fim) {
+  const m = (h) => { const x = /^(\d{1,2})[:h](\d{2})$/.exec(normalizarHora(h)); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
+  const a = m(ini); let b = m(fim);
+  if (a === null || b === null) return '';
+  if (b <= a) b += 1440;
+  const d = b - a; const h = Math.floor(d / 60); const mi = d % 60;
+  return h ? `${h}h${mi ? String(mi).padStart(2, '0') : ''}` : `${mi} min`;
 }
 
 /** Linha do tempo do dia: atividades + chegadas de fornecedores (dia do evento), em ordem de horário. */
 function linhaDoTempo(evento) {
   const forn = new Map((evento.fornecedores || []).map((f) => [f.id, f]));
   const itens = (evento.atividades || []).map((a) => ({
-    hora: normalizarHora(a.hora), texto: a.texto, responsavel: a.responsavel || '', detalhes: a.detalhes || [],
+    hora: normalizarHora(a.hora), texto: a.texto, responsavel: a.responsavel || '', detalhes: a.detalhes || [], duracao: a.duracao || '',
     fornecedor: a.fornecedor_id && forn.get(a.fornecedor_id) ? forn.get(a.fornecedor_id).nome : '', tipo: 'atividade',
   }));
   for (const f of evento.fornecedores || []) {
@@ -457,7 +490,8 @@ function linhaDoTempo(evento) {
     if (a.inicio) {
       itens.push({
         hora: normalizarHora(a.inicio), texto: `Atração: ${a.nome} (até ${exibirHora(normalizarHora(a.fim))})`,
-        responsavel: '', detalhes: a.obs ? [a.obs] : [], fornecedor: a.nome, tipo: 'atracao',
+        responsavel: '', detalhes: a.obs ? [a.obs] : [], fornecedor: a.nome, tipo: 'atracao', nome: a.nome,
+        duracao: duracaoEntre(a.inicio, a.fim),
       });
     }
   }
@@ -471,5 +505,5 @@ const exibirHora = (h) => { const m = /^(\d{2}):(\d{2})$/.exec(h || ''); return 
 module.exports = {
   CATEGORIAS: CATEGORIAS.map(([id, nome]) => ({ id, nome })), ROTULO_CATEGORIA, DIAS, categorizar,
   localizarPlanilha, lerFinanceiro, lerTextoColado, aplicarPlanilha, carregarEvento, salvarEvento, importarFornecedores,
-  pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora, CAMPOS, itensPreenchidos,
+  pendencias, linhaDoTempo, atividadesPadrao, exibirHora, normalizarHora, CAMPOS, itensPreenchidos, camposDa,
 };

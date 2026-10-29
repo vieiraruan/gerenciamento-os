@@ -5,7 +5,7 @@
  *
  * Vertentes (templates/checklists/<vertente>.json):
  *   destination  — modelo do casal Hanna & Ivan (casamento fora da Região Metropolitana)  ✅
- *   padrao       — casamento na Região Metropolitana do Recife                          (em breve)
+ *   padrao       — casamento na Região Metropolitana do Recife (cronograma da NOVA PLANILHA DE ASSESSORIA)  ✅
  *
  * As tarefas ficam agrupadas por "meses antes do evento"; com a data do evento, cada etapa
  * ganha o período (de/até) e a situação em relação a hoje (vencida / atual / futura).
@@ -22,7 +22,7 @@ const LOGO = path.join(RAIZ, 'templates', 'marca', 'logo.png');
 
 const VERTENTES = {
   destination: { nome: 'Destination', arquivo: 'destination.json', disponivel: true },
-  padrao: { nome: 'Sem destination', arquivo: 'padrao.json', disponivel: false },
+  padrao: { nome: 'Sem destination', arquivo: 'padrao.json', disponivel: true },
 };
 
 function listarVertentes() {
@@ -368,7 +368,7 @@ function planilhaChecklist(ck) {
   });
   linha(6, {
     B: { v: 'QTD. CRIANÇAS:', s: 'rot' }, C: { v: Number(e.criancas) || e.criancas || '', s: 'val' },
-    D: { v: 'CONTRATO:', s: 'rot' }, E: { v: [e.numero_os, 'Destination'].filter(Boolean).join(' · '), s: 'val' },
+    D: { v: 'CONTRATO:', s: 'rot' }, E: { v: [e.numero_os, ck.vertente === 'destination' ? 'Destination' : ''].filter(Boolean).join(' · '), s: 'val' },
   });
   linha(7, { B: { v: 'LOCAL:', s: 'rot' }, C: { v: e.local || 'A definir', s: 'val' }, D: { s: 'val' }, E: { s: 'val' } },
     alturaTexto(e.local || '', 90));
@@ -441,8 +441,7 @@ function planilhaChecklist(ck) {
 
 function nomeArquivoChecklist(ck, sufixo = '') {
   const nomes = ck.evento.nomes.replace(/[\\/:*?"<>|]/g, '').trim() || 'Evento';
-  const v = ck.vertente === 'destination' ? 'DESTINATION' : 'EVENTO';
-  return `CHECKLIST ${v} - ${nomes}${sufixo}.xlsx`;
+  return ck.vertente === 'destination' ? `CHECKLIST DESTINATION - ${nomes}${sufixo}.xlsx` : `CRONOGRAMA DE TAREFAS - ${nomes}${sufixo}.xlsx`;
 }
 
 /**

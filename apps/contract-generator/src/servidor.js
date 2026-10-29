@@ -25,6 +25,7 @@ const { listarVertentes, montarChecklist, gravarChecklist } = require('./checkli
 const { gravarChecklistEvento } = require('./roteiro');
 const ev = require('./evento');
 const planilhaCasal = require('./planilha');
+const evPadrao = require('./eventoPadrao');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -77,7 +78,11 @@ function contratoDe(nome) {
   const arquivo = nomeArquivo(nome);
   const arq = path.join(DADOS, arquivo);
   if (!fs.existsSync(arq)) throw new Error('Contrato não encontrado.');
-  return { arquivo, campos: lerTxt(arq) };
+  const campos = lerTxt(arq);
+  let cliente = {};
+  const arqCli = campos.cliente && path.join(DIR_CLIENTES, nomeArquivo(campos.cliente));
+  if (arqCli && fs.existsSync(arqCli)) cliente = lerTxt(arqCli);
+  return { arquivo, campos, cliente };
 }
 
 function listarTxt(dir) {
@@ -263,16 +268,17 @@ const rotas = {
   'GET /api/checklist/vertentes': () => listarVertentes(),
 
   'GET /api/checklist/previa': (q) => {
-    const { arquivo, campos } = contratoDe(q.get('arquivo'));
-    const ck = montarChecklist(campos, q.get('vertente') || 'destination', undefined, ev.carregarEvento(DADOS, arquivo, campos));
+    const { arquivo, campos, cliente } = contratoDe(q.get('arquivo'));
+    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    const ck = montarChecklist(campos, q.get('vertente') || evento.vertente || 'destination', undefined, evento);
     const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     return { ...ck, destination_contrato: /^s/i.test(campos.destination || ''), pasta: destino.pasta, pasta_existe: destino.existe };
   },
 
   // ---- Dados do dia do evento (fornecedores, telefones, chegadas, atividades) ----
   'GET /api/evento': (q) => {
-    const { arquivo, campos } = contratoDe(q.get('arquivo'));
-    let evento = ev.carregarEvento(DADOS, arquivo, campos);
+    const { arquivo, campos, cliente } = contratoDe(q.get('arquivo'));
+    let evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const pl = ev.localizarPlanilha(pasta);
     // planilha nova ou atualizada desde a última vez: pré-preenche (só o que está vazio) e salva
@@ -286,21 +292,21 @@ const rotas = {
     }
     return {
       evento, pendencias: ev.pendencias(evento), planilha: { ...pl, sincronizada: dados ? { titulo: dados.fonte?.titulo, url: dados.fonte?.url, tipo: dados.fonte?.tipo, lido_em: dados.lido_em } : null },
-      aplicada, categorias: ev.CATEGORIAS, dias: ev.DIAS, campos: ev.CAMPOS,
+      aplicada, categorias: ev.CATEGORIAS, dias: ev.DIAS, campos: ev.CAMPOS, servicos: evPadrao.linhasServicos(evento),
     };
   },
 
   'POST /api/evento': (q, corpo) => {
     const { arquivo } = contratoDe(corpo.arquivo);
     const salvo = ev.salvarEvento(DADOS, arquivo, corpo.evento || {});
-    return { evento: salvo, pendencias: ev.pendencias(salvo) };
+    return { evento: salvo, pendencias: ev.pendencias(salvo), servicos: evPadrao.linhasServicos(salvo) };
   },
 
   'POST /api/evento/importar': (q, corpo) => {
-    const { arquivo, campos } = contratoDe(corpo.arquivo);
+    const { arquivo, campos, cliente } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const pl = ev.localizarPlanilha(pasta);
-    const atual = ev.carregarEvento(DADOS, arquivo, campos);
+    const atual = ev.carregarEvento(DADOS, arquivo, campos, cliente);
     let junto;
     if (corpo.texto) {
       // colado do Google Planilhas
@@ -326,12 +332,14 @@ const rotas = {
 
   // tipo: 'evento' (checklist do evento .docx + painel do dia .html) ou 'cronograma' (tarefas, .xlsx)
   'POST /api/checklist/gerar': (q, corpo) => {
-    const { arquivo, campos } = contratoDe(corpo.arquivo);
+    const { arquivo, campos, cliente } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
-    const opc = { novaVersao: Boolean(corpo.novaVersao), destination: (corpo.vertente || 'destination') === 'destination' };
+    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    const vertente = corpo.vertente || evento.vertente || 'destination';
+    const opc = { novaVersao: Boolean(corpo.novaVersao), destination: vertente === 'destination' };
     const r = corpo.tipo === 'cronograma'
-      ? gravarChecklist(montarChecklist(campos, corpo.vertente || 'destination', undefined, ev.carregarEvento(DADOS, arquivo, campos)), pasta, opc)
-      : gravarChecklistEvento(campos, ev.carregarEvento(DADOS, arquivo, campos), pasta, opc);
+      ? gravarChecklist(montarChecklist(campos, vertente, undefined, evento), pasta, opc)
+      : gravarChecklistEvento(campos, { ...evento, vertente }, pasta, opc);
     return { ...r, pasta };
   },
 

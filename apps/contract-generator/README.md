@@ -161,6 +161,18 @@ cronograma do dia com horário de cada atividade e programação dos outros dias
 5. Só gera quando **tudo estiver preenchido** (a tela lista o que falta). Salvo automaticamente em
    `_DADOS DO SISTEMA/eventos/<contrato>.json`.
 
+### Checklist sem destination (modelo CHECK LIST Mariana & Marco)
+Na tela do Checklist, o botão "Sem destination" (padrão para contratos que não são destination) acrescenta ao
+preenchimento: nome completo, pais, celular e e-mail do casal; previsão de atraso e chegada dos padrinhos;
+responsável e contato dos locais; a tabela de **serviços contratados** (linhas fixas do CHECK LIST, com fornecedor
+sugerido da lista de fornecedores e detalhes como quantidade, cor e modelo); **músicas e ordem do cortejo**;
+crianças do cortejo; padrinhos e madrinhas com contato; informações familiares para as fotos; entrada dos
+convidados, horário do jantar e reserva das mesas; notas do cerimonial; e a duração de cada atividade.
+O documento sai em `templates/checklist_evento_padrao.docx` (gerado por `scripts/criar_checklist_padrao.py`)
+com o cronograma Horário | Serviço | Duração | Objetos; o painel do dia ganha a aba Cortejo. O cronograma de
+tarefas dessa vertente usa o modelo da NOVA PLANILHA DE ASSESSORIA (`templates/checklists/padrao.json`) e sai
+como `CRONOGRAMA DE TAREFAS - <casal>.xlsx`.
+
 Saída: `CHECKLIST DO EVENTO - <casal>.docx` (modelo `templates/checklist_evento.docx`, gerado por
 `python3 scripts/criar_roteiro.py`) e `PAINEL DO EVENTO - <casal>.html` — página única que funciona sem internet
 para a equipe no iPad: cronograma com marcar concluído, relógio, próximo item, atrasados em vermelho, abas Cerimônia e Festa
