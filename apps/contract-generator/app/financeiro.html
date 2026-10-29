@@ -270,6 +270,19 @@
   <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="dpSalvar">Registrar e dar baixa</button></div>
 </dialog>
 
+<!-- Colar a aba FINANCEIRO -->
+<dialog id="dlgColar">
+  <div class="cab"><h3>Importar a aba FINANCEIRO da planilha</h3><button class="x" data-fechar>×</button></div>
+  <div class="corpo">
+    <p style="font-size:13.5px;margin-top:0">Na planilha do casal, abra a aba <b>FINANCEIRO</b>, selecione da linha do cabeçalho
+      (<i>Fornecedor, Descrição…</i>) até a linha do <b>TOTAL</b>, copie (Ctrl+C) e cole abaixo (Ctrl+V).</p>
+    <textarea id="txtColar" style="min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:12px" placeholder="Cole aqui…"></textarea>
+    <p class="salvo">Substitui o financeiro deste casal no sistema pelo que foi colado. Os arquivos nas pastas não são alterados.</p>
+    <div id="colMsg"></div>
+  </div>
+  <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="colOk">Importar</button></div>
+</dialog>
+
 <script>
 const api = async (url, corpo) => {
   const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
@@ -325,7 +338,10 @@ function render() {
         <div class="acoes">
           <button class="btn primario" id="btnNovo">+ Fornecedor contratado</button>
           <div class="salvo">${origem}${D.planilha_google ? ' A aba FINANCEIRO da planilha do Google é reescrita pelo sistema todo dia.' : ''}</div>
-          ${D.sem_dados ? '' : '<button class="btn peq" id="btnReimportar" title="Substitui o financeiro deste casal pelo que está hoje na planilha">Reimportar da planilha</button>'}
+          <div class="linha-acoes" style="margin-top:0">
+            <button class="btn peq" id="btnColar" title="Copiar a aba FINANCEIRO da planilha e colar aqui">Importar da planilha (colar)</button>
+            ${D.sem_dados ? '' : '<button class="btn peq" id="btnReimportar" title="Substitui pelo que está na cópia da planilha">Reimportar da cópia</button>'}
+          </div>
         </div>
       </div>
       ${D.importado ? `<div class="aviso ok">${D.importado} fornecedor(es) importado(s) da aba FINANCEIRO da planilha. Daqui em diante, os lançamentos são feitos aqui.</div>` : ''}
@@ -369,6 +385,7 @@ function render() {
   $('#btnNovo').onclick = () => abrirFornecedor(null);
   $('#abrirPasta').onclick = () => abrir(D.pasta);
   if ($('#btnReimportar')) $('#btnReimportar').onclick = reimportar;
+  $('#btnColar').onclick = () => { $('#txtColar').value = ''; $('#colMsg').innerHTML = ''; $('#dlgColar').showModal(); $('#txtColar').focus(); };
   document.querySelectorAll('tr.linha').forEach((tr) => tr.onclick = (e) => {
     if (e.target.closest('button,a')) return;
     const id = tr.dataset.id; aberto.has(id) ? aberto.delete(id) : aberto.add(id); render();
@@ -556,6 +573,18 @@ $('#dfCad').onchange = () => { const f = (D.fornecedores || []).find((x) => x.id
 $('#dfSalvar').onclick = salvarFornecedor;
 $('#dpSalvar').onclick = salvarPagamento;
 $('#busca').oninput = renderLista;
+$('#colOk').onclick = async () => {
+  const texto = $('#txtColar').value;
+  if (!texto.trim()) { $('#colMsg').innerHTML = '<div class="aviso erro">Cole o conteúdo da aba FINANCEIRO.</div>'; return; }
+  const temLancamentos = D && D.itens.some((i) => !i.importado || (i.pagamentos || []).some((p) => !p.importado));
+  if (temLancamentos && !confirm('Este casal já tem lançamentos feitos no sistema. Substituir pelo que foi colado?')) return;
+  const b = $('#colOk'); b.disabled = true;
+  try {
+    const r = await api('/api/financeiro/importar', { arquivo: atual, texto, substituir: true });
+    $('#dlgColar').close(); await selecionar(atual);
+    $('#principal').querySelector('.card').insertAdjacentHTML('beforeend', `<div class="aviso ok">${r.itens} linha(s) importada(s) da aba FINANCEIRO.</div>`);
+  } catch (e) { $('#colMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
+};
 
 (async () => {
   try {

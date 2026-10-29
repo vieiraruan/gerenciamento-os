@@ -362,9 +362,9 @@ function importarLinhas(linhas, pastaCasal) {
   const C = {
     nome: col(/^fornecedor$/), desc: col(/^descri/), contratado: col(/valor contratado/),
     entrada: col(/^valor da entrada/), statusEntrada: col(/status do pagamento da entrada/), dataEntrada: col(/data do pagamento da entrada/),
-    nParcelas: col(/^numero de parcelas$/, /^total de parcelas/, /^numero de parcelas restantes/), parcelasPagas: col(/parcelas pagas/),
+    nParcelas: col(/^numero de parcelas$/, /^total de parcelas/), nRestantes: col(/^numero de parcelas restantes/), parcelasPagas: col(/parcelas pagas/),
     valorParcela: col(/^valor da parcela/), valorPago: col(/^valor pago/), dataParcela: col(/data do pagamento da parcela/, /dia de pagamento da parcela/),
-    pix: col(/^pix$/), obs: col(/^observacao$/),
+    pix: col(/^pix$/), obs: col(/^observacao$/), status: col(/^status do pagamento$/, /^status de quitacao/), restante: col(/^valor restante/, /^saldo restante/),
   };
   const v = (l, k) => (C[k] >= 0 ? String(l[C[k]] ?? '').trim() : '');
   const fin = novoFinanceiro();
@@ -391,8 +391,28 @@ function importarLinhas(linhas, pastaCasal) {
         forma: '', obs: 'parcelas pagas (total importado da planilha)', comprovante: null, importado: true, lancado_em: agora() });
     }
     let nPagas = Number((v(l, 'parcelasPagas').match(/\d+/) || [])[0]) || 0;
+    // só a quantidade de parcelas pagas (sem o valor): valor = quantidade × valor da parcela
+    if (nPagas && !(pagoParc > 0) && item.parcelas.valor) {
+      const n = Math.min(nPagas, item.parcelas.quantidade || nPagas);
+      item.pagamentos.push({ id: novoId(), tipo: 'avulso', numero: null, valor: r2(n * item.parcelas.valor), data: dataDe(v(l, 'dataParcela')),
+        forma: '', obs: `${n} parcela(s) paga(s) (importado da planilha)`, comprovante: null, importado: true, lancado_em: agora() });
+    }
     if (!nPagas && pagoParc && item.parcelas.valor) nPagas = Math.round(pagoParc / item.parcelas.valor);
+    // layout com "parcelas restantes": total = restantes + já pagas
+    const nRest = Number((v(l, 'nRestantes').match(/\d+/) || [])[0]) || 0;
+    if (nRest && !item.parcelas.quantidade) item.parcelas.quantidade = nRest + nPagas;
     if (nPagas) item.parcelas.pagas_importadas = Math.min(nPagas, item.parcelas.quantidade || nPagas);
+    // planilha marca "Pago" (quitado) mas os valores pagos não fecham: registra a diferença como quitação
+    if (/^pago$/i.test(v(l, 'status')) && item.valor_contratado) {
+      const pagoTotal = r2(item.pagamentos.reduce((t, p) => t + p.valor, 0));
+      const restante = /quitad/i.test(v(l, 'restante')) ? 0 : valorDe(v(l, 'restante'));
+      if (restante > 0.009 && item.valor_contratado - pagoTotal > 0.009) {
+        item.historico.push(`Conferir: a planilha marca "Pago", mas o valor restante é ${moeda(restante)}.`);
+      } else if (item.valor_contratado - pagoTotal > 0.009) {
+        item.pagamentos.push({ id: novoId(), tipo: 'avulso', numero: null, valor: r2(item.valor_contratado - pagoTotal), data: dataDe(v(l, 'dataParcela')),
+          forma: '', obs: 'quitação conforme status "Pago" da planilha (importado)', comprovante: null, importado: true, lancado_em: agora() });
+      }
+    }
     const obs = v(l, 'obs');
     if (obs) item.historico.push(...obs.split(/\n+/).map((x) => x.trim()).filter(Boolean));
     const pasta = acharPastaExistente(pastaCasal, item, { usadas: new Set(fin.itens.map((i) => i.pasta).filter(Boolean)) });

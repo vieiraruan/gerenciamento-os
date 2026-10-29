@@ -276,14 +276,15 @@ const assinatura = (dados) => (dados ? `${dados.fonte?.tipo}:${dados.fonte?.id |
 /** Linhas cruas da aba FINANCEIRO (cópia diária do Google ou .xlsx da pasta) — para importar o financeiro. */
 function linhasFinanceiro(dirDados, contratoArquivo, xlsx, numeroOs) {
   const fontes = [];
-  if (numeroOs) {
-    const arq = path.join(dirDados, 'planilhas', `${String(numeroOs).trim()}.json`);
-    if (fs.existsSync(arq)) {
-      try {
-        const j = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, ''));
-        if (j.formato === 2 && j.abas && j.abas.FINANCEIRO) fontes.push({ linhas: j.abas.FINANCEIRO, fonte: j.fonte, quando: quando(j) });
-      } catch { /* ignora */ }
-    }
+  // cópia diária (planilhas/AS-0031.json) ou cópia feita à mão (planilhas/<contrato>.json) com a aba FINANCEIRO crua
+  const candidatos = [arquivoCopia(dirDados, contratoArquivo)];
+  if (numeroOs) candidatos.push(path.join(dirDados, 'planilhas', `${String(numeroOs).trim()}.json`));
+  for (const arq of candidatos) {
+    if (!fs.existsSync(arq)) continue;
+    try {
+      const j = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, ''));
+      if (j.abas && j.abas.FINANCEIRO) fontes.push({ linhas: j.abas.FINANCEIRO, fonte: j.fonte, quando: quando(j) });
+    } catch { /* ignora */ }
   }
   if (xlsx) {
     try {
@@ -292,6 +293,29 @@ function linhasFinanceiro(dirDados, contratoArquivo, xlsx, numeroOs) {
     } catch { /* ignora */ }
   }
   return fontes.sort((a, b) => b.quando - a.quando)[0] || null;
+}
+
+/** Texto copiado do Google Planilhas/Excel (tabulações; células com quebra de linha vêm entre aspas) → linhas. */
+function linhasDeTextoColado(texto) {
+  const t = String(texto || '').replace(/\r\n?/g, '\n');
+  const linhas = []; let linha = []; let cel = ''; let aspas = false;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (aspas) {
+      if (ch === '"' && t[i + 1] === '"') { cel += '"'; i++; } else if (ch === '"') aspas = false; else cel += ch;
+    } else if (ch === '"' && cel === '') aspas = true;
+    else if (ch === '\t') { linha.push(cel); cel = ''; }
+    else if (ch === '\n') { linha.push(cel); linhas.push(linha); linha = []; cel = ''; }
+    else cel += ch;
+  }
+  if (cel !== '' || linha.length) { linha.push(cel); linhas.push(linha); }
+  // colado sem a linha de cabeçalho: usa a ordem padrão da aba FINANCEIRO
+  if (!linhas.some((l) => l.some((c) => /^\s*fornecedor\s*$/i.test(c)))) {
+    linhas.unshift(['Fornecedor', 'Descrição do Serviço / Observação', 'Valor Contratado', 'Valor da Entrada', 'Status do Pagamento da Entrada',
+      'Data do Pagamento da Entrada', 'Saldo Devedor', 'Número de Parcelas', 'Valor da Parcela', 'Valor Pago', 'Data do Pagamento da Parcela',
+      'Valor Restante', 'Status do Pagamento', 'PIX', 'Observação']);
+  }
+  return linhas;
 }
 
 /** Situação da cópia diária (arquivo _sincronizacao.json gravado pelo Apps Script). */
@@ -319,7 +343,7 @@ function separarLocais(texto) {
 const ehServicoGenerico = (s) => SERVICO_GENERICO.test(chave(s));
 
 module.exports = {
-  extrairDeLinhas, deCopiaGoogle, situacaoSincronizacao, mesesDaSecao, linhasFinanceiro,
+  extrairDeLinhas, deCopiaGoogle, situacaoSincronizacao, mesesDaSecao, linhasFinanceiro, linhasDeTextoColado,
   ehServicoGenerico, normalizarFornecedores, infoDeLinhas, lerPlanilhaXlsx, lerCopiaSincronizada, arquivoCopia, fonteDoCasal,
   assinatura, separarLocais, lerHorario, acharCelular, aDefinir,
 };

@@ -252,11 +252,14 @@ const rotas = {
       throw new Error('Já há lançamentos feitos no sistema para este casal. Confirme para substituir pelo que está na planilha.');
     }
     const pl = ev.localizarPlanilha(pasta);
-    const bruto = planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
-    if (!bruto) throw new Error('Ainda não há cópia da aba FINANCEIRO deste casal (instale a cópia diária do Google ou coloque a planilha .xlsx na pasta).');
+    const bruto = corpo.texto
+      ? { linhas: planilhaCasal.linhasDeTextoColado(corpo.texto), fonte: { tipo: 'colado', titulo: 'aba FINANCEIRO colada' }, quando: Date.now() }
+      : planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
+    if (!bruto) throw new Error('Ainda não há cópia da aba FINANCEIRO deste casal: use "Colar da planilha" (ou instale a cópia diária do Google).');
     const dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
-    dados.importado_de = { ...bruto.fonte, em: new Date().toISOString() };
-    fin.salvar(DADOS, arquivo, dados, campos.numero_os);
+    if (!dados.itens.length) throw new Error('Não encontrei fornecedores no que foi colado. Copie a aba FINANCEIRO a partir da linha do cabeçalho (Fornecedor) até o TOTAL.');
+    dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
+    fin.salvar(DADOS, arquivo, dados);
     return { ok: true, itens: dados.itens.length };
   },
 
