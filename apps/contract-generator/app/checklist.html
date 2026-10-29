@@ -497,6 +497,8 @@ const classeStatus = (st) => String(st || '').normalize('NFD').replace(/[\u0300-
 function linhaTarefa(i) {
   const tags = (i.atrasada ? '<span class="tag atr" title="O prazo desta tarefa no modelo já passou">atrasada</span>' : '')
     + (i.origem === 'planilha' ? '<span class="tag pl" title="Situação vinda da planilha do casal">planilha</span>' : '')
+    + (i.origem === 'financeiro' ? '<span class="tag pl" title="Fornecedor já está no controle financeiro">financeiro</span>' : '')
+    + (i.origem === 'contrato' ? '<span class="tag pl" title="Data definida no contrato">contrato</span>' : '')
     + (i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : '');
   return `<li class="${i.concluida ? 'feita' : ''}"><span class="o">${i.ordem}</span>
     <span><span class="t">${esc(i.texto)}</span>${tags}${i.fornecedor ? ` <span class="det" style="font-size:12px;color:var(--suave)">· ${esc(i.fornecedor)}</span>` : ''}</span>

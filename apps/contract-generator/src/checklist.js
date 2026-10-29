@@ -106,8 +106,42 @@ function casarTarefasPlanilha(itensModelo, daPlanilha) {
   return res;
 }
 
+// "Contratar X": se o controle financeiro já tem fornecedor de X, a tarefa está feita
+const CONTRATACOES = [
+  [/contratar (o )?espa[cç]o/i, /\b(local|espa[cç]o|casa|s[ií]tio|sobrado|pier|villa|fazenda|pousada)\b/i],
+  [/contratar buffet/i, /buffet|bufe/i],
+  [/contratar decora/i, /decora/i],
+  [/contratar mesas/i, /mobil|mesas|cadeiras/i],
+  [/contratar audiovisual/i, /\bsom\b|sonoriza|ilumina|palco/i],
+  [/contratar gerador/i, /gerador/i],
+  [/contratar banda da cerim/i, /cerim[oô]nia.*(banda|m[uú]sic|orquestra|cantor)|(banda|orquestra|cantor).*cerim|orquestra/i],
+  [/contratar dj/i, /\bdj\b/i],
+  [/contratar banda \//i, /\bbanda\b|samba|orquestra|show/i],
+  [/contratar celebrante/i, /celebra/i],
+  [/contratar (a )?equipe de cabelo/i, /make|maqui|cabel|pentead/i],
+  [/contratar fot[oó]grafo|contratar foto\b/i, /\bfoto|fotograf/i],
+  [/contratar v[ií]deo/i, /v[ií]deo|film/i],
+  [/contratar cabine/i, /cabine|totem|lembre/i],
+  [/contratar o vestido/i, /vestido/i],
+  [/contratar doces/i, /\bdoces?\b|brigad/i],
+  [/contratar bolo/i, /\bbolo\b/i],
+  [/contratar bem.?casados/i, /bem.?casado/i],
+  [/contratar drinks/i, /drink|barman/i],
+  [/contratar convites/i, /convite|id visual|identidade visual/i],
+];
+
+function inferirDoEvento(it, evento, contrato) {
+  if (/^defini[cç][aã]o da data/i.test(it.texto) && contrato && /\d{1,2}\/\d{1,2}\/\d{4}/.test(contrato.evento_data || '')) {
+    return { status: 'FINALIZADO', obs: contrato.evento_data, origem: 'contrato' };
+  }
+  const regra = CONTRATACOES.find(([re]) => re.test(it.texto));
+  if (!regra || !evento) return null;
+  const f = (evento.fornecedores || []).find((x) => x.origem === 'financeiro' && regra[1].test(`${x.nome} ${x.servico || ''}`));
+  return f ? { status: 'FINALIZADO', obs: f.nome, fornecedor: f.nome, origem: 'financeiro' } : null;
+}
+
 /** Situação efetiva de cada tarefa: a edição mais recente vence (app x planilha). */
-function situacaoTarefas(itensModelo, evento) {
+function situacaoTarefas(itensModelo, evento, contrato) {
   const doApp = (evento && evento.tarefas) || {};
   const pl = evento && evento.planilha;
   const quandoPl = pl ? new Date(pl.modificada_em || pl.lido_em || 0) : new Date(0);
@@ -123,6 +157,11 @@ function situacaoTarefas(itensModelo, evento) {
     else if (p && (pStatus || p.obs || p.fornecedor)) {
       out[it.chave] = { status: pStatus, obs: p.obs || '', fornecedor: p.fornecedor || '', origem: 'planilha', item_planilha: p.item };
     } else if (a) out[it.chave] = { ...a, origem: 'app' };
+    // sem nada marcado: o que o contrato e o controle financeiro já mostram
+    if (!out[it.chave] || !out[it.chave].status) {
+      const inf = inferirDoEvento(it, evento, contrato);
+      if (inf) out[it.chave] = { ...(out[it.chave] || {}), ...inf, obs: (out[it.chave] && out[it.chave].obs) || inf.obs };
+    }
   }
   return out;
 }
@@ -157,7 +196,7 @@ function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(
   modelo.secoes.slice().sort((a, b) => b.meses - a.meses).forEach((s) => s.itens.forEach((i) => {
     itens.push({ ordem: ++ordem, texto: i.texto, sugerido: Boolean(i.sugerido), chave: chaveTarefa(i.texto), meses_modelo: s.meses });
   }));
-  const sit = situacaoTarefas(itens, evento);
+  const sit = situacaoTarefas(itens, evento, contrato);
   // tarefas da planilha do casal que não existem no modelo: entram também (nada se perde)
   for (const p of sit.__sobras) {
     if (!String(p.item || '').trim() || /^\s*\d+\s*m[eê]s/i.test(p.item)) continue;
