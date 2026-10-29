@@ -398,7 +398,8 @@ function aplicarPlanilha(evento, dados) {
   }
   return {
     ...junto, info, atividades,
-    planilha: { divergencias, assinatura: planilha.assinatura(dados), titulo: dados.fonte?.titulo || '', url: dados.fonte?.url || '', lido_em: dados.lido_em, aplicada_em: new Date().toISOString() },
+    tarefas_planilha: Array.isArray(dados.tarefas) && dados.tarefas.length ? dados.tarefas : (junto.tarefas_planilha || []),
+    planilha: { divergencias, modificada_em: dados.fonte?.modificada_em || dados.lido_em, assinatura: planilha.assinatura(dados), titulo: dados.fonte?.titulo || '', url: dados.fonte?.url || '', lido_em: dados.lido_em, aplicada_em: new Date().toISOString() },
   };
 }
 

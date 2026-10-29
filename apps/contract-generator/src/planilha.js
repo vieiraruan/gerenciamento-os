@@ -13,6 +13,7 @@
  *    "lido_em": "2026-10-28T23:00:00Z",
  *    "info": { "convidados": "100", "padrinhos": "10", "criancas": "03",
  *              "local": "Casa de Chá", "horario": "16h", "data": "31/10/2026" },
+ *    "tarefas": [ { "item": "Contratar Buffet", "status": "FINALIZADO", "obs": "La Place", "fornecedor": "" } ],
  *    "fornecedores": [ { "nome": "La Place", "descricao": "Buffet\nDuração 07h", "pix": "..." } ] }
  *
  * O que vem da planilha só PREENCHE o que está vazio: o que já foi editado no app é mantido.
@@ -153,10 +154,23 @@ function lerPlanilhaXlsx(arquivo) {
   const ass = lerAba(arquivo, 'ASSESSORIA');
   const letras = (l) => { const ks = Object.keys(l.c).sort((a, b) => a.length - b.length || a.localeCompare(b)); return ks.map((k) => l.c[k]); };
   const info = ass ? infoDeLinhas(ass.linhas.map(letras)) : {};
+  // cronograma (CRONOGRAMA - CHECK LIST): ITENS / STATUS / OBSERVAÇÕES / FORNECEDOR
+  const tarefas = [];
+  if (ass) {
+    const cabT = ass.linhas.find((l) => Object.values(l.c).some((v) => /^\s*itens\s*$/i.test(v)));
+    if (cabT) {
+      const col = (re) => Object.keys(cabT.c).find((k) => re.test(cabT.c[k]));
+      const cI = col(/^\s*itens\s*$/i); const cS = col(/^\s*status\s*$/i); const cO = col(/observa/i); const cF = col(/fornecedor/i);
+      for (const l of ass.linhas) {
+        if (l.n <= cabT.n || !l.c[cI] || /^\s*\d+\s*m[eê]s(es)?\b/i.test(l.c[cI])) continue;
+        tarefas.push({ item: l.c[cI], status: (cS && l.c[cS]) || '', obs: (cO && l.c[cO]) || '', fornecedor: (cF && l.c[cF]) || '' });
+      }
+    }
+  }
   return {
     fonte: { tipo: 'xlsx', titulo: path.basename(arquivo), arquivo },
     lido_em: new Date(fs.statSync(arquivo).mtimeMs).toISOString(),
-    info, fornecedores,
+    info, fornecedores, tarefas,
   };
 }
 

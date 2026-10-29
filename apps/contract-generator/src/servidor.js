@@ -263,8 +263,8 @@ const rotas = {
   'GET /api/checklist/vertentes': () => listarVertentes(),
 
   'GET /api/checklist/previa': (q) => {
-    const { campos } = contratoDe(q.get('arquivo'));
-    const ck = montarChecklist(campos, q.get('vertente') || 'destination');
+    const { arquivo, campos } = contratoDe(q.get('arquivo'));
+    const ck = montarChecklist(campos, q.get('vertente') || 'destination', undefined, ev.carregarEvento(DADOS, arquivo, campos));
     const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     return { ...ck, destination_contrato: /^s/i.test(campos.destination || ''), pasta: destino.pasta, pasta_existe: destino.existe };
   },
@@ -330,7 +330,7 @@ const rotas = {
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const opc = { novaVersao: Boolean(corpo.novaVersao), destination: (corpo.vertente || 'destination') === 'destination' };
     const r = corpo.tipo === 'cronograma'
-      ? gravarChecklist(montarChecklist(campos, corpo.vertente || 'destination'), pasta, opc)
+      ? gravarChecklist(montarChecklist(campos, corpo.vertente || 'destination', undefined, ev.carregarEvento(DADOS, arquivo, campos)), pasta, opc)
       : gravarChecklistEvento(campos, ev.carregarEvento(DADOS, arquivo, campos), pasta, opc);
     return { ...r, pasta };
   },

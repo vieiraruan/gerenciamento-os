@@ -54,50 +54,200 @@ const hojeSemHora = () => { const h = new Date(); return new Date(h.getFullYear(
 
 function rotuloMeses(m) { return m === 1 ? '1 MÊS ANTES' : `${m} MESES ANTES`; }
 
+// ---------------------------------------------------------------------------
+// Situação das tarefas (marcadas no app ou vindas da planilha do casal)
+// ---------------------------------------------------------------------------
+const CONCLUIDO = new Set(['FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO']);
+const chaveTarefa = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase();
+const VAZIAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'com', 'para', 'por', 'na', 'no', 'nas', 'nos', 'em', 'um', 'uma', 'se', 'ou', 'que', 'ja', 'foi', 'caso', 'seja', 'outros', 'outras', 'nao', 'sim', 'estiver', 'necessario']);
+const palavras = (s) => new Set(chaveTarefa(s).split(' ').filter((w) => w.length > 1 && !VAZIAS.has(w)).map((w) => (w.length > 3 ? w.replace(/s$/, '') : w)));
+
+function semelhanca(a, b) {
+  const A = palavras(a); const B = palavras(b);
+  if (!A.size || !B.size) return 0;
+  let comum = 0;
+  const igual = (w, v) => w === v || (Math.min(w.length, v.length) >= 4 && (w.startsWith(v) || v.startsWith(w)));
+  for (const w of A) if ([...B].some((v) => igual(w, v))) comum++;
+  if (comum < 2 && !(A.size === 1 && B.size === 1 && comum === 1)) return 0;
+  if (comum / Math.max(A.size, B.size) <= 0.4 && !(comum === Math.min(A.size, B.size) && comum >= 2)) return 0;
+  return comum / Math.min(A.size, B.size) * (comum / Math.max(A.size, B.size)) ** 0.1;
+}
+
+const normalizarStatus = (st) => {
+  const k = chaveTarefa(st).toUpperCase();
+  if (!k) return '';
+  if (/FINALIZ|CONCLU|FEITO|OK$/.test(k)) return 'FINALIZADO';
+  if (/NAO SE APLICA|N A$/.test(k)) return 'NÃO SE APLICA';
+  if (/NAO DESEJ/.test(k)) return 'NÃO DESEJO';
+  if (/COTA/.test(k)) return 'EM COTAÇÃO';
+  if (/ANDAMENTO|INICIAD/.test(k)) return 'EM ANDAMENTO';
+  return '';
+};
+
 /**
- * Monta o checklist (estrutura de dados) a partir do contrato e da vertente.
- * @param {object} contrato campos do .txt do contrato (evento_nomes, evento_data, ...)
+ * Casa as tarefas da planilha do casal (aba ASSESSORIA) com as do modelo: cada tarefa do modelo fica com a da
+ * planilha mais parecida (texto), se for parecida o bastante.
  */
-function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora()) {
-  const modelo = carregarModelo(vertente);
-  let evento = null;
-  try { evento = contrato.evento_data ? parseData(contrato.evento_data) : null; } catch { evento = null; }
-
-  // Meses que faltam: as 12 etapas do modelo são redistribuídas no tempo restante até o casamento.
-  // Ex.: faltando 8 meses, as tarefas de "12 meses" e "11 meses" vão para a etapa de 8 meses, e assim por diante.
-  let meses = 12;
-  if (evento && evento > hoje) {
-    meses = (evento.getFullYear() - hoje.getFullYear()) * 12 + (evento.getMonth() - hoje.getMonth());
-    if (evento.getDate() < hoje.getDate()) meses -= 1;
-    meses = Math.max(1, Math.min(12, meses + 1)); // conta o mês corrente
+function casarTarefasPlanilha(itensModelo, daPlanilha) {
+  const res = new Map();
+  const usadas = new Set();
+  const pares = [];
+  itensModelo.forEach((it) => (daPlanilha || []).forEach((p, j) => {
+    const v = semelhanca(it.texto, p.item);
+    if (v >= 0.55) pares.push([v, it.chave, j]);
+  }));
+  pares.sort((x, y) => y[0] - x[0]);
+  for (const [, k, j] of pares) {
+    if (res.has(k) || usadas.has(j)) continue;
+    res.set(k, daPlanilha[j]);
+    usadas.add(j);
   }
-  const comprimido = Boolean(evento && evento > hoje && meses < 12);
+  res.sobras = (daPlanilha || []).filter((p, j) => !usadas.has(j));
+  return res;
+}
 
-  const grupos = new Map();
-  modelo.secoes.slice().sort((a, b) => b.meses - a.meses).forEach((s) => {
-    const b = comprimido ? Math.max(1, Math.ceil((s.meses * meses) / 12)) : s.meses;
-    if (!grupos.has(b)) grupos.set(b, []);
-    grupos.get(b).push(...s.itens);
-  });
+/** Situação efetiva de cada tarefa: a edição mais recente vence (app x planilha). */
+function situacaoTarefas(itensModelo, evento) {
+  const doApp = (evento && evento.tarefas) || {};
+  const pl = evento && evento.planilha;
+  const quandoPl = pl ? new Date(pl.modificada_em || pl.lido_em || 0) : new Date(0);
+  const casadas = casarTarefasPlanilha(itensModelo, evento && evento.tarefas_planilha);
+  const out = {};
+  out.__sobras = casadas.sobras || [];
+  for (const it of itensModelo) {
+    const a = doApp[it.chave];
+    const p = casadas.get(it.chave);
+    const pStatus = p ? normalizarStatus(p.status) : '';
+    const usarApp = a && (a.status || a.obs) && (!p || !pStatus || new Date(a.editado_em || 0) >= quandoPl);
+    if (usarApp) out[it.chave] = { ...a, origem: 'app' };
+    else if (p && (pStatus || p.obs || p.fornecedor)) {
+      out[it.chave] = { status: pStatus, obs: p.obs || '', fornecedor: p.fornecedor || '', origem: 'planilha', item_planilha: p.item };
+    } else if (a) out[it.chave] = { ...a, origem: 'app' };
+  }
+  return out;
+}
 
+const mesesEntre = (de, ate) => {
+  let m = (ate.getFullYear() - de.getFullYear()) * 12 + (ate.getMonth() - de.getMonth());
+  if (ate.getDate() < de.getDate()) m -= 1;
+  return m;
+};
+
+/**
+ * Monta o cronograma de tarefas a partir do contrato, da vertente e do que já foi feito.
+ *
+ * - Tarefas concluídas (FINALIZADO / NÃO SE APLICA / NÃO DESEJO) saem do cronograma e vão para "Concluídas".
+ * - As que faltam são redistribuídas nos meses que faltam até o casamento, com carga parecida por mês
+ *   (faltam N tarefas em M meses → cerca de N/M por mês), sem passar do prazo de cada uma no modelo.
+ *   Quanto mais rápido as tarefas são concluídas, menos fica para cada mês; atrasadas entram no mês atual.
+ * - Ritmo: concluídas x esperadas até hoje pelo modelo, tarefas por mês necessárias.
+ * @param {object} contrato campos do .txt do contrato (evento_nomes, evento_data, data_assinatura...)
+ * @param {object} [evento] dados do evento (tarefas marcadas no app e tarefas da planilha do casal)
+ */
+function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(), evento = null) {
+  const modelo = carregarModelo(vertente);
+  let data = null;
+  try { data = contrato.evento_data ? parseData(contrato.evento_data) : null; } catch { data = null; }
+  let inicio = null;
+  try { inicio = contrato.data_assinatura ? parseData(contrato.data_assinatura) : null; } catch { inicio = null; }
+
+  // itens do modelo com ordem e chave
   let ordem = 0;
-  const secoes = [...grupos.entries()].sort((a, b) => b[0] - a[0]).map(([m, itens]) => {
-    let inicio = null; let fim = null; let situacao = null;
-    if (evento) {
-      inicio = somarMeses(evento, -m);
-      if (comprimido && m === meses && inicio < hoje) inicio = hoje;
-      fim = somarDias(m > 1 ? somarMeses(evento, -(m - 1)) : evento, -1);
-      situacao = hoje > fim ? 'vencida' : hoje >= inicio ? 'atual' : 'futura';
+  const itens = [];
+  modelo.secoes.slice().sort((a, b) => b.meses - a.meses).forEach((s) => s.itens.forEach((i) => {
+    itens.push({ ordem: ++ordem, texto: i.texto, sugerido: Boolean(i.sugerido), chave: chaveTarefa(i.texto), meses_modelo: s.meses });
+  }));
+  const sit = situacaoTarefas(itens, evento);
+  // tarefas da planilha do casal que não existem no modelo: entram também (nada se perde)
+  for (const p of sit.__sobras) {
+    if (!String(p.item || '').trim() || /^\s*\d+\s*m[eê]s/i.test(p.item)) continue;
+    const k = `pl ${chaveTarefa(p.item)}`;
+    const a = ((evento && evento.tarefas) || {})[k];
+    const quandoPl = new Date((evento && evento.planilha && (evento.planilha.modificada_em || evento.planilha.lido_em)) || 0);
+    const usarApp = a && new Date(a.editado_em || 0) >= quandoPl;
+    sit[k] = usarApp ? { ...a, origem: 'app' } : { status: normalizarStatus(p.status), obs: p.obs || '', fornecedor: p.fornecedor || '', origem: 'planilha' };
+    itens.push({ ordem: ++ordem, texto: String(p.item).replace(/\s+/g, ' ').trim(), sugerido: false, chave: k, meses_modelo: Math.max(1, Math.min(12, Number(p.meses) || 1)), da_planilha: true });
+  }
+  for (const it of itens) {
+    const st = sit[it.chave] || {};
+    Object.assign(it, {
+      status: st.status || '', obs: st.obs || '', fornecedor: st.fornecedor || '', concluida_em: st.concluida_em || '',
+      origem: st.origem || '', concluida: CONCLUIDO.has(st.status),
+    });
+  }
+
+  const futuro = Boolean(data && data > hoje);
+  // meses que faltam, contando o mês corrente
+  const meses = futuro ? Math.max(1, Math.min(12, mesesEntre(hoje, data) + 1)) : 0;
+  // linha de base: o modelo (12 meses) comprimido no tempo entre a assinatura e o casamento
+  // sem data de assinatura: usa a 1ª etapa da planilha do casal (ex.: começou em "6 MESES antes")
+  const daPlanilha = Math.max(0, ...((evento && evento.tarefas_planilha) || []).map((t) => Number(t.meses) || 0));
+  const total = data && inicio && inicio < data ? Math.max(1, Math.min(12, mesesEntre(inicio, data) + 1))
+    : daPlanilha ? Math.min(12, daPlanilha) : 12;
+  for (const it of itens) it.mes_base = Math.max(1, Math.ceil((it.meses_modelo * total) / 12));
+
+  const pendentes = itens.filter((i) => !i.concluida);
+  const concluidas = itens.filter((i) => i.concluida);
+  const grupos = new Map();
+  if (futuro) {
+    // cada tarefa fica no mês previsto (atrasadas: no mês atual); mês com tarefas demais passa o excesso
+    // (as de prazo mais tarde) para o mês seguinte. Nunca adianta uma tarefa: só adia quando o mês lota.
+    const porMes = Math.ceil(pendentes.length / meses) || 0;
+    let excesso = [];
+    for (let m = meses; m >= 1; m--) {
+      const doMes = pendentes.filter((i) => Math.min(i.mes_base, meses) === m);
+      const lista = [...excesso, ...doMes].sort((a, b) => b.mes_base - a.mes_base || a.ordem - b.ordem);
+      const naturais = doMes.filter((i) => i.mes_base === m).length;
+      const fica = m === 1 ? lista : lista.slice(0, Math.max(porMes, naturais));
+      excesso = m === 1 ? [] : lista.slice(fica.length);
+      for (const it of fica) it.adiada = Math.min(it.mes_base, meses) !== m;
+      if (fica.length) grupos.set(m, fica);
+    }
+    for (const it of pendentes) it.atrasada = it.mes_base > meses;
+  } else {
+    for (const it of pendentes) {
+      if (!grupos.has(it.mes_base)) grupos.set(it.mes_base, []);
+      grupos.get(it.mes_base).push(it);
+    }
+  }
+
+  const secoes = [...grupos.entries()].sort((a, b) => b[0] - a[0]).map(([m, lista]) => {
+    let ini = null; let fim = null; let situacao = null;
+    if (data) {
+      ini = somarMeses(data, -m);
+      if (futuro && m === meses && ini < hoje) ini = hoje;
+      fim = somarDias(m > 1 ? somarMeses(data, -(m - 1)) : data, -1);
+      situacao = hoje > fim ? 'vencida' : hoje >= ini ? 'atual' : 'futura';
     }
     return {
-      meses: m,
-      rotulo: rotuloMeses(m),
-      inicio: inicio && dataBr(inicio),
-      fim: fim && dataBr(fim),
-      situacao,
-      itens: itens.map((i) => ({ ordem: ++ordem, texto: i.texto, sugerido: Boolean(i.sugerido) })),
+      meses: m, rotulo: rotuloMeses(m), inicio: ini && dataBr(ini), fim: fim && dataBr(fim), situacao,
+      itens: lista.sort((a, b) => a.ordem - b.ordem),
     };
   });
+
+  // ritmo
+  const esperadas = futuro ? itens.filter((i) => i.mes_base > meses).length : itens.length;
+  // início do trabalho: assinatura do contrato, mas não antes de "total" meses do casamento (o modelo tem 12)
+  const inicioBase = data ? (inicio && mesesEntre(inicio, data) + 1 <= total ? inicio : somarMeses(data, -total)) : inicio;
+  const decorridos = inicioBase && inicioBase < hoje ? Math.max(1, mesesEntre(inicioBase, hoje) + 1) : null;
+  const ritmo = {
+    total: itens.length,
+    concluidas: concluidas.length,
+    pendentes: pendentes.length,
+    em_andamento: pendentes.filter((i) => i.status).length,
+    percentual: itens.length ? Math.round((concluidas.length / itens.length) * 100) : 0,
+    esperadas_ate_hoje: esperadas,
+    saldo: concluidas.length - esperadas, // > 0 adiantado, < 0 atrasado
+    atrasadas: pendentes.filter((i) => i.atrasada).length,
+    por_mes_necessario: futuro ? Math.round((pendentes.length / meses) * 10) / 10 : null,
+    por_mes_atual: decorridos ? Math.round((concluidas.length / decorridos) * 10) / 10 : null,
+  };
+  if (futuro && ritmo.por_mes_atual) {
+    const mesesParaTerminar = pendentes.length / ritmo.por_mes_atual;
+    ritmo.previsao_termino = dataBr(somarDias(hoje, Math.round(mesesParaTerminar * 30.4)));
+    ritmo.termina_antes = somarDias(hoje, Math.round(mesesParaTerminar * 30.4)) <= data;
+  }
+  ritmo.situacao = !futuro ? null : ritmo.saldo >= 0 ? (ritmo.saldo > 0 ? 'adiantado' : 'em_dia') : 'atrasado';
 
   return {
     vertente,
@@ -106,20 +256,23 @@ function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(
     evento: {
       numero_os: contrato.numero_os || '',
       nomes: String(contrato.evento_nomes || '').replace(/\s+/g, ' ').trim(),
-      data: evento ? dataBr(evento) : '',
-      data_extenso: evento ? evento.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+      data: data ? dataBr(data) : '',
+      data_extenso: data ? data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
       periodo: contrato.evento_periodo || '',
-      horario: contrato.evento_horario || '',
+      horario: (evento && evento.info && evento.info.hora_cerimonia) || contrato.evento_horario || '',
       local: contrato.evento_local || '',
-      convidados: contrato.convidados || '',
-      padrinhos: contrato.padrinhos || contrato.casais_padrinhos || '',
-      criancas: contrato.criancas || '',
+      convidados: (evento && evento.info && evento.info.convidados) || contrato.convidados || '',
+      padrinhos: (evento && evento.info && evento.info.padrinhos) || contrato.padrinhos || contrato.casais_padrinhos || '',
+      criancas: (evento && evento.info && evento.info.criancas) || contrato.criancas || '',
     },
-    total_itens: ordem,
-    meses_restantes: evento && evento > hoje ? meses : 0,
-    comprimido,
+    total_itens: itens.length,
+    meses_restantes: meses,
+    comprimido: futuro && meses < 12,
     gerado_em: dataBr(hoje),
+    ritmo,
     secoes,
+    concluidas: concluidas.sort((a, b) => a.ordem - b.ordem),
+    planilha_tarefas: evento && evento.tarefas_planilha ? evento.tarefas_planilha.length : 0,
   };
 }
 
@@ -184,6 +337,13 @@ function planilhaChecklist(ck) {
 
   const sobre = ck.meses_restantes
     ? ` · ${ck.meses_restantes === 1 ? '1 MÊS' : `${ck.meses_restantes} MESES`} ATÉ O CASAMENTO (calculado em ${ck.gerado_em})` : '';
+  const r = ck.ritmo || {};
+  if (r.total) {
+    const sitTxt = { adiantado: `adiantado (${r.saldo} tarefa(s) à frente)`, em_dia: 'em dia', atrasado: `atrasado (${-r.saldo} tarefa(s) atrás)` }[r.situacao] || '';
+    const partes = [`${r.concluidas} de ${r.total} tarefas concluídas (${r.percentual}%)`, sitTxt && `ritmo: ${sitTxt}`,
+      r.por_mes_necessario != null && `faltam ${r.pendentes} → cerca de ${String(r.por_mes_necessario).replace('.', ',')} por mês`];
+    linha(8, { B: { v: partes.filter(Boolean).join('   ·   '), s: 'nota' } });
+  }
   linha(9, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: i ? undefined : `${ck.titulo}${sobre}`, s: 'cab' }])), 24);
   mesclas.push('B9:H9');
   const cab = ['ORDEM', 'ITENS', 'STATUS', 'OBSERVAÇÕES', 'ESTIMATIVA (R$)', 'VALOR FINAL (R$)', 'FORNECEDOR'];
@@ -191,16 +351,18 @@ function planilhaChecklist(ck) {
 
   let n = 11;
   const primeiraItem = n + 1;
-  for (const s of ck.secoes) {
-    const periodo = s.inicio ? `   ·   de ${s.inicio} a ${s.fim}` : '';
-    linha(n, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: i ? undefined : `${s.rotulo}${periodo}`, s: 'secao' }])), 19);
+  const blocos = ck.secoes.map((s) => ({ titulo: `${s.rotulo}${s.inicio ? `   ·   de ${s.inicio} a ${s.fim}` : ''}`, itens: s.itens }));
+  if ((ck.concluidas || []).length) blocos.push({ titulo: `JÁ CONCLUÍDAS (${ck.concluidas.length})`, itens: ck.concluidas });
+  for (const bl of blocos) {
+    linha(n, Object.fromEntries('BCDEFGH'.split('').map((c, i) => [c, { v: i ? undefined : bl.titulo, s: 'secao' }])), 19);
     mesclas.push(`B${n}:H${n}`);
     n++;
-    for (const it of s.itens) {
+    for (const it of bl.itens) {
+      const obs = [it.atrasada ? 'Prazo original já passou' : '', it.obs].filter(Boolean).join(' · ');
       linha(n, {
-        B: { v: it.ordem, s: 'ordem' }, C: { v: it.texto, s: 'item' }, D: { s: 'status' }, E: { s: 'obs' },
-        F: { s: 'moeda' }, G: { s: 'moeda' }, H: { s: 'obs' },
-      }, alturaTexto(it.texto));
+        B: { v: it.ordem, s: 'ordem' }, C: { v: it.texto, s: 'item' }, D: { v: it.status || undefined, s: 'status' }, E: { v: obs || undefined, s: 'obs' },
+        F: { s: 'moeda' }, G: { s: 'moeda' }, H: { v: it.fornecedor || undefined, s: 'obs' },
+      }, Math.max(alturaTexto(it.texto), alturaTexto(obs, 40)));
       n++;
     }
   }
@@ -261,4 +423,6 @@ function gravarChecklist(ck, pastaCasal, { novaVersao = false } = {}) {
   return { existe: false, arquivo };
 }
 
-module.exports = { listarVertentes, carregarModelo, montarChecklist, planilhaChecklist, gravarChecklist, nomeArquivoChecklist };
+module.exports = {
+  CONCLUIDO, chaveTarefa, normalizarStatus, casarTarefasPlanilha, listarVertentes, carregarModelo, montarChecklist, planilhaChecklist, gravarChecklist, nomeArquivoChecklist,
+};

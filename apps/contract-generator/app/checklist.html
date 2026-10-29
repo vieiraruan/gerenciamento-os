@@ -82,6 +82,21 @@
   .itens .o { color: var(--suave); font-weight: 700; text-align: right; }
   .itens.horas li { grid-template-columns: 54px 1fr; gap: 14px; }
   .itens.horas .o { color: var(--marca); }
+  .tarefas li { grid-template-columns: 34px 1fr 150px minmax(120px, 220px); align-items: center; }
+  .tarefas li.feita span.t { color: var(--suave); text-decoration: line-through; }
+  .tarefas select, .tarefas input { font-size: 13px; padding: 4px 6px; }
+  .tarefas select.FINALIZADO { background: #e2f0d9; color: #375623; font-weight: 700; }
+  .tarefas select.EM-ANDAMENTO { background: #fff2cc; color: #7f6000; font-weight: 700; }
+  .tarefas select.EM-COTACAO { background: #ddebf7; color: #1f4e78; font-weight: 700; }
+  .tarefas select.NAO-SE-APLICA, .tarefas select.NAO-DESEJO { background: #ededed; color: #7f7f7f; font-weight: 700; }
+  .tag { font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+  .tag.atr { color: var(--erro); background: #fbeceb; }
+  .tag.pl { color: #1f4e78; background: #e3eef6; }
+  .barra { height: 10px; border-radius: 99px; background: #f0ebe8; overflow: hidden; margin: 6px 0 10px; }
+  .barra > div { height: 100%; background: var(--ok); }
+  .ritmo { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; }
+  .ritmo b { color: var(--marca); }
+  @media (max-width: 760px) { .tarefas li { grid-template-columns: 34px 1fr; } }
   .novo { font-size: 10px; font-weight: 700; color: #1f4e78; background: #e3eef6; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
   .grade { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px 12px; }
   .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
@@ -272,25 +287,9 @@ function renderChecklist(ck) {
       <div id="pendencias"></div>
     </div>
 
-    <details class="card" style="padding:0">
-      <summary style="padding:16px 20px;cursor:pointer;font-weight:600;color:var(--marca)">Cronograma de tarefas · ${ck.meses_restantes ? `${ck.meses_restantes} ${ck.meses_restantes > 1 ? 'meses' : 'mês'} até o casamento${ck.comprimido ? ' (tarefas redistribuídas no tempo que falta)' : ''}` : 'evento já realizado ou sem data'} · ${ck.total_itens} tarefas
-        ${e.data ? ` · <span style="color:var(--erro)">${cont.vencida} com prazo passado</span> · <span style="color:var(--ok)">${cont.atual} para agora</span>` : ''}</summary>
-      <div style="padding:0 20px 16px">
-      ${novos ? `<p class="det" style="font-size:13px;color:var(--suave)">${novos} itens sugeridos para revisar (marcados com <span class="novo" style="margin:0">novo</span>)</p>` : ''}
-      ${ck.secoes.map((s) => `
-        <details class="secao" ${s.situacao === 'atual' ? 'open' : ''}>
-          <summary>
-            <span class="rot">${esc(s.rotulo)}</span>
-            ${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
-            ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}
-            <span class="qtd">${s.itens.length} tarefas</span>
-          </summary>
-          <ul class="itens">${s.itens.map((i) => `<li><span class="o">${i.ordem}</span>
-            <span>${esc(i.texto)}${i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : ''}</span></li>`).join('')}</ul>
-        </details>`).join('')}
-      </div>
-    </details>`;
+    <div class="card" id="crono"></div>`;
 
+  renderCrono(ck);
   document.querySelectorAll('#seg button[data-v]').forEach((b) => b.onclick = () => {
     if (b.disabled) return;
     vertente = b.dataset.v; selecionar(atual);
@@ -491,13 +490,83 @@ function renderPend() {
     : '<div class="ok-tudo">Tudo preenchido. Gere o checklist do evento e o painel do dia no botão do topo.</div>';
 }
 
-function agendar() {
+// ---- Cronograma de tarefas: marcar o que já foi feito; o que falta é recalculado nos meses restantes ----
+let CK = null;
+const STATUS = ['', 'EM ANDAMENTO', 'EM COTAÇÃO', 'FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'];
+const classeStatus = (st) => String(st || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+function linhaTarefa(i) {
+  const tags = (i.atrasada ? '<span class="tag atr" title="O prazo desta tarefa no modelo já passou">atrasada</span>' : '')
+    + (i.origem === 'planilha' ? '<span class="tag pl" title="Situação vinda da planilha do casal">planilha</span>' : '')
+    + (i.sugerido ? '<span class="novo" title="Item sugerido (não estava no checklist Hanna & Ivan)">novo</span>' : '');
+  return `<li class="${i.concluida ? 'feita' : ''}"><span class="o">${i.ordem}</span>
+    <span><span class="t">${esc(i.texto)}</span>${tags}${i.fornecedor ? ` <span class="det" style="font-size:12px;color:var(--suave)">· ${esc(i.fornecedor)}</span>` : ''}</span>
+    <select data-t="${esc(i.chave)}" class="${classeStatus(i.status)}">${STATUS.map((st) => `<option value="${st}" ${st === i.status ? 'selected' : ''}>${st || '— a fazer —'}</option>`).join('')}</select>
+    <input data-o="${esc(i.chave)}" value="${esc(i.obs || '')}" placeholder="Observação"></li>`;
+}
+function renderCrono(ck) {
+  CK = ck;
+  const r = ck.ritmo || {};
+  const e = ck.evento;
+  const sitTxt = { adiantado: `<b style="color:var(--ok)">adiantado</b> (${r.saldo} à frente do previsto)`, em_dia: '<b style="color:var(--ok)">em dia</b>',
+    atrasado: `<b style="color:var(--erro)">atrasado</b> (${-r.saldo} tarefa(s) atrás do previsto)` }[r.situacao];
+  $('#crono').innerHTML = `
+    <h2><span class="passo">7</span>Cronograma de tarefas até o casamento</h2>
+    <div class="det" style="font-size:13px;color:var(--suave);margin:-6px 0 8px">Marque o que já foi feito (ou venha da planilha do casal): as concluídas saem do cronograma
+      e o que falta é redistribuído nos meses que restam, com carga parecida por mês. Quanto mais rápido as tarefas terminam, menos fica para cada mês.</div>
+    <div class="barra"><div style="width:${r.percentual || 0}%"></div></div>
+    <div class="ritmo">
+      <span><b>${r.concluidas}</b> de ${r.total} concluídas (${r.percentual}%)</span>
+      ${r.em_andamento ? `<span>${r.em_andamento} em andamento/cotação</span>` : ''}
+      ${ck.meses_restantes ? `<span>${ck.meses_restantes} ${ck.meses_restantes > 1 ? 'meses' : 'mês'} até o casamento</span>` : `<span>${e.data ? 'evento já realizado' : 'sem data definida'}</span>`}
+      ${sitTxt ? `<span>Ritmo: ${sitTxt}</span>` : ''}
+      ${r.por_mes_necessario != null ? `<span>Faltam ${r.pendentes}: cerca de <b>${String(r.por_mes_necessario).replace('.', ',')}</b> por mês</span>` : ''}
+      ${r.por_mes_atual != null ? `<span>Ritmo atual: ${String(r.por_mes_atual).replace('.', ',')} por mês${r.previsao_termino ? ` · nesse ritmo termina em ${esc(r.previsao_termino)}${r.termina_antes ? '' : ' <b style="color:var(--erro)">(depois do casamento)</b>'}` : ''}</span>` : ''}
+      ${r.atrasadas ? `<span style="color:var(--erro)">${r.atrasadas} com prazo original vencido (entraram nos primeiros meses)</span>` : ''}
+    </div>
+    <div style="margin-top:12px">
+    ${ck.secoes.map((s) => `
+      <details class="secao" ${s.situacao === 'atual' ? 'open' : ''}>
+        <summary><span class="rot">${esc(s.rotulo)}</span>${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
+          ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}<span class="qtd">${s.itens.length} tarefas</span></summary>
+        <ul class="itens tarefas">${s.itens.map(linhaTarefa).join('')}</ul>
+      </details>`).join('')}
+    ${(ck.concluidas || []).length ? `<details class="secao"><summary><span class="rot" style="color:var(--ok)">Já concluídas</span><span class="qtd">${ck.concluidas.length} tarefas</span></summary>
+      <ul class="itens tarefas">${ck.concluidas.map(linhaTarefa).join('')}</ul></details>` : ''}
+    </div>`;
+  document.querySelectorAll('#crono [data-t]').forEach((el) => el.onchange = () => marcarTarefa(el.dataset.t, { status: el.value }));
+  document.querySelectorAll('#crono [data-o]').forEach((el) => el.oninput = () => marcarTarefa(el.dataset.o, { obs: el.value }, true));
+}
+function marcarTarefa(chaveT, mudanca, soTexto) {
+  if (!EV) return;
+  EV.tarefas = EV.tarefas || {};
+  const it = [...CK.secoes.flatMap((s) => s.itens), ...(CK.concluidas || [])].find((i) => i.chave === chaveT) || {};
+  const atual = EV.tarefas[chaveT] || { status: it.status || '', obs: it.obs || '', fornecedor: it.fornecedor || '' };
+  const novo = { ...atual, ...mudanca, editado_em: new Date().toISOString() };
+  const feito = ['FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'].includes(novo.status);
+  novo.concluida_em = feito ? (atual.concluida_em || new Date().toISOString()) : '';
+  EV.tarefas[chaveT] = novo;
+  agendar(soTexto ? null : recalcularCrono);
+}
+async function recalcularCrono() {
+  try {
+    const ck = await api(`/api/checklist/previa?arquivo=${encodeURIComponent(atual)}&vertente=${vertente}`);
+    const abertos = [...document.querySelectorAll('#crono details[open] .rot')].map((x) => x.textContent);
+    renderCrono(ck);
+    document.querySelectorAll('#crono details').forEach((d) => { const r = d.querySelector('.rot'); if (r && abertos.includes(r.textContent)) d.open = true; });
+  } catch (e) { /* mantém a tela */ }
+}
+
+let depoisDeSalvar = null;
+function agendar(depois) {
+  if (typeof depois === 'function') depoisDeSalvar = depois;
   $('#salvo').textContent = '· salvando…';
   clearTimeout(tSalvar);
   tSalvar = setTimeout(async () => {
     try {
       const r = await api('/api/evento', { arquivo: atual, evento: EV });
       PEND = r.pendencias; renderPend();
+      const f = depoisDeSalvar; depoisDeSalvar = null;
+      if (f) f();
       $('#salvo').textContent = `· salvo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     } catch (e) { $('#salvo').textContent = `· erro ao salvar: ${e.message}`; }
   }, 600);
