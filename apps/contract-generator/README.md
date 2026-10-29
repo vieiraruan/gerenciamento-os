@@ -185,3 +185,20 @@ Código: `src/evento.js`, `src/roteiro.js`, `src/painel.js`, `src/xlsxLeitor.js`
 **recalculadas pelos meses que faltam** até o casamento (ex.: faltando 8 meses, as tarefas de 12 e 11 meses vão para
 a etapa atual). Status com cores, valores e fornecedor. `templates/checklists/destination.json`, `src/checklist.js`,
 `src/xlsx.js`.
+
+## Financeiro (`/financeiro`)
+Fornecedores contratados por casal, no formato da aba FINANCEIRO da planilha de assessoria:
+- **Cadastro do fornecedor** (fica salvo para outros casais: `_DADOS DO SISTEMA/fornecedores/`), com abas Fornecedor,
+  Informações financeiras (valor contratado, entrada e forma, nº de parcelas, valor e 1º vencimento, PIX/banco) e
+  Contrato assinado (upload).
+- Cada fornecedor tem uma **pasta na pasta do casal** (`NNN. Nome`; pastas que já existem são reaproveitadas). O
+  contrato e os **comprovantes** vão para ela (`COMPROVANTE - PARCELA 2 DE 7 - 10-12-2026.pdf`).
+- **Registrar pagamento** (entrada, parcela ou avulso) exige o comprovante e dá baixa: atualiza pago, saldo, parcelas
+  e o histórico (como a coluna Observação da planilha).
+- **Painel do casal**: contratado, pago, a pagar, parcelas atrasadas, próximos pagamentos, pago × a pagar por fornecedor.
+- Na 1ª abertura, importa a aba FINANCEIRO da planilha do casal (cópia diária do Google ou .xlsx). Depois disso o
+  sistema é a fonte: grava `_DADOS DO SISTEMA/financeiro-google/AS-0000.json` e o Apps Script reescreve a aba
+  FINANCEIRO da planilha do Google todo dia.
+- Código: `src/financeiro.js`, `app/financeiro.html`, rotas `/api/financeiro`, `/api/financeiro/enviar` (arquivo no
+  corpo da requisição), `/api/fornecedores`.
+

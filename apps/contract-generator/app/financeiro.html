@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Financeiro · Tayná Alves Assessoria</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root {
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --card: #ffffff;
+    --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400;
+    --raio: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  header a.voltar:hover { background: #f3ece7; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px 24px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 12px; } }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--marca); }
+  input { width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; background: #fffdfb; }
+  .lista { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
+  .lista li { padding: 9px 11px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .lista li:hover { background: #f3ece7; }
+  .lista li.ativo { background: #f3e6df; border-color: var(--borda); }
+  .lista .num { font-size: 12px; font-weight: 700; color: var(--marca); }
+  .lista .nome { font-weight: 600; }
+  .lista .det { font-size: 12px; color: var(--suave); }
+  .lista .grupo { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .4px; padding: 10px 4px 4px; cursor: default; }
+  .lista .grupo:hover { background: none; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: #efe4dd; color: var(--marca); vertical-align: middle; }
+  .tag.dest { background: #e3eef6; color: #1f4e78; }
+  .vazio { color: var(--suave); font-size: 14px; padding: 6px 2px; }
+
+  .topo { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .topo .info { flex: 1; min-width: 260px; }
+  .topo .info h3 { margin: 0; font-size: 22px; color: var(--marca); font-weight: 600; }
+  .topo dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 10px 0 0; font-size: 14px; }
+  .topo dt { color: var(--suave); }
+  .topo dd { margin: 0; }
+  .acoes { display: flex; flex-direction: column; gap: 10px; min-width: 260px; }
+  .seg { display: flex; border: 1px solid var(--borda); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-radius: 0; padding: 9px 10px; font: inherit; font-size: 13px; font-weight: 600; color: var(--suave); background: #fff; cursor: pointer; }
+  .seg button.on { background: var(--marca); color: #fff; }
+  .seg button:disabled { cursor: not-allowed; opacity: .6; }
+  button.btn { font: inherit; border-radius: 10px; border: 1px solid var(--marca); padding: 11px 14px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; }
+  button.btn:hover { background: #f3ece7; }
+  button.btn.primario { background: var(--marca); color: #fff; }
+  button.btn.primario:hover { background: #6c3a2b; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  .aviso { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 10px; }
+  .aviso.erro { background: #fbeceb; color: var(--erro); }
+  .aviso.ok { background: #edf6f0; color: var(--ok); }
+  .aviso.info { background: #fdf6e7; color: var(--aviso); }
+  .aviso button { margin: 8px 8px 0 0; padding: 7px 12px; font-size: 13px; }
+
+  .resumo { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .resumo span { font-size: 13px; background: #fff; border: 1px solid var(--borda); border-radius: 99px; padding: 4px 12px; }
+  .secao { border: 1px solid var(--borda); border-radius: 10px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+  .secao > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #faf5f1; }
+  .secao > summary::-webkit-details-marker { display: none; }
+  .secao > summary::before { content: '▸'; color: var(--marca); transition: transform .15s; }
+  .secao[open] > summary::before { transform: rotate(90deg); }
+  .secao .rot { font-weight: 700; color: var(--marca); }
+  .secao .per { font-size: 13px; color: var(--suave); }
+  .secao .qtd { margin-left: auto; font-size: 12px; color: var(--suave); }
+  .sit { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+  .sit.vencida { background: #fbeceb; color: var(--erro); }
+  .sit.atual { background: #e6f2ea; color: var(--ok); }
+  .sit.futura { background: #f0ebe8; color: var(--suave); }
+  .itens { list-style: none; margin: 0; padding: 4px 14px 10px; }
+  .itens li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid #f3ebe6; font-size: 14px; }
+  .itens li:first-child { border-top: 0; }
+  .itens .o { color: var(--suave); font-weight: 700; text-align: right; }
+  .itens.horas li { grid-template-columns: 54px 1fr; gap: 14px; }
+  .itens.horas .o { color: var(--marca); }
+  .tarefas li { grid-template-columns: 34px 1fr 172px minmax(120px, 240px); align-items: center; }
+  .tarefas li.feita span.t { color: var(--suave); text-decoration: line-through; }
+  .tarefas select, .tarefas input { font-size: 13px; padding: 4px 6px; }
+  .tarefas select.FINALIZADO { background: #e2f0d9; color: #375623; font-weight: 700; }
+  .tarefas select.EM-ANDAMENTO { background: #fff2cc; color: #7f6000; font-weight: 700; }
+  .tarefas select.EM-COTACAO { background: #ddebf7; color: #1f4e78; font-weight: 700; }
+  .tarefas select.NAO-SE-APLICA, .tarefas select.NAO-DESEJO { background: #ededed; color: #7f7f7f; font-weight: 700; }
+  .tag { font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+  .tag.atr { color: var(--erro); background: #fbeceb; }
+  .tag.pl { color: #1f4e78; background: #e3eef6; }
+  .barra { height: 10px; border-radius: 99px; background: #f0ebe8; overflow: hidden; margin: 6px 0 10px; }
+  .barra > div { height: 100%; background: var(--ok); }
+  .ritmo { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; }
+  .ritmo b { color: var(--marca); }
+  @media (max-width: 760px) { .tarefas li { grid-template-columns: 34px 1fr; } }
+  .novo { font-size: 10px; font-weight: 700; color: #1f4e78; background: #e3eef6; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+  .grade { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px 12px; }
+  .c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
+  @media (max-width: 900px) { .c3, .c4, .c6 { grid-column: span 12; } }
+  label.l { display: block; font-size: 11px; font-weight: 700; color: var(--suave); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .3px; }
+  .card input, .card select, .card textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--borda); border-radius: 7px; font: inherit; font-size: 14px; background: #fffdfb; }
+  .card textarea { min-height: 60px; }
+  .card .c6 textarea { min-height: 96px; }
+  .card input.falta, .card select.falta { border-color: var(--erro); background: #fff6f5; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 4px 4px 6px; }
+  table.t td { padding: 3px 4px; vertical-align: top; border-top: 1px solid #f3ebe6; }
+  table.t input, table.t select { padding: 6px 7px; font-size: 13px; }
+  table.t select[data-c=categoria] { min-width: 165px; } table.t select[data-c=dia] { min-width: 175px; }
+  table.t select[data-c=fornecedor_id] { min-width: 160px; } table.t input[type=time] { min-width: 105px; }
+  .x { border: 0; background: none; color: var(--suave); font-size: 18px; cursor: pointer; padding: 4px 6px; }
+  .x:hover { color: var(--erro); }
+  .linha-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .pend { list-style: none; margin: 6px 0 0; padding: 0; max-height: 180px; overflow: auto; font-size: 13px; color: var(--erro); }
+  .pend li::before { content: '• '; }
+  .ok-tudo { color: var(--ok); font-weight: 600; }
+  .salvo { font-size: 12px; color: var(--suave); }
+  .passo { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--marca); color: #fff; font-size: 12px; margin-right: 6px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; }
+  .kpi .r { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .v { font-size: 22px; font-weight: 700; color: var(--marca); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .s { font-size: 12px; color: var(--suave); }
+  .kpi.ok .v { color: var(--ok); } .kpi.alerta .v { color: var(--erro); }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1100px) { .duas { grid-template-columns: 1fr; } }
+  .venc { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+  .venc li { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; padding: 6px 0; border-top: 1px solid #f3ebe6; align-items: center; }
+  .venc li:first-child { border-top: 0; }
+  .venc .d { font-weight: 700; color: var(--marca); font-variant-numeric: tabular-nums; }
+  .venc li.atr .d { color: var(--erro); }
+  .venc .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  table.fin { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.fin th { text-align: left; font-size: 10.5px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 6px 6px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  table.fin td { padding: 8px 6px; border-top: 1px solid #f3ebe6; vertical-align: top; }
+  table.fin td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.fin tr.linha { cursor: pointer; } table.fin tr.linha:hover td { background: #fcf8f5; }
+  table.fin tr.total td { font-weight: 700; border-top: 2px solid var(--borda); background: #faf5f1; }
+  .st { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .st.Pago { background: #e2f0d9; color: #375623; } .st.Pendente { background: #fff2cc; color: #7f6000; } .st.atr { background: #fbeceb; color: var(--erro); }
+  .st.sem { background: #ededed; color: #7f7f7f; }
+  .mini { height: 6px; border-radius: 99px; background: #f0ebe8; overflow: hidden; margin-top: 4px; min-width: 80px; }
+  .mini > div { height: 100%; background: var(--ok); }
+  .detalhe td { background: #fcf8f5; }
+  .detalhe .caixa { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; padding: 6px 4px 10px; }
+  @media (max-width: 900px) { .detalhe .caixa { grid-template-columns: 1fr; } }
+  .detalhe h4 { margin: 4px 0 6px; font-size: 12px; color: var(--marca); text-transform: uppercase; letter-spacing: .3px; }
+  .pags { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .pags td, .pags th { padding: 4px 5px; border-top: 1px solid #f0e6e0; text-align: left; }
+  .pags th { font-size: 10.5px; color: var(--suave); text-transform: uppercase; }
+  .hist { font-size: 12px; color: var(--suave); white-space: pre-wrap; max-height: 160px; overflow: auto; margin: 0; padding-left: 16px; }
+  a.lnk { color: var(--marca); cursor: pointer; text-decoration: underline; }
+  .btn.peq { padding: 6px 10px; font-size: 12.5px; border-radius: 8px; }
+  dialog { border: 0; border-radius: 14px; padding: 0; width: min(760px, 96vw); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(43,34,32,.45); }
+  dialog .cab { padding: 16px 20px 0; display: flex; align-items: center; gap: 10px; }
+  dialog .cab h3 { margin: 0; color: var(--marca); font-size: 17px; flex: 1; }
+  dialog .corpo { padding: 12px 20px 4px; max-height: 70vh; overflow: auto; }
+  dialog .rodape { padding: 12px 20px 16px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--borda); }
+  dialog input, dialog select, dialog textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; font-size: 14px; background: #fffdfb; }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--borda); margin: 10px 0 12px; }
+  .abas button { border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--suave); padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .abas button.on { color: var(--marca); border-bottom-color: var(--marca); }
+  .painel-aba { display: none; } .painel-aba.on { display: block; }
+  .arquivo { border: 1.5px dashed var(--borda); border-radius: 10px; padding: 12px; text-align: center; color: var(--suave); font-size: 13px; background: #fffdfb; }
+  .arquivo.ok { border-color: var(--ok); color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" title="Voltar para o início"><img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"></a>
+  <div class="sep"></div>
+  <div>
+    <h1>Financeiro</h1>
+    <div class="sub">Fornecedores contratados pelo casal, entrada, parcelas e comprovantes</div>
+  </div>
+  <div class="esp"></div>
+  <a class="voltar" href="/">← Início</a>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="card">
+      <h2>Casais</h2>
+      <input id="busca" placeholder="Buscar por nome ou número…" style="margin-bottom:10px">
+      <ul class="lista" id="lista"><li class="vazio">Carregando…</li></ul>
+    </div>
+  </aside>
+  <main id="principal">
+    <div class="card"><div class="vazio">Escolha um casal na lista ao lado para ver o financeiro.</div></div>
+  </main>
+</div>
+
+<!-- Novo fornecedor do casal -->
+<dialog id="dlgForn">
+  <div class="cab"><h3 id="dfTitulo">Novo fornecedor contratado</h3><button class="x" data-fechar>×</button></div>
+  <div class="corpo">
+    <div class="abas" id="dfAbas">
+      <button data-a="dados" class="on">1. Fornecedor</button>
+      <button data-a="fin">2. Informações financeiras</button>
+      <button data-a="contrato">3. Contrato assinado</button>
+    </div>
+    <div class="painel-aba on" data-p="dados">
+      <div class="grade">
+        <div class="c12"><label class="l">Fornecedor já cadastrado</label>
+          <select id="dfCad"><option value="">— novo fornecedor —</option></select></div>
+        <div class="c6"><label class="l">Nome do fornecedor *</label><input id="dfNome"></div>
+        <div class="c6"><label class="l">Serviço / descrição *</label><input id="dfServ" placeholder="ex.: Buffet para 100 pessoas"></div>
+        <div class="c4"><label class="l">CPF / CNPJ</label><input id="dfDoc"></div>
+        <div class="c4"><label class="l">Responsável</label><input id="dfResp"></div>
+        <div class="c4"><label class="l">Telefone</label><input id="dfTel" type="tel"></div>
+        <div class="c6"><label class="l">E-mail</label><input id="dfEmail" type="email"></div>
+        <div class="c6"><label class="l">Instagram</label><input id="dfInsta"></div>
+      </div>
+      <p class="salvo">O cadastro fica salvo para usar com outros casais.</p>
+    </div>
+    <div class="painel-aba" data-p="fin">
+      <div class="grade">
+        <div class="c4"><label class="l">Valor contratado *</label><input id="dfValor" inputmode="decimal" placeholder="R$ 0,00"></div>
+        <div class="c4"><label class="l">Valor da entrada</label><input id="dfEntValor" inputmode="decimal"></div>
+        <div class="c4"><label class="l">Forma da entrada</label><select id="dfEntForma"></select></div>
+        <div class="c4"><label class="l">Data (prevista) da entrada</label><input id="dfEntData" type="date"></div>
+        <div class="c4"><label class="l">Nº de parcelas do saldo</label><input id="dfParcQtd" type="number" min="0"></div>
+        <div class="c4"><label class="l">Valor da parcela</label><input id="dfParcValor" inputmode="decimal" placeholder="calculado se vazio"></div>
+        <div class="c4"><label class="l">1º vencimento</label><input id="dfParcVenc" type="date"></div>
+        <div class="c4"><label class="l">Forma das parcelas</label><select id="dfParcForma"></select></div>
+        <div class="c12"><label class="l">Dados para pagamento</label></div>
+        <div class="c6"><label class="l">Chave PIX</label><input id="dfPix"></div>
+        <div class="c6"><label class="l">Titular</label><input id="dfTitular"></div>
+        <div class="c4"><label class="l">Banco</label><input id="dfBanco"></div>
+        <div class="c4"><label class="l">Agência</label><input id="dfAg"></div>
+        <div class="c4"><label class="l">Conta</label><input id="dfConta"></div>
+        <div class="c12" id="dfEntPagaBox"><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="dfEntPaga" style="width:auto">
+          A entrada já foi paga (registrar o pagamento agora, com o comprovante)</label></div>
+      </div>
+    </div>
+    <div class="painel-aba" data-p="contrato">
+      <p class="salvo">O contrato assinado é salvo na pasta do fornecedor, dentro da pasta do casal.</p>
+      <label class="arquivo" id="dfArqBox"><input type="file" id="dfArq" accept=".pdf,image/*,.doc,.docx" style="display:none">
+        <span id="dfArqTxt">Clique para escolher o contrato assinado (PDF ou imagem)</span></label>
+    </div>
+    <div id="dfMsg"></div>
+  </div>
+  <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="dfSalvar">Salvar fornecedor</button></div>
+</dialog>
+
+<!-- Registrar pagamento -->
+<dialog id="dlgPag">
+  <div class="cab"><h3 id="dpTitulo">Registrar pagamento</h3><button class="x" data-fechar>×</button></div>
+  <div class="corpo">
+    <div class="grade">
+      <div class="c4"><label class="l">Tipo *</label><select id="dpTipo"><option value="entrada">Entrada</option><option value="parcela">Parcela</option><option value="avulso">Pagamento avulso</option></select></div>
+      <div class="c4"><label class="l">Parcela nº</label><input id="dpNum" type="number" min="1"></div>
+      <div class="c4"><label class="l">Valor pago *</label><input id="dpValor" inputmode="decimal"></div>
+      <div class="c4"><label class="l">Data do pagamento *</label><input id="dpData" type="date"></div>
+      <div class="c4"><label class="l">Forma</label><select id="dpForma"></select></div>
+      <div class="c4"><label class="l">Observação</label><input id="dpObs"></div>
+      <div class="c12"><label class="arquivo" id="dpArqBox"><input type="file" id="dpArq" accept=".pdf,image/*" style="display:none">
+        <span id="dpArqTxt">Clique para anexar o comprovante de pagamento *</span></label></div>
+    </div>
+    <p class="salvo" id="dpInfo"></p>
+    <div id="dpMsg"></div>
+  </div>
+  <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="dpSalvar">Registrar e dar baixa</button></div>
+</dialog>
+
+<script>
+const api = async (url, corpo) => {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (s) => document.querySelector(s);
+const brl = (n) => (n === null || n === undefined || n === '' ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+const dBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || ''); };
+const hoje = () => new Date().toISOString().slice(0, 10);
+const dataContrato = (s) => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim()); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+const sep = (p) => (/\\/.test(p) ? '\\' : '/');
+
+let contratos = [];
+let atual = null;
+let D = null;          // resposta de /api/financeiro
+let aberto = new Set(); // linhas com detalhe aberto
+let editando = null;    // item em edição no diálogo
+let pagItem = null;
+
+function renderLista() {
+  const q = $('#busca').value.trim().toLowerCase();
+  const h = new Date(); h.setHours(0, 0, 0, 0);
+  const f = contratos.filter((c) => !q || `${c.numero_os} ${c.evento_nomes}`.toLowerCase().includes(q)).map((c) => ({ ...c, d: dataContrato(c.evento_data) }));
+  const fut = f.filter((c) => !c.d || c.d >= h).sort((a, b) => (a.d || Infinity) - (b.d || Infinity));
+  const pas = f.filter((c) => c.d && c.d < h).sort((a, b) => b.d - a.d);
+  const li = (c) => `<li data-a="${esc(c.arquivo)}" class="${c.arquivo === atual ? 'ativo' : ''}"><div class="num">${esc(c.numero_os || 'sem número')}</div>
+    <div class="nome">${esc(c.evento_nomes || c.arquivo)}</div><div class="det">${esc(c.evento_data || 'data a definir')}</div></li>`;
+  $('#lista').innerHTML = (fut.length ? '<li class="grupo">Próximos eventos</li>' + fut.map(li).join('') : '')
+    + (pas.length ? '<li class="grupo">Eventos que já passaram</li>' + pas.map(li).join('') : '') || '<li class="vazio">Nenhum contrato.</li>';
+  document.querySelectorAll('#lista li[data-a]').forEach((x) => x.onclick = () => selecionar(x.dataset.a));
+}
+
+async function selecionar(arquivo) {
+  if (arquivo !== atual) aberto = new Set();
+  atual = arquivo; renderLista();
+  $('#principal').innerHTML = '<div class="card"><div class="vazio">Carregando financeiro…</div></div>';
+  try { D = await api(`/api/financeiro?arquivo=${encodeURIComponent(arquivo)}`); render(); }
+  catch (e) { $('#principal').innerHTML = `<div class="card"><div class="aviso erro">${esc(e.message)}</div></div>`; }
+}
+
+function render() {
+  const t = D.totais;
+  const atrasados = D.atrasados || [];
+  const origem = D.importado_de ? `Importado da planilha (${esc(D.importado_de.titulo || '')}) em ${new Date(D.importado_de.em).toLocaleDateString('pt-BR')}.` : '';
+  $('#principal').innerHTML = `
+    <div class="card">
+      <div class="topo">
+        <div class="info"><div class="num" style="font-weight:700;color:var(--marca-2)">${esc(D.numero_os)}</div><h3>${esc(D.casal)}</h3>
+          <dl><dt>Evento</dt><dd>${esc(D.data_evento || 'a definir')}</dd><dt>Pasta</dt><dd><a class="lnk" id="abrirPasta">${esc(D.pasta)}</a>${D.pasta_existe ? '' : ' (será criada)'}</dd></dl></div>
+        <div class="acoes">
+          <button class="btn primario" id="btnNovo">+ Fornecedor contratado</button>
+          <div class="salvo">${origem}${D.planilha_google ? ' A aba FINANCEIRO da planilha do Google é reescrita pelo sistema todo dia.' : ''}</div>
+          ${D.sem_dados ? '' : '<button class="btn peq" id="btnReimportar" title="Substitui o financeiro deste casal pelo que está hoje na planilha">Reimportar da planilha</button>'}
+        </div>
+      </div>
+      ${D.importado ? `<div class="aviso ok">${D.importado} fornecedor(es) importado(s) da aba FINANCEIRO da planilha. Daqui em diante, os lançamentos são feitos aqui.</div>` : ''}
+      ${D.sem_dados ? '<div class="aviso info">Ainda não há financeiro deste casal no sistema e nenhuma cópia da aba FINANCEIRO para importar. Cadastre os fornecedores contratados aqui.</div>' : ''}
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="r">Contratado</div><div class="v">${brl(t.contratado)}</div><div class="s">${t.fornecedores} fornecedor(es)</div></div>
+      <div class="kpi ok"><div class="r">Pago</div><div class="v">${brl(t.pago)}</div><div class="mini"><div style="width:${t.percentual}%"></div></div><div class="s">${t.percentual}% do contratado</div></div>
+      <div class="kpi ${t.saldo > 0 ? '' : 'ok'}"><div class="r">A pagar</div><div class="v">${brl(t.saldo)}</div><div class="s">${t.quitados} de ${t.fornecedores} quitado(s)</div></div>
+      <div class="kpi ${atrasados.length ? 'alerta' : ''}"><div class="r">Parcelas atrasadas</div><div class="v">${atrasados.length}</div><div class="s">${atrasados.length ? brl(atrasados.reduce((s, x) => s + (x.valor || 0), 0)) : 'nenhuma'}</div></div>
+    </div>
+
+    <div class="duas">
+      <div class="card"><h2>Próximos pagamentos</h2>
+        <ul class="venc">${[
+          ...atrasados.map((v) => ({ ...v, atr: true })),
+          ...(D.entradas_pendentes || []).map((v) => ({ ...v, numero: 'entrada' })),
+          ...(D.proximos || []),
+        ].map((v) => `<li class="${v.atr ? 'atr' : ''}"><span class="d">${v.vencimento ? dBr(v.vencimento) : 'sem data'}</span>
+          <span>${esc(v.fornecedor)} · ${v.numero === 'entrada' ? 'entrada' : `parcela ${v.numero}`}${v.atr ? ' <span class="st atr">atrasada</span>' : ''}</span>
+          <span class="v">${brl(v.valor)}</span></li>`).join('') || '<li class="vazio" style="display:block">Nada a pagar com data cadastrada.</li>'}</ul>
+        <p class="salvo">Vencimentos calculados pelo nº de parcelas e o 1º vencimento informados em cada fornecedor.</p>
+      </div>
+      <div class="card"><h2>Pago × a pagar por fornecedor</h2>
+        ${D.itens.filter((i) => i.calc.contratado).map((i) => {
+          const p = Math.min(100, Math.round((i.calc.pago / i.calc.contratado) * 100));
+          return `<div style="margin-bottom:8px;font-size:13px"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(i.nome)}</span>
+            <span style="color:var(--suave)">${brl(i.calc.pago)} de ${brl(i.calc.contratado)}</span></div><div class="mini"><div style="width:${p}%"></div></div></div>`;
+        }).join('') || '<div class="vazio">Sem valores cadastrados.</div>'}
+      </div>
+    </div>
+
+    <div class="card"><h2>Controle financeiro</h2>
+      <div style="overflow-x:auto"><table class="fin">
+        <tr><th>Nº</th><th>Fornecedor</th><th>Contratado</th><th>Entrada</th><th>Parcelas</th><th>Pago</th><th>Restante</th><th>Status</th><th></th></tr>
+        ${D.itens.map(linhaItem).join('')}
+        <tr class="total"><td></td><td>TOTAL</td><td class="n">${brl(t.contratado)}</td><td></td><td></td><td class="n">${brl(t.pago)}</td><td class="n">${brl(t.saldo)}</td><td colspan="2"></td></tr>
+      </table></div>
+    </div>`;
+  $('#btnNovo').onclick = () => abrirFornecedor(null);
+  $('#abrirPasta').onclick = () => abrir(D.pasta);
+  if ($('#btnReimportar')) $('#btnReimportar').onclick = reimportar;
+  document.querySelectorAll('tr.linha').forEach((tr) => tr.onclick = (e) => {
+    if (e.target.closest('button,a')) return;
+    const id = tr.dataset.id; aberto.has(id) ? aberto.delete(id) : aberto.add(id); render();
+  });
+  document.querySelectorAll('[data-pagar]').forEach((b) => b.onclick = () => abrirPagamento(b.dataset.pagar));
+  document.querySelectorAll('[data-editar]').forEach((b) => b.onclick = () => abrirFornecedor(b.dataset.editar));
+  document.querySelectorAll('[data-abrir]').forEach((a) => a.onclick = () => abrir(D.pasta + sep(D.pasta) + a.dataset.abrir));
+  document.querySelectorAll('[data-rmpag]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Remover este lançamento? O comprovante continua na pasta do fornecedor.')) return;
+    const [id, pid] = b.dataset.rmpag.split('|');
+    await enviar('remover-pagamento', { id, pagamento_id: pid }); selecionar(atual);
+  });
+  document.querySelectorAll('[data-rmitem]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Tirar este fornecedor do financeiro do casal? (A pasta e os arquivos continuam no Drive.)')) return;
+    await enviar('remover', { id: b.dataset.rmitem }); selecionar(atual);
+  });
+}
+
+function linhaItem(i) {
+  const c = i.calc;
+  const st = c.atrasadas.length ? '<span class="st atr">Atrasado</span>' : `<span class="st ${c.status === 'Sem valor' ? 'sem' : c.status}">${c.status}</span>`;
+  const entrada = c.entrada_prevista ? `${brl(c.entrada_prevista)}<div class="salvo">${c.entrada_paga ? 'paga' : 'pendente'}</div>` : (c.pago_entrada ? `${brl(c.pago_entrada)}<div class="salvo">paga</div>` : '—');
+  const parc = c.parcelas_total ? `${c.parcelas_pagas}/${c.parcelas_total}${c.valor_parcela ? ` × ${brl(c.valor_parcela)}` : ''}${c.proxima ? `<div class="salvo">próx.: ${dBr(c.proxima.vencimento) || '—'}</div>` : ''}` : '—';
+  let html = `<tr class="linha" data-id="${i.id}"><td>${String(i.ordem).padStart(3, '0')}</td>
+    <td><b>${esc(i.nome)}</b><div class="salvo">${esc(i.descricao)}</div></td>
+    <td class="n">${brl(c.contratado)}</td><td class="n">${entrada}</td><td class="n">${parc}</td>
+    <td class="n">${brl(c.pago)}</td><td class="n">${brl(c.saldo)}</td><td>${st}</td>
+    <td style="white-space:nowrap"><button class="btn peq primario" data-pagar="${i.id}" ${c.status === 'Pago' ? 'title="Já quitado"' : ''}>Pagamento</button></td></tr>`;
+  if (aberto.has(i.id)) {
+    html += `<tr class="detalhe"><td></td><td colspan="8"><div class="caixa">
+      <div><h4>Pagamentos</h4>
+        <table class="pags"><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Forma</th><th>Comprovante</th><th></th></tr>
+        ${(i.pagamentos || []).map((p) => `<tr><td>${dBr(p.data) || '—'}</td><td>${p.tipo === 'parcela' ? `Parcela ${p.numero || ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.importado ? ' <span class="salvo">(planilha)</span>' : ''}</td>
+          <td>${brl(p.valor)}</td><td>${esc(p.forma || '')}</td>
+          <td>${p.comprovante ? `<a class="lnk" data-abrir="${esc(p.comprovante)}">abrir</a>` : '<span class="salvo">—</span>'}</td>
+          <td><button class="x" title="Remover lançamento" data-rmpag="${i.id}|${p.id}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="salvo">Nenhum pagamento lançado.</td></tr>'}
+        </table>
+        ${c.vencimentos.length ? `<h4 style="margin-top:12px">Parcelas</h4><div style="font-size:12.5px">${c.vencimentos.map((v) => `<span class="st ${v.paga ? 'Pago' : (v.vencimento < hoje() ? 'atr' : 'Pendente')}" style="display:inline-block;margin:0 4px 4px 0">${v.numero}ª · ${dBr(v.vencimento)} · ${brl(v.valor)}</span>`).join('')}</div>` : ''}
+      </div>
+      <div><h4>Fornecedor</h4>
+        <div style="font-size:13px;line-height:1.7">
+          ${i.pasta ? `Pasta: <a class="lnk" data-abrir="${esc(i.pasta)}">${esc(i.pasta)}</a><br>` : ''}
+          Contrato: ${i.contrato ? `<a class="lnk" data-abrir="${esc(i.contrato)}">abrir</a>` : '<span class="salvo">não anexado</span>'}<br>
+          ${i.pix ? `PIX / pagamento: ${esc(i.pix)}<br>` : ''}
+        </div>
+        <div class="linha-acoes"><button class="btn peq" data-editar="${i.id}">Editar / anexar contrato</button><button class="btn peq" data-rmitem="${i.id}">Tirar do financeiro</button></div>
+        <h4 style="margin-top:12px">Histórico</h4><ul class="hist">${(i.historico || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
+      </div></div></td></tr>`;
+  }
+  return html;
+}
+
+async function abrir(caminho) {
+  try { await api('/api/abrir', { caminho }); } catch (e) { alert(e.message); }
+}
+
+async function enviar(op, dados, arquivo) {
+  const url = `/api/financeiro/enviar?arquivo=${encodeURIComponent(atual)}&op=${op}&dados=${encodeURIComponent(JSON.stringify(dados))}`;
+  const r = await fetch(url, { method: 'POST', headers: arquivo ? { 'X-Nome-Arquivo': encodeURIComponent(arquivo.name) } : {}, body: arquivo || '' });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+
+async function reimportar() {
+  if (!confirm('Substituir o financeiro deste casal pelo que está hoje na aba FINANCEIRO da planilha? Lançamentos feitos aqui serão perdidos (os arquivos continuam nas pastas).')) return;
+  try { await api('/api/financeiro/importar', { arquivo: atual, substituir: true }); selecionar(atual); } catch (e) { alert(e.message); }
+}
+
+// ---- Diálogo do fornecedor ----
+const FORMAS = () => ['', ...(D.formas || [])].map((f) => `<option value="${esc(f)}">${esc(f || '—')}</option>`).join('');
+function arquivoEscolhido(inp, box, txt, padrao) {
+  inp.onchange = () => { const f = inp.files[0]; box.classList.toggle('ok', Boolean(f)); txt.textContent = f ? `${f.name} (${Math.round(f.size / 1024)} KB)` : padrao; };
+}
+function abrirFornecedor(id) {
+  editando = id ? D.itens.find((i) => i.id === id) : null;
+  const dlg = $('#dlgForn');
+  $('#dfTitulo').textContent = editando ? `Editar – ${editando.nome}` : 'Novo fornecedor contratado';
+  $('#dfMsg').innerHTML = '';
+  $('#dfEntForma').innerHTML = FORMAS(); $('#dfParcForma').innerHTML = FORMAS();
+  $('#dfCad').innerHTML = '<option value="">— novo fornecedor —</option>' + (D.fornecedores || []).map((f) => `<option value="${esc(f.id)}">${esc(f.nome)}${f.servico ? ` – ${esc(f.servico)}` : ''}</option>`).join('');
+  const cad = editando && editando.fornecedor_id ? (D.fornecedores || []).find((f) => f.id === editando.fornecedor_id) : null;
+  preencherCadastro(cad);
+  $('#dfCad').value = cad ? cad.id : '';
+  $('#dfCad').disabled = Boolean(editando);
+  if (editando) {
+    $('#dfNome').value = editando.nome; $('#dfServ').value = editando.descricao || '';
+    $('#dfValor').value = editando.valor_contratado ?? ''; $('#dfEntValor').value = editando.entrada?.valor ?? '';
+    $('#dfEntForma').value = editando.entrada?.forma || ''; $('#dfEntData').value = editando.entrada?.data || '';
+    $('#dfParcQtd').value = editando.parcelas?.quantidade || ''; $('#dfParcValor').value = editando.parcelas?.valor ?? '';
+    $('#dfParcVenc').value = editando.parcelas?.primeiro_vencimento || ''; $('#dfParcForma').value = editando.parcelas?.forma || '';
+    if (!cad && editando.pix) $('#dfPix').value = editando.pix;
+  } else {
+    ['dfValor', 'dfEntValor', 'dfEntData', 'dfParcQtd', 'dfParcValor', 'dfParcVenc'].forEach((k) => { $('#' + k).value = ''; });
+  }
+  $('#dfEntPagaBox').style.display = editando ? 'none' : ''; $('#dfEntPaga').checked = false;
+  $('#dfArq').value = ''; arquivoEscolhido($('#dfArq'), $('#dfArqBox'), $('#dfArqTxt'), 'Clique para escolher o contrato assinado (PDF ou imagem)'); $('#dfArq').onchange();
+  $('#dfArqTxt').textContent = editando && editando.contrato ? `Contrato já anexado: ${editando.contrato.split(/[\\/]/).pop()} — escolha outro arquivo para substituir` : 'Clique para escolher o contrato assinado (PDF ou imagem)';
+  trocarAba('dados');
+  dlg.showModal();
+}
+function preencherCadastro(f) {
+  const v = (k) => (f ? f[k] || '' : '');
+  $('#dfNome').value = v('nome'); $('#dfServ').value = v('servico'); $('#dfDoc').value = v('documento'); $('#dfResp').value = v('responsavel');
+  $('#dfTel').value = v('telefone'); $('#dfEmail').value = v('email'); $('#dfInsta').value = v('instagram');
+  const p = (f && f.pagamento) || {};
+  $('#dfPix').value = p.pix || ''; $('#dfTitular').value = p.titular || ''; $('#dfBanco').value = p.banco || ''; $('#dfAg').value = p.agencia || ''; $('#dfConta').value = p.conta || '';
+}
+function trocarAba(a) {
+  document.querySelectorAll('#dfAbas button').forEach((b) => b.classList.toggle('on', b.dataset.a === a));
+  document.querySelectorAll('#dlgForn .painel-aba').forEach((p) => p.classList.toggle('on', p.dataset.p === a));
+}
+async function salvarFornecedor() {
+  const msg = $('#dfMsg');
+  const nome = $('#dfNome').value.trim();
+  if (!nome) { trocarAba('dados'); msg.innerHTML = '<div class="aviso erro">Informe o nome do fornecedor.</div>'; return; }
+  if (!$('#dfValor').value.trim()) { trocarAba('fin'); msg.innerHTML = '<div class="aviso erro">Informe o valor contratado.</div>'; return; }
+  const fornecedor = {
+    id: $('#dfCad').value || (editando && editando.fornecedor_id) || undefined, nome, servico: $('#dfServ').value, documento: $('#dfDoc').value,
+    responsavel: $('#dfResp').value, telefone: $('#dfTel').value, email: $('#dfEmail').value, instagram: $('#dfInsta').value,
+    pagamento: { pix: $('#dfPix').value, titular: $('#dfTitular').value, banco: $('#dfBanco').value, agencia: $('#dfAg').value, conta: $('#dfConta').value },
+  };
+  const pix = [fornecedor.pagamento.pix && `PIX: ${fornecedor.pagamento.pix}`, fornecedor.pagamento.banco && `Banco: ${fornecedor.pagamento.banco}`,
+    fornecedor.pagamento.agencia && `Ag.: ${fornecedor.pagamento.agencia}`, fornecedor.pagamento.conta && `Conta: ${fornecedor.pagamento.conta}`,
+    fornecedor.pagamento.titular && `Titular: ${fornecedor.pagamento.titular}`].filter(Boolean).join(' · ');
+  const item = {
+    nome, descricao: $('#dfServ').value, valor_contratado: $('#dfValor').value, pix,
+    entrada: { valor: $('#dfEntValor').value, forma: $('#dfEntForma').value, data: $('#dfEntData').value },
+    parcelas: { quantidade: $('#dfParcQtd').value, valor: $('#dfParcValor').value, primeiro_vencimento: $('#dfParcVenc').value, forma: $('#dfParcForma').value },
+  };
+  const arq = $('#dfArq').files[0];
+  const b = $('#dfSalvar'); b.disabled = true;
+  try {
+    let novoId = null;
+    if (editando) {
+      await api('/api/fornecedores', { fornecedor });
+      await enviar('editar', { id: editando.id, ...item, fornecedor_id: fornecedor.id || editando.fornecedor_id });
+      if (arq) await enviar('contrato', { id: editando.id }, arq);
+    } else {
+      const r = await enviar('item', { fornecedor, item }, arq);
+      novoId = r.item_id;
+    }
+    $('#dlgForn').close();
+    await selecionar(atual);
+    if (novoId && $('#dfEntPaga').checked) abrirPagamento(novoId, 'entrada');
+  } catch (e) { msg.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
+}
+
+// ---- Diálogo de pagamento ----
+function abrirPagamento(id, tipo) {
+  pagItem = D.itens.find((i) => i.id === id);
+  const c = pagItem.calc;
+  $('#dpTitulo').textContent = `Registrar pagamento – ${pagItem.nome}`;
+  $('#dpForma').innerHTML = FORMAS();
+  const t = tipo || (c.entrada_prevista && !c.entrada_paga ? 'entrada' : 'parcela');
+  $('#dpTipo').value = t;
+  const ajustar = () => {
+    const tp = $('#dpTipo').value;
+    $('#dpNum').disabled = tp !== 'parcela';
+    $('#dpNum').value = tp === 'parcela' ? c.parcelas_pagas + 1 : '';
+    $('#dpValor').value = tp === 'entrada' ? (c.entrada_prevista ? Math.max(0, c.entrada_prevista - c.pago_entrada).toFixed(2).replace('.', ',') : '')
+      : tp === 'parcela' && c.valor_parcela ? Number(c.valor_parcela).toFixed(2).replace('.', ',') : '';
+    $('#dpForma').value = (tp === 'entrada' ? pagItem.entrada?.forma : pagItem.parcelas?.forma) || '';
+  };
+  $('#dpTipo').onchange = ajustar; ajustar();
+  $('#dpData').value = hoje(); $('#dpObs').value = ''; $('#dpMsg').innerHTML = '';
+  $('#dpInfo').textContent = `Contratado ${brl(c.contratado)} · pago ${brl(c.pago)} · restante ${brl(c.saldo)}${pagItem.pix ? ` · ${pagItem.pix}` : ''}`;
+  $('#dpArq').value = ''; arquivoEscolhido($('#dpArq'), $('#dpArqBox'), $('#dpArqTxt'), 'Clique para anexar o comprovante de pagamento *'); $('#dpArq').onchange();
+  $('#dlgPag').showModal();
+}
+async function salvarPagamento() {
+  const arq = $('#dpArq').files[0];
+  if (!arq) { $('#dpMsg').innerHTML = '<div class="aviso erro">Anexe o comprovante de pagamento.</div>'; return; }
+  const b = $('#dpSalvar'); b.disabled = true;
+  try {
+    await enviar('pagamento', { id: pagItem.id, tipo: $('#dpTipo').value, numero: $('#dpNum').value, valor: $('#dpValor').value,
+      data: $('#dpData').value, forma: $('#dpForma').value, obs: $('#dpObs').value }, arq);
+    $('#dlgPag').close(); aberto.add(pagItem.id); selecionar(atual);
+  } catch (e) { $('#dpMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
+}
+
+document.querySelectorAll('[data-fechar]').forEach((b) => b.onclick = () => b.closest('dialog').close());
+document.querySelectorAll('#dfAbas button').forEach((b) => b.onclick = () => trocarAba(b.dataset.a));
+$('#dfCad').onchange = () => { const f = (D.fornecedores || []).find((x) => x.id === $('#dfCad').value); preencherCadastro(f || null); };
+$('#dfSalvar').onclick = salvarFornecedor;
+$('#dpSalvar').onclick = salvarPagamento;
+$('#busca').oninput = renderLista;
+
+(async () => {
+  try {
+    contratos = await api('/api/contratos');
+    renderLista();
+    const pedido = new URLSearchParams(location.search).get('casal');
+    if (pedido) selecionar(pedido);
+  } catch (e) { $('#lista').innerHTML = `<li class="vazio">${esc(e.message)}</li>`; }
+})();
+</script>
+</body>
+</html>

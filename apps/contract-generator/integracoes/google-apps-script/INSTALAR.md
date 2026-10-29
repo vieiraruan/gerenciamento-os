@@ -7,6 +7,11 @@ ASSESSORIA da planilha de assessoria de cada casal e grava uma cópia em
 O Google Drive para computador traz os arquivos para o PC; ao abrir o casal no Checklist, o aplicativo
 pré-preenche fornecedores, informações do dia e o cronograma de tarefas — só o que mudou e só o que está vazio.
 
+**Financeiro:** o financeiro de cada casal é lançado no aplicativo (tela Financeiro). Na mesma execução diária, o
+script reescreve a aba FINANCEIRO da planilha do casal com o que está no aplicativo — linha a linha, pelo nome do
+fornecedor, sem mexer nas células com fórmula (saldo devedor, valor restante, total). Se faltar linha livre antes
+do TOTAL, a situação mostra o erro e é só inserir linhas na planilha.
+
 ## Instalar (uma vez, ~3 minutos)
 1. Entre em <https://script.google.com> **com a conta da empresa** e clique em **Novo projeto**.
 2. Renomeie o projeto para `Tayná Alves – cópia das planilhas`.
@@ -21,6 +26,10 @@ pré-preenche fornecedores, informações do dia e o cronograma de tarefas — s
 
 Para copiar na hora (sem esperar o dia seguinte): abra o projeto, escolha `sincronizar` e clique em Executar.
 Para parar: execute `desinstalar`.
+
+## Atualizar o script (quando o sistema ganhar novidades)
+Abra o projeto em script.google.com, substitua todo o código pelo novo `SincronizarPlanilhas.gs` e salve.
+O gatilho diário continua o mesmo; se o Google pedir, autorize de novo.
 
 ## Como conferir
 - A tela inicial do aplicativo mostra quando foi a última cópia e se houve erro em algum casal.

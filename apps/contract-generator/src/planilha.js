@@ -273,6 +273,27 @@ function fonteDoCasal(dirDados, contratoArquivo, xlsx, numeroOs) {
 /** Muda só quando a planilha muda (a cópia diária regrava o arquivo, mas a data de modificação é a da planilha). */
 const assinatura = (dados) => (dados ? `${dados.fonte?.tipo}:${dados.fonte?.id || dados.fonte?.titulo}:${dados.fonte?.modificada_em || dados.lido_em}` : '');
 
+/** Linhas cruas da aba FINANCEIRO (cópia diária do Google ou .xlsx da pasta) — para importar o financeiro. */
+function linhasFinanceiro(dirDados, contratoArquivo, xlsx, numeroOs) {
+  const fontes = [];
+  if (numeroOs) {
+    const arq = path.join(dirDados, 'planilhas', `${String(numeroOs).trim()}.json`);
+    if (fs.existsSync(arq)) {
+      try {
+        const j = JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, ''));
+        if (j.formato === 2 && j.abas && j.abas.FINANCEIRO) fontes.push({ linhas: j.abas.FINANCEIRO, fonte: j.fonte, quando: quando(j) });
+      } catch { /* ignora */ }
+    }
+  }
+  if (xlsx) {
+    try {
+      const fin = lerAba(xlsx, 'FINANCEIRO');
+      if (fin) fontes.push({ linhas: linhasDaAba(fin), fonte: { tipo: 'xlsx', titulo: path.basename(xlsx) }, quando: fs.statSync(xlsx).mtimeMs });
+    } catch { /* ignora */ }
+  }
+  return fontes.sort((a, b) => b.quando - a.quando)[0] || null;
+}
+
 /** Situação da cópia diária (arquivo _sincronizacao.json gravado pelo Apps Script). */
 function situacaoSincronizacao(dirDados) {
   const arq = path.join(dirDados, 'planilhas', '_sincronizacao.json');
@@ -298,7 +319,7 @@ function separarLocais(texto) {
 const ehServicoGenerico = (s) => SERVICO_GENERICO.test(chave(s));
 
 module.exports = {
-  extrairDeLinhas, deCopiaGoogle, situacaoSincronizacao, mesesDaSecao,
+  extrairDeLinhas, deCopiaGoogle, situacaoSincronizacao, mesesDaSecao, linhasFinanceiro,
   ehServicoGenerico, normalizarFornecedores, infoDeLinhas, lerPlanilhaXlsx, lerCopiaSincronizada, arquivoCopia, fonteDoCasal,
   assinatura, separarLocais, lerHorario, acharCelular, aDefinir,
 };

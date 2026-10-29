@@ -26,6 +26,7 @@ const { gravarChecklistEvento } = require('./roteiro');
 const ev = require('./evento');
 const planilhaCasal = require('./planilha');
 const evPadrao = require('./eventoPadrao');
+const fin = require('./financeiro');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -145,6 +146,15 @@ function responder(res, status, corpo, tipo = 'application/json; charset=utf-8')
   res.end(tipo.startsWith('application/json') ? JSON.stringify(corpo) : corpo);
 }
 
+function lerBinario(req, limite = 40 * 1024 * 1024) {
+  return new Promise((ok, erro) => {
+    const partes = []; let total = 0;
+    req.on('data', (c) => { total += c.length; if (total > limite) { erro(new Error('Arquivo muito grande (máx. 40 MB).')); req.destroy(); } else partes.push(c); });
+    req.on('end', () => ok(Buffer.concat(partes)));
+    req.on('error', erro);
+  });
+}
+
 function lerCorpo(req) {
   return new Promise((ok, erro) => {
     let s = '';
@@ -158,7 +168,94 @@ function lerCorpo(req) {
   });
 }
 
+/**
+ * Operações do financeiro que podem levar um arquivo (contrato assinado ou comprovante):
+ *   op=item (novo fornecedor do casal + contrato), op=editar, op=pagamento (+ comprovante), op=remover-pagamento,
+ *   op=contrato (anexar/substituir o contrato), op=remover (tirar a linha).
+ */
+function enviarFinanceiro(q, arquivoEnviado) {
+  const { arquivo, campos } = contratoDe(q.get('arquivo'));
+  const dados = JSON.parse(q.get('dados') || '{}');
+  const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+  const f = fin.carregar(DADOS, arquivo) || fin.novoFinanceiro();
+  const op = q.get('op');
+  let resposta = {};
+  if (op === 'item') {
+    // cadastro geral do fornecedor (fica salvo para outros casais)
+    let cad = null;
+    if (dados.fornecedor && dados.fornecedor.nome) cad = fin.salvarFornecedor(DADOS, dados.fornecedor);
+    const item = fin.adicionarItem(f, pasta, {
+      ...dados.item, fornecedor_id: cad ? cad.id : dados.item?.fornecedor_id, nome: dados.item?.nome || cad?.nome,
+      pix: dados.item?.pix || (cad ? fin.textoPagamento(cad.pagamento) : ''),
+    }, arquivoEnviado);
+    resposta = { item_id: item.id, pasta: item.pasta };
+  } else if (op === 'editar') {
+    fin.atualizarItem(f, dados.id, dados);
+  } else if (op === 'contrato') {
+    const item = f.itens.find((i) => i.id === dados.id);
+    if (!item || !arquivoEnviado) throw new Error('Escolha o arquivo do contrato.');
+    item.contrato = fin.gravarArquivo(pasta, item, `CONTRATO ASSINADO - ${item.nome}`, arquivoEnviado.nome, arquivoEnviado.conteudo, f);
+    item.historico.push(`${fin.dataBr(new Date().toISOString().slice(0, 10))} - Contrato assinado salvo na pasta do fornecedor.`);
+  } else if (op === 'pagamento') {
+    const r = fin.registrarPagamento(f, pasta, dados.id, dados, arquivoEnviado);
+    resposta = { comprovante: r.pagamento.comprovante };
+  } else if (op === 'remover-pagamento') {
+    fin.removerPagamento(f, dados.id, dados.pagamento_id);
+  } else if (op === 'remover') {
+    fin.atualizarItem(f, dados.id, { removido: true });
+  } else {
+    throw new Error('Operação desconhecida.');
+  }
+  fin.salvar(DADOS, arquivo, f, campos.numero_os);
+  return { ok: true, ...resposta, ...fin.resumo(f) };
+}
+
 const rotas = {
+  // ---- Financeiro (fornecedores do casal, pagamentos e comprovantes) ----
+  'GET /api/financeiro': (q) => {
+    const { arquivo, campos } = contratoDe(q.get('arquivo'));
+    const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    let dados = fin.carregar(DADOS, arquivo);
+    let importado = null;
+    if (!dados) {
+      // 1ª vez: importa a aba FINANCEIRO da planilha do casal (cópia diária do Google ou .xlsx)
+      const pl = ev.localizarPlanilha(pasta);
+      const bruto = planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
+      if (bruto) {
+        dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
+        dados.importado_de = { ...bruto.fonte, em: new Date().toISOString() };
+        fin.salvar(DADOS, arquivo, dados, campos.numero_os);
+        importado = dados.itens.length;
+      }
+    }
+    return {
+      ...fin.resumo(dados), importado, sem_dados: !dados, importado_de: dados?.importado_de || null,
+      planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet), pasta, pasta_existe: existe,
+      fornecedores: fin.listarFornecedores(DADOS), formas: fin.FORMAS, casal: campos.evento_nomes, numero_os: campos.numero_os,
+      data_evento: campos.evento_data || '', valor_assessoria: campos.valor_total || '',
+    };
+  },
+
+  'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
+  'POST /api/fornecedores': (q, corpo) => fin.salvarFornecedor(DADOS, corpo.fornecedor || {}),
+
+  // reimporta da planilha (descarta o que foi lançado no sistema para este casal — só com confirmação)
+  'POST /api/financeiro/importar': (q, corpo) => {
+    const { arquivo, campos } = contratoDe(corpo.arquivo);
+    const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const atual = fin.carregar(DADOS, arquivo);
+    if (atual && atual.itens.some((i) => !i.importado || (i.pagamentos || []).some((p) => !p.importado)) && !corpo.substituir) {
+      throw new Error('Já há lançamentos feitos no sistema para este casal. Confirme para substituir pelo que está na planilha.');
+    }
+    const pl = ev.localizarPlanilha(pasta);
+    const bruto = planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
+    if (!bruto) throw new Error('Ainda não há cópia da aba FINANCEIRO deste casal (instale a cópia diária do Google ou coloque a planilha .xlsx na pasta).');
+    const dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
+    dados.importado_de = { ...bruto.fonte, em: new Date().toISOString() };
+    fin.salvar(DADOS, arquivo, dados, campos.numero_os);
+    return { ok: true, itens: dados.itens.length };
+  },
+
   // cópia diária das planilhas do Google (Apps Script) — integracoes/google-apps-script/INSTALAR.md
   'GET /api/sincronizacao': () => planilhaCasal.situacaoSincronizacao(DADOS),
 
@@ -368,7 +465,7 @@ const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
@@ -380,6 +477,12 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && marca) {
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'templates', 'marca', `${marca[1]}.png`)));
+    }
+    // envio de arquivo (contrato assinado / comprovante): corpo = bytes do arquivo; dados no endereço
+    if (req.method === 'POST' && url.pathname === '/api/financeiro/enviar') {
+      const conteudo = await lerBinario(req);
+      const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
+      return responder(res, 200, enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
     }
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
