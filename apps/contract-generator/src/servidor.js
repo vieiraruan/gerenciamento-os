@@ -215,6 +215,7 @@ function enviarFinanceiro(q, arquivoEnviado) {
   // só escreve de volta no Google (Apps Script) quando o casal tem planilha do Google copiada
   const temGoogle = fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`));
   fin.salvar(DADOS, arquivo, f, temGoogle ? campos.numero_os : undefined);
+  limparCacheFin();
   return { ok: true, ...resposta, ...fin.resumo(f) };
 }
 
@@ -244,16 +245,22 @@ function financeiroAtual(arquivo, campos, local = null) {
   return { dados, importado };
 }
 
-/** Contratos com número + financeiro atual de cada um (para a gestão). */
+/**
+ * Contratos com número + financeiro atual de cada um (para a gestão). Guarda por 1 minuto o financeiro de cada
+ * casal (procurar a planilha na pasta do Drive é lento); qualquer lançamento ou importação limpa a memória.
+ */
+const CACHE_FIN = new Map();
+const limparCacheFin = () => CACHE_FIN.clear();
 function contratosComFinanceiro() {
   const contratos = listarTxt(DADOS).filter((c) => c.campos.numero_os);
-  const cache = {};
   const carregarFin = (arquivo) => {
-    if (!(arquivo in cache)) {
-      const c = contratos.find((x) => x.arquivo === arquivo);
-      try { cache[arquivo] = c ? financeiroAtual(arquivo, c.campos).dados : fin.carregar(DADOS, arquivo); } catch { cache[arquivo] = fin.carregar(DADOS, arquivo); }
-    }
-    return cache[arquivo];
+    const guardado = CACHE_FIN.get(arquivo);
+    if (guardado && Date.now() - guardado.t < 60e3) return guardado.dados;
+    const c = contratos.find((x) => x.arquivo === arquivo);
+    let dados;
+    try { dados = c ? financeiroAtual(arquivo, c.campos).dados : fin.carregar(DADOS, arquivo); } catch { dados = fin.carregar(DADOS, arquivo); }
+    CACHE_FIN.set(arquivo, { dados, t: Date.now() });
+    return dados;
   };
   return { contratos, carregarFin };
 }
@@ -264,6 +271,7 @@ const rotas = {
     const { arquivo, campos } = contratoDe(q.get('arquivo'));
     const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const { dados, importado } = financeiroAtual(arquivo, campos, { pasta, existe });
+    CACHE_FIN.set(arquivo, { dados, t: Date.now() });
     return {
       ...fin.resumo(dados), importado, sem_dados: !dados, importado_de: dados?.importado_de || null,
       planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet), pasta, pasta_existe: existe,
@@ -284,7 +292,9 @@ const rotas = {
       const evento = ev.carregarEvento(DADOS, arquivo, campos, {});
       return montarChecklist(campos, evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao'), undefined, evento).ritmo;
     };
-    return gestao.painel(contratos, carregarFin, cronograma);
+    const painel = gestao.painel(contratos, carregarFin, cronograma);
+    // a página de gestão usa uma chamada só (recebimentos e pagamentos já calculados no painel)
+    return { ...painel, recebimentos: gestao.recebimentos(contratos, carregarFin), pagamentos: gestao.pagamentos(contratos, carregarFin) };
   },
 
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
@@ -307,6 +317,7 @@ const rotas = {
     if (!dados.itens.length) throw new Error('Não encontrei fornecedores no que foi colado. Copie a aba FINANCEIRO a partir da linha do cabeçalho (Fornecedor) até o TOTAL.');
     dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
     fin.salvar(DADOS, arquivo, dados);
+    limparCacheFin();
     return { ok: true, itens: dados.itens.length };
   },
 
