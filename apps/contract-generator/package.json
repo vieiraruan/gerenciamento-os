@@ -6,7 +6,8 @@
   "scripts": {
     "gerar": "node src/index.js",
     "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py",
-    "app": "node src/servidor.js"
+    "app": "node src/servidor.js",
+    "test": "node scripts/verificar-importacoes.js"
   },
   "keywords": [],
   "author": "",

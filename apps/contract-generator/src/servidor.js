@@ -18,7 +18,7 @@ const { spawn } = require('child_process');
 const { parseTxt } = require('./parser');
 const { enriquecer } = require('./calculos');
 const { montarContrato } = require('./contrato');
-const { gerarContrato } = require('./index');
+const { gerarContrato, criarPlanilhaDoContrato } = require('./index');
 
 const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
 const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
@@ -265,6 +265,13 @@ const rotas = {
 
   // cópia diária das planilhas do Google (Apps Script) — integracoes/google-apps-script/INSTALAR.md
   'GET /api/sincronizacao': () => planilhaCasal.situacaoSincronizacao(DADOS),
+
+  // cria a planilha de assessoria (.xlsx) de um contrato já gerado, se ainda não existir
+  'POST /api/planilha/criar': async (q, corpo) => {
+    const { arquivo } = contratoDe(corpo.arquivo);
+    const r = await criarPlanilhaDoContrato(path.join(DADOS, arquivo), { saida: DIR_GERADOS, clientes: DIR_CLIENTES, empresa: ARQ_EMPRESA });
+    return { criada: r.criada, arquivo: r.arquivo, pasta: r.pastaCasal };
+  },
 
   'GET /api/config': () => ({
     modo: PASTAS.modo,

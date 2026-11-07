@@ -24,7 +24,7 @@ const { montarContrato } = require('./contrato');
 const { obterNumero } = require('./numeracao');
 
 const { resolverPastas, prepararPastas } = require('./pastas');
-const { criarPlanilha } = require('./planilha');
+const { criarPlanilha } = require('./planilhaAssessoria');
 
 const RAIZ = path.resolve(__dirname, '..');
 const DIR_TEMPLATES = path.join(RAIZ, 'templates');
@@ -224,4 +224,31 @@ if (require.main === module) {
   });
 }
 
-module.exports = { gerarContrato, prepararPastas };
+/**
+ * Cria só a "PLANILHA DE ASSESSORIA <casal>.xlsx" de um contrato já gerado (com número), sem refazer o
+ * contrato nem a ordem de serviço. Não sobrescreve uma planilha existente.
+ */
+async function criarPlanilhaDoContrato(arquivoTxt, opcoes = {}) {
+  const p = resolverPastas();
+  const saida = opcoes.saida || p.saida;
+  const clientes = opcoes.clientes || process.env.CONTRATOS_CLIENTES || p.clientes;
+  const catalogo = carregarJson(path.join(DIR_TEMPLATES, 'servicos.json'), {});
+  const empresa = carregarJson(opcoes.empresa || p.empresa, {});
+  const brutos = aplicarCliente(parseTxt(fs.readFileSync(arquivoTxt, 'utf8')), clientes);
+  if (!brutos.numero_os) throw new Error('Este contrato ainda não tem número: gere o contrato primeiro.');
+  const contrato = montarContrato(brutos, catalogo);
+  const dados = enriquecer({ ...brutos, ...contrato }, empresa);
+  const linhaNome = /^CE/i.test(brutos.numero_os) ? 'CERIMONIAL' : 'ASSESSORIA';
+  const padrao = path.join(saida, linhaNome, `(${brutos.numero_os}) ${linhaNome} ${slug(brutos.evento_nomes)}`);
+  // pasta do casal que já existe (o nome pode ter sido ajustado à mão no Drive)
+  let pastaCasal = padrao;
+  const dirLinha = path.join(saida, linhaNome);
+  if (fs.existsSync(dirLinha)) {
+    const achada = fs.readdirSync(dirLinha).find((n) => n.toUpperCase().startsWith(`(${brutos.numero_os.toUpperCase()})`));
+    if (achada) pastaCasal = path.join(dirLinha, achada);
+  }
+  fs.mkdirSync(pastaCasal, { recursive: true });
+  return { pastaCasal, ...(await criarPlanilha(pastaCasal, { brutos, dados, empresa })) };
+}
+
+module.exports = { gerarContrato, prepararPastas, criarPlanilhaDoContrato };
