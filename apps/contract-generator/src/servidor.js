@@ -28,6 +28,8 @@ const planilhaCasal = require('./planilha');
 const evPadrao = require('./eventoPadrao');
 const fin = require('./financeiro');
 const gestao = require('./gestao');
+const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
+const { gerarRelatorioIR } = require('./relatorioIR');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -212,9 +214,10 @@ function enviarFinanceiro(q, arquivoEnviado) {
   } else {
     throw new Error('Operação desconhecida.');
   }
-  // só escreve de volta no Google (Apps Script) quando o casal tem planilha do Google copiada
+  // planilha do Google: o Apps Script escreve a aba (a cada 10 min); planilha .xlsx na pasta: o sistema escreve já
   const temGoogle = fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`));
   fin.salvar(DADOS, arquivo, f, temGoogle ? campos.numero_os : undefined);
+  if (!temGoogle) escreverPlanilhaXlsx(arquivo, f, pasta);
   limparCacheFin();
   return { ok: true, ...resposta, ...fin.resumo(f) };
 }
@@ -244,6 +247,25 @@ function financeiroAtual(arquivo, campos, local = null) {
     }
   }
   return { dados, importado };
+}
+
+/**
+ * Casal com PLANILHA DE ASSESSORIA .xlsx na pasta (sem planilha do Google): escreve a aba FINANCEIRO do arquivo
+ * com o que está no sistema e guarda a situação (quando, ou o erro) para mostrar na tela.
+ */
+function escreverPlanilhaXlsx(arquivo, f, pasta) {
+  const pl = ev.localizarPlanilha(pasta);
+  if (!pl.arquivo || pl.gsheet) return null;
+  try {
+    const r = escreverFinanceiroXlsx(pl.arquivo, fin.linhasParaGoogle(f));
+    f.planilha_escrita = { em: new Date().toISOString(), arquivo: path.basename(pl.arquivo), linhas: r.linhas };
+  } catch (e) {
+    const ocupado = /EBUSY|EPERM|EACCES/.test(e.code || e.message);
+    f.planilha_escrita = { em: new Date().toISOString(), arquivo: path.basename(pl.arquivo),
+      erro: ocupado ? 'a planilha está aberta no Excel (feche e lance de novo para atualizar)' : e.message };
+  }
+  fin.salvar(DADOS, arquivo, f);
+  return f.planilha_escrita;
 }
 
 /**
@@ -278,6 +300,8 @@ const rotas = {
       planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet), pasta, pasta_existe: existe,
       fornecedores: fin.listarFornecedores(DADOS), formas: fin.FORMAS, casal: campos.evento_nomes, numero_os: campos.numero_os,
       data_evento: campos.evento_data || '', valor_assessoria: campos.valor_total || '',
+      planilha_escrita: dados?.planilha_escrita || null,
+      planilha_xlsx: (() => { const pl = existe ? ev.localizarPlanilha(pasta) : {}; return pl.arquivo && !pl.gsheet ? path.basename(pl.arquivo) : null; })(),
     };
   },
 
@@ -298,6 +322,19 @@ const rotas = {
     return { ...painel, recebimentos: gestao.recebimentos(contratos, carregarFin), pagamentos: gestao.pagamentos(contratos, carregarFin) };
   },
 
+  // escreve agora a aba FINANCEIRO da planilha .xlsx do casal com o que está no sistema
+  'POST /api/financeiro/escrever-planilha': (q, corpo) => {
+    const { arquivo, campos } = contratoDe(corpo.arquivo);
+    const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const f = fin.carregar(DADOS, arquivo);
+    if (!f) throw new Error('Este casal ainda não tem financeiro.');
+    const r = escreverPlanilhaXlsx(arquivo, f, pasta);
+    if (!r) throw new Error('Não há planilha .xlsx na pasta do casal.');
+    if (r.erro) throw new Error(`Não consegui atualizar ${r.arquivo}: ${r.erro}`);
+    limparCacheFin();
+    return { ok: true, ...r };
+  },
+
   // vencimentos do saldo de cada fornecedor (não muda a planilha nem tira o casal do acompanhamento dela)
   'POST /api/financeiro/vencimentos': (q, corpo) => {
     const { arquivo } = contratoDe(corpo.arquivo);
@@ -307,6 +344,18 @@ const rotas = {
     fin.salvar(DADOS, arquivo, f);
     limparCacheFin();
     return { ok: true, ...fin.resumo(f) };
+  },
+
+  // relatório de receitas da Tayná no ano (Imposto de Renda / contador): Excel + PDF em CONTRATOS/RELATÓRIOS
+  'POST /api/gestao/relatorio-ir': (q, corpo) => {
+    const ano = Number(corpo.ano) || new Date().getFullYear();
+    if (ano < 2000 || ano > 2100) throw new Error('Ano inválido.');
+    const { contratos, carregarFin } = contratosComFinanceiro();
+    const clienteDe = (campos) => {
+      const arq = campos.cliente && path.join(DIR_CLIENTES, nomeArquivo(campos.cliente));
+      return arq && fs.existsSync(arq) ? lerTxt(arq) : null;
+    };
+    return gerarRelatorioIR({ contratos, carregarFin, clienteDe, empresa: lerJson(ARQ_EMPRESA, {}), ano, pasta: path.join(DIR_GERADOS, 'RELATÓRIOS') });
   },
 
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),

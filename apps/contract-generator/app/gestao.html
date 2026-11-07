@@ -125,6 +125,18 @@
   <!-- ===================== Recebimentos ===================== -->
   <section class="aba" id="aba-recebimentos">
     <div class="kpis" id="recKpis"></div>
+    <div class="card" id="cardIR">
+      <h2>Relatório para o Imposto de Renda</h2>
+      <p class="ajuda">Receitas da Tayná no ano: cada recebimento com data, cliente, CPF/CNPJ, contrato, forma e valor, com totais por mês e
+        por cliente. Sai em Excel (para o contador) e PDF, na pasta CONTRATOS › RELATÓRIOS. Recebimentos sem data e contratos sem
+        recebimento lançado aparecem à parte, como pendências.</p>
+      <div class="filtros" style="margin-bottom:0">
+        <label class="s" for="irAno">Ano-calendário</label>
+        <select id="irAno" class="chip" style="padding:6px 10px"></select>
+        <button class="btn primario" id="irGerar">Gerar Excel e PDF</button>
+        <span id="irRes" class="s"></span>
+      </div>
+    </div>
     <div class="card">
       <h2>Contratos da Tayná</h2>
       <p class="ajuda">O que cada casal já pagou à Tayná (linha "Tayna Alves Assessoria" do financeiro do casal) contra o plano do contrato:
@@ -368,6 +380,35 @@ document.getElementById('formRec').addEventListener('submit', async (e) => {
   btn.disabled = false;
 });
 
+// ---------------- relatório para o IR ----------------
+function prepararIR() {
+  const anoAtual = new Date().getFullYear();
+  const anos = new Set([anoAtual, anoAtual - 1]);
+  for (const i of REC.itens) for (const p of i.pagamentos || []) if (p.data) anos.add(Number(p.data.slice(0, 4)));
+  const sel = document.getElementById('irAno');
+  const antes = sel.value;
+  sel.innerHTML = [...anos].sort((a, b) => b - a).map((a) => `<option ${String(a) === (antes || String(anoAtual)) ? 'selected' : ''}>${a}</option>`).join('');
+}
+document.getElementById('irGerar').onclick = async () => {
+  const b = document.getElementById('irGerar'); const res = document.getElementById('irRes');
+  b.disabled = true; res.innerHTML = 'Gerando…';
+  try {
+    const r = await fetch('/api/gestao/relatorio-ir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ano: document.getElementById('irAno').value }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || 'Erro');
+    const abrir = (c, t) => `<a class="lk" href="#" data-abrir="${esc(c)}">${t}</a>`;
+    res.innerHTML = `<b>${moeda(j.total)}</b> em ${j.recebimentos} recebimento(s) de ${j.clientes} cliente(s) · ${abrir(j.xlsx, 'abrir Excel')}`
+      + (j.pdf ? ` · ${abrir(j.pdf, 'abrir PDF')}` : ' · <span style="color:var(--erro)">PDF não gerado (LibreOffice/Edge não encontrado)</span>')
+      + ` · ${abrir(j.pasta, 'abrir pasta')}`
+      + (j.sem_data || j.sem_lancamento ? `<br><span style="color:var(--aviso)">Fora do total: ${j.sem_data} recebimento(s) sem data e ${j.sem_lancamento} contrato(s) sem recebimento lançado (aba PENDÊNCIAS).</span>` : '');
+    res.querySelectorAll('[data-abrir]').forEach((a) => a.onclick = async (e) => {
+      e.preventDefault();
+      await fetch('/api/abrir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caminho: a.dataset.abrir }) });
+    });
+  } catch (e) { res.innerHTML = `<span style="color:var(--erro)">${esc(e.message)}</span>`; }
+  b.disabled = false;
+};
+
 // ---------------- pagamentos ----------------
 function renderPagamentos(p) {
   const el = document.getElementById('aba-pagamentos');
@@ -401,7 +442,7 @@ async function carregar() {
     const painel = await api('/api/gestao/painel');
     const rec = painel.recebimentos; const pag = painel.pagamentos;
     PAINEL = painel; REC = rec;
-    renderVisao(); renderCasais(); renderRecebimentos(); renderPagamentos(pag);
+    renderVisao(); renderCasais(); renderRecebimentos(); renderPagamentos(pag); prepararIR();
     const n = rec.totais.atrasados; const b = document.getElementById('nRec'); b.hidden = !n; b.textContent = n;
     document.getElementById('sub').textContent = `Atualizado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;
   } catch (e) {

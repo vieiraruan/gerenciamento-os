@@ -22,20 +22,44 @@ const CAMINHO_DADOS = ['CONTRATOS GERADOS', '_DADOS DO SISTEMA'];
 const ABAS = ['FINANCEIRO', 'ASSESSORIA'];
 const HORA = 6; // por volta das 6h (fuso do projeto: America/Recife)
 
-/** Executar uma vez: cria o gatilho diário e faz a primeira cópia. */
+const GATILHOS = ['sincronizar', 'escreverFinanceiro'];
+
+/**
+ * Executar uma vez: cria os gatilhos e faz a primeira cópia.
+ *  - sincronizar: todo dia por volta das 6h (cópia das planilhas + financeiro)
+ *  - escreverFinanceiro: a cada 10 minutos (só escreve a aba FINANCEIRO quando houve lançamento no aplicativo)
+ */
 function instalar() {
-  ScriptApp.getProjectTriggers()
-    .filter((t) => t.getHandlerFunction() === 'sincronizar')
-    .forEach((t) => ScriptApp.deleteTrigger(t));
+  desinstalar();
   ScriptApp.newTrigger('sincronizar').timeBased().everyDays(1).atHour(HORA).create();
+  ScriptApp.newTrigger('escreverFinanceiro').timeBased().everyMinutes(10).create();
   sincronizar();
 }
 
-/** Remove o gatilho diário. */
+/** Remove os gatilhos. */
 function desinstalar() {
   ScriptApp.getProjectTriggers()
-    .filter((t) => t.getHandlerFunction() === 'sincronizar')
+    .filter((t) => GATILHOS.indexOf(t.getHandlerFunction()) >= 0)
     .forEach((t) => ScriptApp.deleteTrigger(t));
+}
+
+/** A cada 10 minutos: escreve na aba FINANCEIRO o que foi lançado no aplicativo (nada a fazer = sai rápido). */
+function escreverFinanceiro() {
+  const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
+  if (!raiz) return;
+  let dados = raiz;
+  for (const n of CAMINHO_DADOS) { dados = pasta_(dados, n); if (!dados) return; }
+  const res = escreverFinanceiro_(raiz, dados);
+  if (!res.length) return;
+  const destino = pasta_(dados, 'planilhas');
+  const s = destino && arquivo_(destino, '_sincronizacao.json');
+  if (!s) return;
+  try {
+    const j = JSON.parse(s.getBlob().getDataAsString('UTF-8'));
+    j.financeiro_em = new Date().toISOString();
+    j.financeiro = res;
+    s.setContent(JSON.stringify(j, null, 1));
+  } catch (e) { /* situação ilegível: a cópia diária regrava */ }
 }
 
 function sincronizar() {
@@ -200,14 +224,24 @@ function escreverAba_(sh, linhas) {
   if (iTotal < 0) iTotal = valores.length;
   const usadas = new Set();
   let escritas = 0;
-  linhas.forEach((linha) => {
+  // primeiro os ativos, depois os fornecedores retirados no aplicativo (_remover: a linha deles é limpa)
+  const ordem = linhas.filter((l) => !l._remover).concat(linhas.filter((l) => l._remover));
+  ordem.forEach((linha) => {
     const nome = norm_(linha['Fornecedor']);
     let i = -1;
     for (let k = iCab + 1; k < iTotal; k++) if (!usadas.has(k) && norm_(valores[k][cNome]) === nome) { i = k; break; }
+    if (linha._remover) {
+      if (i < 0) return;
+      usadas.add(i);
+      cab.forEach((c, col) => { if (c && !formulas[i][col]) sh.getRange(i + 1, col + 1).setValue(''); });
+      escritas++;
+      return;
+    }
     if (i < 0) for (let k = iCab + 1; k < iTotal; k++) if (!usadas.has(k) && !String(valores[k][cNome]).trim()) { i = k; break; }
     if (i < 0) throw new Error(`sem linha livre na aba FINANCEIRO para "${linha['Fornecedor']}" (inclua linhas antes do TOTAL)`);
     usadas.add(i);
     Object.keys(linha).forEach((campo) => {
+      if (campo.charAt(0) === '_') return;
       const c = coluna(campo);
       if (c < 0 || formulas[i][c]) return; // coluna que não existe neste modelo ou célula com fórmula
       const v = linha[campo];

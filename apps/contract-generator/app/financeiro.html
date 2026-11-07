@@ -247,7 +247,7 @@
     </div>
     <div id="dfMsg"></div>
   </div>
-  <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="dfSalvar">Salvar fornecedor</button></div>
+  <div class="rodape"><button class="btn" id="dfRetirar" style="margin-right:auto;color:var(--erro);border-color:var(--erro)">Retirar fornecedor</button><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="dfSalvar">Salvar fornecedor</button></div>
 </dialog>
 
 <!-- Registrar pagamento -->
@@ -338,10 +338,14 @@ function render() {
           <dl><dt>Evento</dt><dd>${esc(D.data_evento || 'a definir')}</dd><dt>Pasta</dt><dd><a class="lnk" id="abrirPasta">${esc(D.pasta)}</a>${D.pasta_existe ? '' : ' (será criada)'}</dd></dl></div>
         <div class="acoes">
           <button class="btn primario" id="btnNovo">+ Fornecedor contratado</button>
-          <div class="salvo">${origem}${D.planilha_google ? ' A aba FINANCEIRO da planilha do Google é reescrita pelo sistema todo dia.' : ''}</div>
+          <div class="salvo">${origem}${D.planilha_google ? ' A aba FINANCEIRO da planilha do Google é atualizada pelo sistema a cada 10 minutos depois de um lançamento.' : ''}
+            ${D.planilha_escrita ? (D.planilha_escrita.erro
+              ? `<br><b style="color:var(--erro)">Não consegui atualizar ${esc(D.planilha_escrita.arquivo)}: ${esc(D.planilha_escrita.erro)}</b>`
+              : `<br>✔ Aba FINANCEIRO de ${esc(D.planilha_escrita.arquivo)} atualizada em ${new Date(D.planilha_escrita.em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`) : ''}</div>
           <div class="linha-acoes" style="margin-top:0">
             <button class="btn peq" id="btnColar" title="Copiar a aba FINANCEIRO da planilha e colar aqui">Importar da planilha (colar)</button>
             ${D.sem_dados ? '' : '<button class="btn peq" id="btnReimportar" title="Substitui pelo que está na cópia da planilha">Reimportar da cópia</button>'}
+            ${D.planilha_xlsx && !D.sem_dados ? '<button class="btn peq" id="btnEscrever" title="Escreve na aba FINANCEIRO da planilha .xlsx o que está no sistema">Atualizar a planilha</button>' : ''}
           </div>
         </div>
       </div>
@@ -389,6 +393,10 @@ function render() {
   $('#btnNovo').onclick = () => abrirFornecedor(null);
   $('#abrirPasta').onclick = () => abrir(D.pasta);
   if ($('#btnReimportar')) $('#btnReimportar').onclick = reimportar;
+  if ($('#btnEscrever')) $('#btnEscrever').onclick = async () => {
+    if (!confirm(`Escrever na aba FINANCEIRO de "${D.planilha_xlsx}" o que está no sistema? Feche a planilha antes, se estiver aberta.`)) return;
+    try { await api('/api/financeiro/escrever-planilha', { arquivo: atual }); selecionar(atual); } catch (e) { alert(e.message); }
+  };
   $('#btnColar').onclick = () => { $('#txtColar').value = ''; $('#colMsg').innerHTML = ''; $('#dlgColar').showModal(); $('#txtColar').focus(); };
   document.querySelectorAll('tr.linha').forEach((tr) => tr.onclick = (e) => {
     if (e.target.closest('button,a')) return;
@@ -402,10 +410,7 @@ function render() {
     const [id, pid] = b.dataset.rmpag.split('|');
     await enviar('remover-pagamento', { id, pagamento_id: pid }); selecionar(atual);
   });
-  document.querySelectorAll('[data-rmitem]').forEach((b) => b.onclick = async () => {
-    if (!confirm('Tirar este fornecedor do financeiro do casal? (A pasta e os arquivos continuam no Drive.)')) return;
-    await enviar('remover', { id: b.dataset.rmitem }); selecionar(atual);
-  });
+  document.querySelectorAll('[data-rmitem]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); retirarFornecedor(b.dataset.rmitem); });
 }
 
 // ---- Vencimentos do saldo (próximas parcelas de cada fornecedor) ----
@@ -476,7 +481,8 @@ function linhaItem(i) {
     <td><b>${esc(i.nome)}</b><div class="salvo">${esc(i.descricao)}</div></td>
     <td class="n">${brl(c.contratado)}</td><td class="n">${entrada}</td><td class="n">${parc}</td>
     <td class="n">${brl(c.pago)}</td><td class="n">${brl(c.saldo)}</td><td>${st}</td>
-    <td style="white-space:nowrap"><button class="btn peq primario" data-pagar="${i.id}" ${c.status === 'Pago' ? 'title="Já quitado"' : ''}>Pagamento</button></td></tr>`;
+    <td style="white-space:nowrap"><button class="btn peq primario" data-pagar="${i.id}" ${c.status === 'Pago' ? 'title="Já quitado"' : ''}>Pagamento</button>
+      <button class="btn peq" data-rmitem="${i.id}" title="Retirar este fornecedor do casal">Retirar</button></td></tr>`;
   if (aberto.has(i.id)) {
     html += `<tr class="detalhe"><td></td><td colspan="8"><div class="caixa">
       <div><h4>Pagamentos</h4>
@@ -494,7 +500,7 @@ function linhaItem(i) {
           Contrato: ${i.contrato ? `<a class="lnk" data-abrir="${esc(i.contrato)}">abrir</a>` : '<span class="salvo">não anexado</span>'}<br>
           ${i.pix ? `PIX / pagamento: ${esc(i.pix)}<br>` : ''}
         </div>
-        <div class="linha-acoes"><button class="btn peq" data-editar="${i.id}">Editar / anexar contrato</button><button class="btn peq" data-rmitem="${i.id}">Tirar do financeiro</button></div>
+        <div class="linha-acoes"><button class="btn peq" data-editar="${i.id}">Editar / anexar contrato</button><button class="btn peq" data-rmitem="${i.id}">Retirar fornecedor</button></div>
         <h4 style="margin-top:12px">Histórico</h4><ul class="hist">${(i.historico || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
       </div></div></td></tr>`;
   }
@@ -547,8 +553,20 @@ function abrirFornecedor(id) {
   $('#dfEntPagaBox').style.display = editando ? 'none' : ''; $('#dfEntPaga').checked = false;
   $('#dfArq').value = ''; arquivoEscolhido($('#dfArq'), $('#dfArqBox'), $('#dfArqTxt'), 'Clique para escolher o contrato assinado (PDF ou imagem)'); $('#dfArq').onchange();
   $('#dfArqTxt').textContent = editando && editando.contrato ? `Contrato já anexado: ${editando.contrato.split(/[\\/]/).pop()} — escolha outro arquivo para substituir` : 'Clique para escolher o contrato assinado (PDF ou imagem)';
+  $('#dfRetirar').style.display = editando ? '' : 'none';
   trocarAba('dados');
   dlg.showModal();
+}
+
+async function retirarFornecedor(id) {
+  const item = D.itens.find((i) => i.id === id);
+  if (!item) return;
+  const pagos = (item.pagamentos || []).length;
+  if (!confirm(`Retirar "${item.nome}" do financeiro de ${D.casal}?\n\n• A linha dele é apagada da aba FINANCEIRO da planilha.\n• A pasta e os arquivos (contrato, comprovantes) continuam no Drive.`
+    + (pagos ? `\n• Os ${pagos} pagamento(s) lançado(s) saem dos totais do casal.` : ''))) return false;
+  await enviar('remover', { id });
+  await selecionar(atual);
+  return true;
 }
 function preencherCadastro(f) {
   const v = (k) => (f ? f[k] || '' : '');
@@ -634,6 +652,7 @@ document.querySelectorAll('[data-fechar]').forEach((b) => b.onclick = () => b.cl
 document.querySelectorAll('#dfAbas button').forEach((b) => b.onclick = () => trocarAba(b.dataset.a));
 $('#dfCad').onchange = () => { const f = (D.fornecedores || []).find((x) => x.id === $('#dfCad').value); preencherCadastro(f || null); };
 $('#dfSalvar').onclick = salvarFornecedor;
+$('#dfRetirar').onclick = async () => { if (editando && await retirarFornecedor(editando.id)) $('#dlgForn').close(); };
 $('#dpSalvar').onclick = salvarPagamento;
 $('#busca').oninput = renderLista;
 $('#colOk').onclick = async () => {

@@ -471,7 +471,12 @@ function importarLinhas(linhas, pastaCasal) {
 // Para a planilha do Google (o Apps Script escreve a aba FINANCEIRO a partir deste arquivo)
 // ---------------------------------------------------------------------------
 function linhasParaGoogle(fin) {
-  return (fin.itens || []).filter((i) => !i.removido).map((i) => {
+  const ativos = (fin.itens || []).filter((i) => !i.removido);
+  const nomesAtivos = new Set(ativos.map((i) => chave(i.nome)));
+  // fornecedores retirados: a linha com o nome deles é limpa na planilha (se ninguém ativo usa o mesmo nome)
+  const retirados = (fin.itens || []).filter((i) => i.removido && !nomesAtivos.has(chave(i.nome)))
+    .map((i) => ({ 'Fornecedor': i.nome, _remover: true }));
+  return ativos.map((i) => {
     const c = calcular(i);
     const ultParc = (i.pagamentos || []).filter((p) => p.tipo !== 'entrada').map((p) => p.data).filter(Boolean).sort().pop() || '';
     const entradaPg = (i.pagamentos || []).find((p) => p.tipo === 'entrada');
@@ -491,7 +496,7 @@ function linhasParaGoogle(fin) {
       'PIX': i.pix || '',
       'Observação': (i.historico || []).join('\n'),
     };
-  });
+  }).concat(retirados);
 }
 
 function gravarParaGoogle(dirDados, numeroOs, fin) {
