@@ -119,6 +119,10 @@
   .pend li::before { content: '• '; }
   .ok-tudo { color: var(--ok); font-weight: 600; }
   .salvo { font-size: 12px; color: var(--suave); }
+  label.opcao { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer; font-size: 14px; }
+  label.opcao input { width: auto; margin-top: 4px; }
+  label.opcao.off { opacity: .55; cursor: not-allowed; }
+  #drArquivos ul { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; max-height: 160px; overflow: auto; }
   .passo { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--marca); color: #fff; font-size: 12px; margin-right: 6px; }
 
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
@@ -271,6 +275,23 @@
 </dialog>
 
 <!-- Colar a aba FINANCEIRO -->
+<dialog id="dlgRetirar">
+  <div class="cab"><h3 id="drTitulo">Retirar fornecedor</h3><button class="x" data-fechar>×</button></div>
+  <div class="corpo">
+    <label class="opcao"><input type="radio" name="drModo" value="manter" checked>
+      <span><b>Retirar do financeiro e da planilha</b><br><span class="salvo">Sai dos totais do casal e a linha é apagada da aba FINANCEIRO.
+        A pasta e os arquivos (contrato, comprovantes) continuam no Drive.</span></span></label>
+    <label class="opcao" id="drApagarBox"><input type="radio" name="drModo" value="apagar">
+      <span><b>Retirar e apagar a pasta do fornecedor no Drive</b><br><span class="salvo" id="drApagarTxt"></span></span></label>
+    <div id="drArquivos" style="display:none"></div>
+    <label id="drConfBox" style="display:none;gap:8px;align-items:flex-start;font-size:13.5px;margin-top:10px">
+      <input type="checkbox" id="drConf" style="width:auto;margin-top:3px">
+      <span>Entendo que a pasta e todos os arquivos acima serão apagados (ficam 30 dias na lixeira do Google Drive).</span></label>
+    <div id="drMsg"></div>
+  </div>
+  <div class="rodape"><button class="btn" data-fechar>Cancelar</button><button class="btn primario" id="drOk">Retirar</button></div>
+</dialog>
+
 <dialog id="dlgColar">
   <div class="cab"><h3>Importar a aba FINANCEIRO da planilha</h3><button class="x" data-fechar>×</button></div>
   <div class="corpo">
@@ -560,13 +581,41 @@ function abrirFornecedor(id) {
 
 async function retirarFornecedor(id) {
   const item = D.itens.find((i) => i.id === id);
-  if (!item) return;
-  const pagos = (item.pagamentos || []).length;
-  if (!confirm(`Retirar "${item.nome}" do financeiro de ${D.casal}?\n\n• A linha dele é apagada da aba FINANCEIRO da planilha.\n• A pasta e os arquivos (contrato, comprovantes) continuam no Drive.`
-    + (pagos ? `\n• Os ${pagos} pagamento(s) lançado(s) saem dos totais do casal.` : ''))) return false;
-  await enviar('remover', { id });
-  await selecionar(atual);
-  return true;
+  if (!item) return false;
+  const dlg = $('#dlgRetirar');
+  $('#drTitulo').textContent = `Retirar "${item.nome}"`;
+  $('#drMsg').innerHTML = ''; $('#drConf').checked = false;
+  document.querySelector('input[name=drModo][value=manter]').checked = true;
+  const info = await api(`/api/financeiro/pasta-fornecedor?arquivo=${encodeURIComponent(atual)}&id=${encodeURIComponent(id)}`).catch(() => ({ pode_apagar: false, arquivos: [] }));
+  const box = $('#drApagarBox'); const radioApagar = box.querySelector('input');
+  radioApagar.disabled = !info.pode_apagar; box.classList.toggle('off', !info.pode_apagar);
+  $('#drApagarTxt').textContent = info.tayna ? 'A pasta da Tayná (contrato e ordem de serviço) não pode ser apagada por aqui.'
+    : info.pode_apagar ? `Apaga a pasta "${info.pasta}" com ${info.arquivos.length} arquivo(s). Os pagamentos lançados saem dos totais.`
+    : 'Este fornecedor não tem pasta no Drive.';
+  $('#drArquivos').innerHTML = info.arquivos.length ? `<div class="salvo" style="margin-top:2px">Arquivos que serão apagados:</div><ul>${info.arquivos.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : '';
+  const atualizar = () => {
+    const apagar = radioApagar.checked;
+    $('#drArquivos').style.display = apagar && info.arquivos.length ? '' : 'none';
+    $('#drConfBox').style.display = apagar ? 'flex' : 'none';
+    $('#drOk').textContent = apagar ? 'Retirar e apagar' : 'Retirar';
+    $('#drOk').style.background = apagar ? 'var(--erro)' : ''; $('#drOk').style.borderColor = apagar ? 'var(--erro)' : '';
+    $('#drOk').disabled = apagar && !$('#drConf').checked;
+  };
+  document.querySelectorAll('input[name=drModo]').forEach((r) => { r.onchange = atualizar; });
+  $('#drConf').onchange = atualizar;
+  atualizar();
+  dlg.showModal();
+  return new Promise((resolve) => {
+    $('#drOk').onclick = async () => {
+      const apagar = radioApagar.checked;
+      $('#drOk').disabled = true;
+      try {
+        await enviar('remover', { id, apagar_arquivos: apagar });
+        dlg.close(); await selecionar(atual); resolve(true);
+      } catch (e) { $('#drMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; $('#drOk').disabled = false; }
+    };
+    dlg.addEventListener('close', () => resolve(false), { once: true });
+  });
 }
 function preencherCadastro(f) {
   const v = (k) => (f ? f[k] || '' : '');

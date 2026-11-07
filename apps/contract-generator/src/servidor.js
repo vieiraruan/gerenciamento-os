@@ -210,6 +210,23 @@ function enviarFinanceiro(q, arquivoEnviado) {
   } else if (op === 'remover-pagamento') {
     fin.removerPagamento(f, dados.id, dados.pagamento_id);
   } else if (op === 'remover') {
+    const item = f.itens.find((i) => i.id === dados.id);
+    if (!item) throw new Error('Fornecedor não encontrado.');
+    const hoje = fin.dataBr(new Date().toISOString().slice(0, 10));
+    if (dados.apagar_arquivos) {
+      // apaga a pasta do fornecedor no Drive (vai para a lixeira do Google Drive)
+      const alvo = pastaDoFornecedor(pasta, item);
+      if (alvo) {
+        const n = listarArquivos(alvo).length;
+        fs.rmSync(alvo, { recursive: true, force: true });
+        item.historico.push(`${hoje} - Fornecedor retirado; pasta "${item.pasta}" apagada do Drive (${n} arquivo(s)).`);
+        resposta = { apagados: n, pasta: item.pasta };
+      }
+      item.pasta = null; item.contrato = null;
+      (item.pagamentos || []).forEach((p) => { p.comprovante = null; });
+    } else {
+      item.historico.push(`${hoje} - Fornecedor retirado do financeiro (pasta e arquivos mantidos no Drive).`);
+    }
     fin.atualizarItem(f, dados.id, { removido: true });
   } else {
     throw new Error('Operação desconhecida.');
@@ -247,6 +264,27 @@ function financeiroAtual(arquivo, campos, local = null) {
     }
   }
   return { dados, importado };
+}
+
+/**
+ * Pasta do fornecedor dentro da pasta do casal (nunca a do casal nem a da própria Tayná, que guarda contrato e OS).
+ * null quando não há pasta ou ela não pode ser apagada.
+ */
+function pastaDoFornecedor(pastaCasal, item) {
+  if (!item || !item.pasta || !pastaCasal || gestao.ehTayna(item)) return null;
+  const alvo = path.resolve(pastaCasal, item.pasta);
+  if (!dentroDe(path.resolve(pastaCasal), alvo) || path.dirname(alvo) !== path.resolve(pastaCasal)) return null;
+  if (!fs.existsSync(alvo) || !fs.statSync(alvo).isDirectory()) return null;
+  return alvo;
+}
+function listarArquivos(dir, base = dir) {
+  const r = [];
+  for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, d.name);
+    if (d.isDirectory()) r.push(...listarArquivos(p, base));
+    else r.push(path.relative(base, p));
+  }
+  return r;
 }
 
 /**
@@ -320,6 +358,20 @@ const rotas = {
     const painel = gestao.painel(contratos, carregarFin, cronograma);
     // a página de gestão usa uma chamada só (recebimentos e pagamentos já calculados no painel)
     return { ...painel, recebimentos: gestao.recebimentos(contratos, carregarFin), pagamentos: gestao.pagamentos(contratos, carregarFin) };
+  },
+
+  // o que existe na pasta do fornecedor (para confirmar antes de apagar)
+  'GET /api/financeiro/pasta-fornecedor': (q) => {
+    const { arquivo, campos } = contratoDe(q.get('arquivo'));
+    const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    const f = fin.carregar(DADOS, arquivo);
+    const item = f && f.itens.find((i) => i.id === q.get('id'));
+    if (!item) throw new Error('Fornecedor não encontrado.');
+    const alvo = pastaDoFornecedor(pasta, item);
+    return {
+      pasta: item.pasta || null, pode_apagar: Boolean(alvo), tayna: gestao.ehTayna(item),
+      arquivos: alvo ? listarArquivos(alvo) : [],
+    };
   },
 
   // escreve agora a aba FINANCEIRO da planilha .xlsx do casal com o que está no sistema
