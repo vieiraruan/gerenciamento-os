@@ -69,6 +69,15 @@
                     border: 1px solid var(--borda); border-radius: 10px; padding: 11px 14px; margin-bottom: 10px; cursor: pointer; }
   .atalhos button:hover { background: #f3ece7; }
   .atalhos .msg { font-size: 12px; color: var(--erro); }
+  .financas { margin-bottom: 22px; }
+  .fgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .fgrid a { display: block; text-decoration: none; color: inherit; border: 1px solid #f0e6e0; border-radius: 10px; padding: 10px 12px; background: #fdfaf8; }
+  .fgrid a:hover { border-color: var(--marca-2); background: #fff; }
+  .fgrid .r { font-size: 11.5px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
+  .fgrid .v { font-size: 20px; font-weight: 700; color: var(--marca); font-variant-numeric: tabular-nums; }
+  .fgrid .alerta .v { color: var(--erro); }
+  .fgrid .d { font-size: 12px; color: var(--suave); }
+  @media (max-width: 900px) { .fgrid { grid-template-columns: repeat(2, 1fr); } }
   footer { text-align: center; font-size: 12px; color: var(--suave); padding: 10px 0 24px; }
 
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } .duas { grid-template-columns: 1fr; } }
@@ -98,6 +107,11 @@
 
   <h2>Aplicativos</h2>
   <section class="apps" id="apps"></section>
+
+  <section class="card financas" id="financas" hidden>
+    <h2>Pagamentos e recebimentos</h2>
+    <div class="fgrid" id="fgrid"></div>
+  </section>
 
   <section class="duas">
     <div class="card">
@@ -131,8 +145,8 @@ const APPS = [
     desc: 'Checklist e painel do dia do evento (fornecedores, telefones e horários) e cronograma de tarefas pelos meses que faltam. Versão destination.' },
   { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', status: 'ativo', link: '/financeiro',
     desc: 'Fornecedores contratados por casal: entrada, parcelas e pagamentos com comprovante na pasta do fornecedor; quanto foi pago e quanto falta.' },
-  { id: 'painel', nome: 'Painel de gestão', icone: 'painel', status: 'breve',
-    desc: 'Indicadores de contratos, faturamento e agenda de eventos.' },
+  { id: 'painel', nome: 'Painel de gestão', icone: 'painel', status: 'ativo', link: '/gestao',
+    desc: 'Recebimentos da Tayná por contrato, pagamentos de fornecedores de todos os casais, faturamento por mês e cronogramas atrasados.' },
 ];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -231,6 +245,23 @@ document.getElementById('btnEncerrar').addEventListener('click', async () => {
 
 renderApps();
 carregar();
+
+// Resumo de pagamentos (fornecedores de todos os casais) e recebimentos da Tayná → Painel de gestão
+(async () => {
+  try {
+    const [pag, rec] = await Promise.all([(await fetch('/api/gestao/pagamentos')).json(), (await fetch('/api/gestao/recebimentos')).json()]);
+    const m = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const t = pag.totais; const r = rec.totais;
+    const bloco = (link, rot, valor, det, alerta) => `<a href="${link}" class="${alerta ? 'alerta' : ''}"><div class="r">${rot}</div><div class="v">${valor}</div><div class="d">${det}</div></a>`;
+    document.getElementById('fgrid').innerHTML = [
+      bloco('/gestao#pagamentos', 'Fornecedores atrasados', m(t.atrasados), `${pag.atrasados.length} parcela(s) vencida(s)`, t.atrasados > 0),
+      bloco('/gestao#pagamentos', 'Vencem em 30 dias', m(t.a_vencer + t.antes_do_evento), `${pag.a_vencer.length} parcela(s) · ${pag.antes_do_evento.length} saldo(s) antes do evento`),
+      bloco('/gestao#recebimentos', 'A receber (Tayná)', m(r.a_receber), r.atrasado > 0 ? `<b style="color:var(--erro)">${m(r.atrasado)} em atraso</b>` : `${r.quitados} contrato(s) quitado(s)`, r.atrasado > 0),
+      bloco('/gestao#recebimentos', 'Sem lançamento', String(r.sem_lancamento), `contrato(s) sem recebimento registrado`),
+    ].join('');
+    document.getElementById('financas').hidden = false;
+  } catch { /* sem resumo */ }
+})();
 
 // Cópia diária das planilhas do Google (Apps Script na conta da empresa)
 (async () => {

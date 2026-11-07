@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de gestão · Tayná Alves Assessoria</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root {
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --card: #ffffff;
+    --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400;
+    --raio: 12px; --barra: #c99a86; --barra-2: #824634;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  header a.voltar:hover { background: #f3ece7; }
+  main { max-width: 1280px; margin: 0 auto; padding: 18px 24px 40px; }
+  @media (max-width: 700px) { main { padding: 12px; } header { padding: 8px 12px; } header img.logo { height: 44px; } }
+
+  nav.abas { display: flex; gap: 6px; border-bottom: 1px solid var(--borda); margin-bottom: 18px; overflow-x: auto; }
+  nav.abas a { padding: 10px 16px; font-weight: 600; color: var(--suave); text-decoration: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav.abas a.on { color: var(--marca); border-bottom-color: var(--marca); }
+  nav.abas .n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 99px; font-size: 11px; background: #fbeceb; color: var(--erro); text-align: center; }
+  nav.abas .n[hidden] { display: none; }
+  section.aba { display: none; } section.aba.on { display: block; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; }
+  .kpi .r { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .v { font-size: 22px; font-weight: 700; color: var(--marca); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .s { font-size: 12px; color: var(--suave); }
+  .kpi.ok .v { color: var(--ok); } .kpi.alerta .v { color: var(--erro); }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 4px; color: var(--marca); }
+  .card .ajuda { font-size: 12.5px; color: var(--suave); margin: 0 0 12px; }
+  .duas { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .duas { grid-template-columns: 1fr; } }
+  .vazio { color: var(--suave); font-size: 13px; padding: 6px 0; }
+  .carregando { color: var(--suave); padding: 30px 0; text-align: center; }
+
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 10.5px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 6px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  table.t td { padding: 8px 6px; border-top: 1px solid #f3ebe6; vertical-align: top; }
+  table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.t tr.clic { cursor: pointer; } table.t tr.clic:hover td { background: #fbf6f3; }
+  table.t tr.det td { background: #fcf9f7; border-top: 0; }
+  .wrap { overflow-x: auto; }
+  .num { font-size: 12px; font-weight: 700; color: var(--marca); }
+  .s { font-size: 12px; color: var(--suave); }
+  a.lk { color: var(--marca); text-decoration: none; font-weight: 600; } a.lk:hover { text-decoration: underline; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .b-ok { background: #e6f2ea; color: var(--ok); } .b-erro { background: #fbeceb; color: var(--erro); }
+  .b-aviso { background: #fbf1dc; color: var(--aviso); } .b-neutro { background: #efe9e5; color: var(--suave); }
+  .b-adiantado { background: #e3eef6; color: #1f4e78; }
+  .barra { height: 7px; background: #f1e7e1; border-radius: 99px; overflow: hidden; min-width: 70px; margin-top: 4px; }
+  .barra i { display: block; height: 100%; background: var(--marca-2); }
+  .alerta-li { font-size: 12.5px; color: var(--erro); }
+  .aviso-li { font-size: 12.5px; color: var(--aviso); }
+
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--borda); background: #fff; color: var(--suave); cursor: pointer; }
+  .chip.on { background: var(--marca); color: #fff; border-color: var(--marca); }
+  .filtros input { padding: 7px 10px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; font-size: 13px; min-width: 200px; }
+
+  /* gráfico de barras: receita por mês do evento */
+  .grafico { display: flex; align-items: flex-end; gap: 6px; height: 190px; padding: 8px 0 0; border-bottom: 1px solid var(--borda); overflow-x: auto; }
+  .grafico .col { flex: 1; min-width: 34px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .grafico .pilha { width: 70%; max-width: 34px; position: relative; display: flex; align-items: flex-end; justify-content: center; }
+  .grafico .tot { width: 100%; background: var(--barra); border-radius: 4px 4px 0 0; position: relative; }
+  .grafico .rec { position: absolute; bottom: 0; left: 0; right: 0; background: var(--barra-2); border-radius: 0; }
+  .grafico .col:hover .tip { display: block; }
+  .tip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--texto); color: #fff; font-size: 11.5px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; z-index: 3; margin-bottom: 4px; }
+  .eixo { display: flex; gap: 6px; } .eixo span { flex: 1; min-width: 34px; text-align: center; font-size: 10.5px; color: var(--suave); padding-top: 4px; }
+  .legenda { display: flex; gap: 14px; font-size: 12px; color: var(--suave); margin-top: 8px; }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+  button.btn { font: inherit; font-size: 13px; border-radius: 8px; border: 1px solid var(--marca); padding: 6px 11px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; white-space: nowrap; }
+  button.btn:hover { background: #f3ece7; }
+  button.btn.primario { background: var(--marca); color: #fff; } button.btn.primario:hover { background: #6c3a2b; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+
+  dialog { border: 0; border-radius: 14px; padding: 0; width: min(480px, 94vw); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(43,34,32,.4); }
+  dialog form { padding: 20px 22px; }
+  dialog h3 { margin: 0 0 4px; color: var(--marca); }
+  dialog label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin: 10px 0 3px; }
+  dialog input, dialog select, dialog textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; font-size: 14px; background: #fffdfb; }
+  dialog .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  dialog .botoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .msg-erro { color: var(--erro); font-size: 13px; margin-top: 8px; }
+  ul.etapas { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+  ul.etapas li { display: flex; gap: 10px; padding: 3px 0; }
+  ul.etapas li .d { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <div class="sep"></div>
+  <div><h1>Painel de gestão</h1><div class="sub" id="sub">Casais, recebimentos, pagamentos e cronogramas</div></div>
+  <div class="esp"></div>
+  <a class="voltar" href="/">← Início</a>
+</header>
+<main>
+  <nav class="abas" id="abas">
+    <a href="#visao" data-aba="visao">Visão geral</a>
+    <a href="#recebimentos" data-aba="recebimentos">Recebimentos da Tayná <span class="n" id="nRec" hidden></span></a>
+    <a href="#pagamentos" data-aba="pagamentos">Pagamentos dos casais <span class="n" id="nPag" hidden></span></a>
+    <a href="#casais" data-aba="casais">Casais</a>
+  </nav>
+
+  <!-- ===================== Visão geral ===================== -->
+  <section class="aba" id="aba-visao"><div class="carregando">Carregando…</div></section>
+
+  <!-- ===================== Recebimentos ===================== -->
+  <section class="aba" id="aba-recebimentos">
+    <div class="kpis" id="recKpis"></div>
+    <div class="card">
+      <h2>Contratos da Tayná</h2>
+      <p class="ajuda">O que cada casal já pagou à Tayná (linha "Tayna Alves Assessoria" do financeiro do casal) contra o plano do contrato:
+        entrada, parcelas ou saldo até o prazo antes do evento. Clique numa linha para ver as etapas. "Sem lançamento" = ainda não há
+        nenhum recebimento registrado (nem na planilha, nem aqui).</p>
+      <div class="filtros" id="recFiltros"></div>
+      <div class="wrap"><table class="t" id="recTabela"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== Pagamentos ===================== -->
+  <section class="aba" id="aba-pagamentos"><div class="carregando">Carregando…</div></section>
+
+  <!-- ===================== Casais ===================== -->
+  <section class="aba" id="aba-casais"><div class="carregando">Carregando…</div></section>
+</main>
+
+<dialog id="dlgRec">
+  <form method="dialog" id="formRec">
+    <h3>Registrar recebimento</h3>
+    <div class="s" id="recCasal"></div>
+    <div class="linha">
+      <div><label>Referente a</label>
+        <select id="recTipo"><option value="entrada">Entrada</option><option value="parcela">Parcela</option><option value="avulso">Pagamento avulso / saldo</option></select></div>
+      <div><label>Forma</label><select id="recForma"></select></div>
+    </div>
+    <div class="linha">
+      <div><label>Valor recebido (R$)</label><input id="recValor" inputmode="decimal" required></div>
+      <div><label>Data</label><input id="recData" type="date" required></div>
+    </div>
+    <label>Comprovante (opcional — vai para a pasta "Tayná Alves Assessoria" do casal)</label>
+    <input id="recArq" type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.webp">
+    <label>Observação</label><input id="recObs" placeholder="opcional">
+    <div class="msg-erro" id="recErro"></div>
+    <div class="botoes">
+      <button type="button" class="btn" id="recCancelar">Cancelar</button>
+      <button type="submit" class="btn primario" id="recOk">Registrar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const FORMAS = ['PIX', 'Transferência', 'Boleto', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Outro'];
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const moeda = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+const moedaK = (n) => (Math.abs(n) >= 1000 ? `R$ ${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : moeda(n));
+const data = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const mesRot = (k) => { const m = /^(\d{4})-(\d{2})$/.exec(k); return m ? `${MESES[+m[2] - 1]}/${m[1].slice(2)}` : k; };
+const quando = (dias) => (dias === null || dias === undefined ? '' : dias === 0 ? 'hoje' : dias > 0 ? `em ${dias} dia${dias > 1 ? 's' : ''}` : `há ${-dias} dia${dias < -1 ? 's' : ''}`);
+const BADGE = { Quitado: 'b-ok', 'Em dia': 'b-neutro', Atrasado: 'b-erro', 'Sem lançamento': 'b-aviso', 'Sem valor': 'b-neutro' };
+const CRONO = { atrasado: ['Atrasado', 'b-erro'], em_dia: ['Em dia', 'b-ok'], adiantado: ['Adiantado', 'b-adiantado'] };
+const lkFin = (arquivo, txt) => `<a class="lk" href="/financeiro?casal=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
+const lkCk = (arquivo, txt) => `<a class="lk" href="/checklist?contrato=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
+const barra = (p) => `<div class="barra"><i style="width:${Math.max(0, Math.min(100, p || 0))}%"></i></div>`;
+
+async function api(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+
+// ---------------- abas ----------------
+function mostrarAba() {
+  const aba = (location.hash || '#visao').slice(1);
+  document.querySelectorAll('nav.abas a').forEach((a) => a.classList.toggle('on', a.dataset.aba === aba));
+  document.querySelectorAll('section.aba').forEach((s) => s.classList.toggle('on', s.id === `aba-${aba}`));
+}
+window.addEventListener('hashchange', mostrarAba);
+
+// ---------------- visão geral ----------------
+let PAINEL = null;
+function renderVisao() {
+  const p = PAINEL; const k = p.kpis; const a = k.assessoria;
+  const el = document.getElementById('aba-visao');
+  const maxMes = Math.max(1, ...p.meses.map((m) => m.contratado));
+  const meses = p.meses.filter((m) => m.mes !== 'sem data');
+  const comAlerta = p.casais.filter((c) => c.alertas.length);
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="r">Casais ativos</div><div class="v">${k.casais_ativos}</div>
+        <div class="s">${k.eventos_30} evento(s) em 30 dias · ${k.eventos_90} em 90</div></div>
+      <div class="kpi ok"><div class="r">Recebido (assessoria)</div><div class="v">${moedaK(a.recebido)}</div>
+        <div class="s">de ${moeda(a.contratado)} contratados</div></div>
+      <div class="kpi ${a.atrasado > 0 ? 'alerta' : ''}"><div class="r">A receber</div><div class="v">${moedaK(a.a_receber)}</div>
+        <div class="s">${a.atrasado > 0 ? `<b style="color:var(--erro)">${moeda(a.atrasado)} em atraso</b> · ` : ''}${a.sem_lancamento} sem lançamento (${moedaK(a.sem_lancamento_valor)})</div></div>
+      <div class="kpi ${k.cronograma_atrasado ? 'alerta' : ''}"><div class="r">Cronogramas atrasados</div><div class="v">${k.cronograma_atrasado}</div>
+        <div class="s">casais abaixo do ritmo de tarefas</div></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="r">Eventos de ${k.ano_atual.ano}</div><div class="v">${moedaK(k.ano_atual.contratado)}</div>
+        <div class="s">${k.ano_atual.eventos} evento(s) · recebido ${moeda(k.ano_atual.recebido)}</div></div>
+      <div class="kpi"><div class="r">Eventos de ${k.ano_seguinte.ano}</div><div class="v">${moedaK(k.ano_seguinte.contratado)}</div>
+        <div class="s">${k.ano_seguinte.eventos} evento(s) · recebido ${moeda(k.ano_seguinte.recebido)}</div></div>
+      <div class="kpi"><div class="r">Fornecedores dos casais</div><div class="v">${moedaK(k.fornecedores.saldo)}</div>
+        <div class="s">a pagar · ${moedaK(k.fornecedores.pago)} pagos de ${moedaK(k.fornecedores.contratado)}</div></div>
+      <div class="kpi ${k.pagamentos.atrasados > 0 ? 'alerta' : ''}"><div class="r">Pagamentos de fornecedores</div>
+        <div class="v">${moedaK(k.pagamentos.atrasados + k.pagamentos.a_vencer + k.pagamentos.antes_do_evento)}</div>
+        <div class="s">${k.pagamentos.atrasados > 0 ? `${moeda(k.pagamentos.atrasados)} atrasados · ` : ''}vencem em 30 dias ou antes do evento</div></div>
+    </div>
+    <div class="duas">
+      <div class="card">
+        <h2>Contratos da Tayná por mês do evento</h2>
+        <p class="ajuda">Valor dos contratos de assessoria/cerimonial pelo mês do casamento; a parte escura é o que já foi recebido.</p>
+        <div class="grafico">${meses.map((m) => {
+          const h = Math.round((m.contratado / maxMes) * 165);
+          const hr = m.contratado ? Math.round((Math.min(m.recebido, m.contratado) / m.contratado) * h) : 0;
+          return `<div class="col"><div class="tip">${mesRot(m.mes)}: ${m.eventos} evento(s)<br>${moeda(m.contratado)} · recebido ${moeda(m.recebido)}</div>
+            <div class="pilha"><div class="tot" style="height:${Math.max(h, 2)}px"><div class="rec" style="height:${hr}px"></div></div></div></div>`;
+        }).join('')}</div>
+        <div class="eixo">${meses.map((m) => `<span>${mesRot(m.mes)}</span>`).join('')}</div>
+        <div class="legenda"><span><i style="background:var(--barra-2)"></i>Recebido</span><span><i style="background:var(--barra)"></i>A receber</span>
+          ${p.meses.some((m) => m.mes === 'sem data') ? `<span>Sem data definida: ${moeda(p.meses.find((m) => m.mes === 'sem data').contratado)}</span>` : ''}</div>
+      </div>
+      <div class="card">
+        <h2>Atenção</h2>
+        <p class="ajuda">Casais com algo a resolver (recebimento atrasado, fornecedor a pagar, cronograma atrasado ou dado divergente).</p>
+        ${comAlerta.length ? `<table class="t">${comAlerta.slice(0, 14).map((c) => `<tr>
+          <td><span class="num">${esc(c.numero_os)}</span><br>${lkFin(c.arquivo, c.casal)}<div class="s">${c.evento_data ? `${data(c.evento_data)} · ${quando(c.dias)}` : esc(c.evento_periodo || 'data a definir')}</div></td>
+          <td>${c.alertas.map((x) => `<div class="${/atraso|atrasado/.test(x) ? 'alerta-li' : 'aviso-li'}">• ${esc(x)}</div>`).join('')}</td></tr>`).join('')}</table>
+          ${comAlerta.length > 14 ? `<div class="s" style="margin-top:6px">+ ${comAlerta.length - 14} casal(is) — veja a aba <a class="lk" href="#casais">Casais</a>.</div>` : ''}`
+          : '<div class="vazio">Nada pendente. 🎉</div>'}
+      </div>
+    </div>`;
+}
+
+// ---------------- casais ----------------
+function renderCasais() {
+  const el = document.getElementById('aba-casais');
+  el.innerHTML = `<div class="card"><h2>Casais ativos</h2>
+    <p class="ajuda">Eventos futuros (e os da última semana) e contratos com valor a receber. Assessoria = contrato da Tayná; fornecedores =
+      financeiro do casal; cronograma = tarefas do checklist pelo ritmo.</p>
+    <div class="wrap"><table class="t"><thead><tr><th>Casal</th><th>Evento</th><th>Assessoria</th><th>Fornecedores</th><th>Cronograma</th><th>Alertas</th></tr></thead><tbody>
+    ${PAINEL.casais.map((c) => {
+      const a = c.assessoria; const f = c.fornecedores; const k = c.cronograma;
+      const ck = k && k.situacao ? CRONO[k.situacao] : null;
+      return `<tr>
+        <td><span class="num">${esc(c.numero_os)}</span><br><b>${esc(c.casal)}</b></td>
+        <td style="white-space:nowrap">${c.evento_data ? `${data(c.evento_data)}<div class="s">${quando(c.dias)}</div>` : `<span class="s">${esc(c.evento_periodo || 'a definir')}</span>`}</td>
+        <td>${a.total ? `${moeda(a.recebido)} <span class="s">de ${moeda(a.total)}</span>${barra(a.percentual)}<span class="badge ${BADGE[a.status] || 'b-neutro'}" style="margin-top:4px">${esc(a.status)}</span>` : '<span class="s">sem valor no contrato</span>'}</td>
+        <td>${f && f.quantidade ? `${lkFin(c.arquivo, `${f.quantidade} fornecedor(es)`)}<div class="s">${moeda(f.pago)} pagos · ${moeda(f.saldo)} a pagar</div>${barra(f.percentual)}` : `${lkFin(c.arquivo, 'abrir financeiro')}<div class="s">nenhum fornecedor ainda</div>`}</td>
+        <td>${k ? `${lkCk(c.arquivo, `${k.concluidas}/${k.total} tarefas`)}${barra(k.percentual)}${ck ? `<span class="badge ${ck[1]}" style="margin-top:4px">${ck[0]}${k.saldo ? ` (${k.saldo > 0 ? '+' : ''}${k.saldo})` : ''}</span>` : ''}` : '<span class="s">—</span>'}</td>
+        <td>${c.alertas.map((x) => `<div class="${/atraso|atrasado/.test(x) ? 'alerta-li' : 'aviso-li'}">• ${esc(x)}</div>`).join('') || '<span class="s">—</span>'}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
+
+// ---------------- recebimentos ----------------
+let REC = null; let filtroRec = 'todos'; let buscaRec = ''; const abertos = new Set();
+function renderRecebimentos() {
+  const t = REC.totais;
+  document.getElementById('recKpis').innerHTML = `
+    <div class="kpi ok"><div class="r">Recebido</div><div class="v">${moedaK(t.recebido)}</div><div class="s">de ${moeda(t.contratado)} · ${t.casais} contratos</div></div>
+    <div class="kpi"><div class="r">A receber</div><div class="v">${moedaK(t.a_receber)}</div><div class="s">${t.quitados} quitado(s)</div></div>
+    <div class="kpi ${t.atrasado > 0 ? 'alerta' : ''}"><div class="r">Em atraso</div><div class="v">${moeda(t.atrasado)}</div><div class="s">${t.atrasados} contrato(s)</div></div>
+    <div class="kpi"><div class="r">Sem lançamento</div><div class="v">${t.sem_lancamento}</div><div class="s">${moeda(t.sem_lancamento_valor)} em contratos sem nenhum recebimento registrado</div></div>`;
+  const filtros = [['todos', 'Todos'], ['Atrasado', 'Atrasados'], ['Sem lançamento', 'Sem lançamento'], ['Em dia', 'Em dia'], ['Quitado', 'Quitados'], ['AS', 'Assessoria'], ['CE', 'Cerimonial']];
+  document.getElementById('recFiltros').innerHTML = filtros.map(([v, r]) => {
+    const n = REC.itens.filter((i) => v === 'todos' || i.status === v || i.linha === v).length;
+    return `<button class="chip ${filtroRec === v ? 'on' : ''}" data-f="${v}">${r} (${n})</button>`;
+  }).join('') + `<input id="recBusca" placeholder="Buscar casal ou número" value="${esc(buscaRec)}">`;
+  document.querySelectorAll('#recFiltros .chip').forEach((b) => b.onclick = () => { filtroRec = b.dataset.f; renderRecebimentos(); });
+  const busca = document.getElementById('recBusca');
+  busca.oninput = () => { buscaRec = busca.value; desenharTabelaRec(); };
+  desenharTabelaRec();
+}
+function desenharTabelaRec() {
+  const q = buscaRec.trim().toLowerCase();
+  const itens = REC.itens.filter((i) => (filtroRec === 'todos' || i.status === filtroRec || i.linha === filtroRec)
+    && (!q || `${i.casal} ${i.numero_os}`.toLowerCase().includes(q)));
+  document.getElementById('recTabela').innerHTML = `<thead><tr><th>Casal</th><th>Evento</th><th class="n">Contrato</th><th class="n">Recebido</th>
+    <th class="n">A receber</th><th>Próximo</th><th>Situação</th><th></th></tr></thead><tbody>${itens.map((i) => {
+      const prox = i.proxima ? `${esc(i.proxima.descricao)}<div class="s">${moeda(i.proxima.valor)}${i.proxima.vencimento ? ` · ${data(i.proxima.vencimento)}` : ''}</div>` : '<span class="s">—</span>';
+      const det = abertos.has(i.arquivo) ? `<tr class="det"><td colspan="8">${detalheRec(i)}</td></tr>` : '';
+      return `<tr class="clic" data-a="${esc(i.arquivo)}">
+        <td><span class="num">${esc(i.numero_os)}</span><br><b>${esc(i.casal)}</b>${i.divergencia ? '<div class="aviso-li">⚠ conferir valores</div>' : ''}</td>
+        <td style="white-space:nowrap">${i.evento_data ? data(i.evento_data) : `<span class="s">${esc(i.evento_periodo || 'a definir')}</span>`}</td>
+        <td class="n">${moeda(i.total)}</td>
+        <td class="n">${moeda(i.recebido)}${i.total ? barra(i.percentual) : ''}</td>
+        <td class="n">${moeda(i.a_receber)}${i.atrasado ? `<div class="alerta-li">${moeda(i.atrasado)} atrasado</div>` : ''}</td>
+        <td>${prox}</td>
+        <td><span class="badge ${BADGE[i.status] || 'b-neutro'}">${esc(i.status)}</span>${i.fonte && i.fonte !== 'sem lançamento' ? `<div class="s">${esc(i.fonte)}</div>` : ''}</td>
+        <td>${i.total && i.a_receber > 0 ? `<button class="btn" data-rec="${esc(i.arquivo)}">+ Recebimento</button>` : ''}</td></tr>${det}`;
+    }).join('') || '<tr><td colspan="8" class="vazio">Nenhum contrato neste filtro.</td></tr>'}</tbody>`;
+  document.querySelectorAll('#recTabela tr.clic').forEach((tr) => tr.onclick = (e) => {
+    if (e.target.closest('button, a')) return;
+    const a = tr.dataset.a; abertos.has(a) ? abertos.delete(a) : abertos.add(a); desenharTabelaRec();
+  });
+  document.querySelectorAll('#recTabela [data-rec]').forEach((b) => b.onclick = () => abrirRecebimento(b.dataset.rec));
+}
+function detalheRec(i) {
+  const etapas = i.etapas.map((e) => `<li><span class="d">${esc(e.descricao)}${e.vencimento ? ` <span class="s">· vence ${data(e.vencimento)}</span>` : ''}</span>
+    <span class="n">${moeda(e.valor)}</span>
+    <span class="badge ${e.quitada ? 'b-ok' : e.atrasada ? 'b-erro' : e.pago > 0 ? 'b-aviso' : 'b-neutro'}">${e.quitada ? 'recebida' : e.atrasada ? 'atrasada' : e.pago > 0 ? `parcial ${moeda(e.pago)}` : 'a receber'}</span></li>`).join('');
+  const pags = i.pagamentos.length ? i.pagamentos.map((p) => `<li><span class="d">${data(p.data) || 'sem data'} · ${esc(p.tipo)}${p.forma ? ` (${esc(p.forma)})` : ''}${p.importado ? ' <span class="s">· da planilha</span>' : ''}${p.comprovante ? ' · 📎 comprovante' : ''}</span><span class="n">${moeda(p.valor)}</span></li>`).join('')
+    : '<li class="s">Nenhum recebimento registrado.</li>';
+  return `<div class="duas" style="gap:24px"><div><b>Plano do contrato</b><ul class="etapas">${etapas}</ul></div>
+    <div><b>Recebimentos</b><ul class="etapas">${pags}</ul>
+    <div style="margin-top:8px">${lkFin(i.arquivo, 'Abrir o financeiro do casal →')}</div></div></div>
+    ${i.divergencia ? `<div class="aviso-li" style="margin-top:8px">⚠ ${esc(i.divergencia)}</div>` : ''}`;
+}
+
+// ---- diálogo de recebimento ----
+let recAtual = null;
+const dlg = document.getElementById('dlgRec');
+document.getElementById('recForma').innerHTML = FORMAS.map((f) => `<option>${f}</option>`).join('');
+function abrirRecebimento(arquivo) {
+  recAtual = REC.itens.find((i) => i.arquivo === arquivo);
+  if (!recAtual) return;
+  document.getElementById('recCasal').textContent = `${recAtual.numero_os} · ${recAtual.casal} — a receber ${moeda(recAtual.a_receber)}`;
+  const prox = recAtual.proxima;
+  const tipo = !prox ? 'avulso' : /^Entrada/.test(prox.descricao) ? 'entrada' : /^Parcela/.test(prox.descricao) ? 'parcela' : 'avulso';
+  document.getElementById('recTipo').value = tipo;
+  document.getElementById('recValor').value = prox ? String(prox.valor.toFixed(2)).replace('.', ',') : '';
+  document.getElementById('recData').value = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  document.getElementById('recArq').value = '';
+  document.getElementById('recObs').value = '';
+  document.getElementById('recErro').textContent = '';
+  dlg.showModal();
+}
+document.getElementById('recCancelar').onclick = () => dlg.close();
+document.getElementById('formRec').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('recOk'); btn.disabled = true;
+  const arq = document.getElementById('recArq').files[0];
+  const dados = {
+    tipo: document.getElementById('recTipo').value, valor: document.getElementById('recValor').value,
+    data: data(document.getElementById('recData').value), forma: document.getElementById('recForma').value,
+    obs: document.getElementById('recObs').value,
+  };
+  try {
+    const url = `/api/financeiro/enviar?arquivo=${encodeURIComponent(recAtual.arquivo)}&op=recebimento&dados=${encodeURIComponent(JSON.stringify(dados))}`;
+    const r = await fetch(url, { method: 'POST', headers: arq ? { 'X-Nome-Arquivo': encodeURIComponent(arq.name) } : {}, body: arq || '' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || 'Erro');
+    dlg.close();
+    abertos.add(recAtual.arquivo);
+    await carregar();
+  } catch (err) { document.getElementById('recErro').textContent = err.message; }
+  btn.disabled = false;
+});
+
+// ---------------- pagamentos ----------------
+function renderPagamentos(p) {
+  const el = document.getElementById('aba-pagamentos');
+  const tabela = (lista, colData) => lista.length ? `<div class="wrap"><table class="t"><thead><tr><th>${colData}</th><th>Casal</th><th>Fornecedor</th><th>Referente a</th><th class="n">Valor</th><th>PIX</th></tr></thead><tbody>
+    ${lista.map((x) => `<tr><td style="white-space:nowrap">${x.vencimento ? data(x.vencimento) : '<span class="s">sem data</span>'}${x.dias !== undefined && x.vencimento ? `<div class="s">${colData === 'Venceu' ? `há ${x.dias} dia(s)` : colData === 'Evento' && x.dias < 0 ? '' : quando(x.dias)}</div>` : ''}</td>
+      <td><span class="num">${esc(x.numero_os)}</span><br>${lkFin(x.arquivo, x.casal)}</td>
+      <td><b>${esc(x.fornecedor)}</b><div class="s">${esc(x.descricao).slice(0, 60)}</div></td>
+      <td>${esc(x.tipo)}</td><td class="n"><b>${moeda(x.valor)}</b></td><td class="s" style="max-width:220px">${esc(x.pix).slice(0, 80)}</td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="vazio">Nada aqui.</div>';
+  const t = p.totais;
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi ${t.atrasados > 0 ? 'alerta' : ''}"><div class="r">Parcelas atrasadas</div><div class="v">${moeda(t.atrasados)}</div><div class="s">${p.atrasados.length} parcela(s)</div></div>
+      <div class="kpi"><div class="r">Vencem em ${p.dias} dias</div><div class="v">${moeda(t.a_vencer)}</div><div class="s">${p.a_vencer.length} parcela(s)</div></div>
+      <div class="kpi"><div class="r">Quitar antes do evento</div><div class="v">${moeda(t.antes_do_evento)}</div><div class="s">eventos nos próximos ${p.dias_evento} dias</div></div>
+      <div class="kpi"><div class="r">Entradas pendentes</div><div class="v">${moeda(t.entradas)}</div><div class="s">${p.entradas.length} fornecedor(es)</div></div>
+    </div>
+    <div class="card"><h2>Parcelas atrasadas</h2><p class="ajuda">Parcelas com vencimento cadastrado que já passou e ainda não foram registradas como pagas.</p>${tabela(p.atrasados, 'Venceu')}</div>
+    <div class="card"><h2>Vencem nos próximos ${p.dias} dias</h2>${tabela(p.a_vencer, 'Vence')}</div>
+    <div class="card"><h2>A quitar antes do evento</h2><p class="ajuda">Fornecedores com saldo em aberto e sem parcelas cadastradas, de casais que casam nos próximos ${p.dias_evento} dias.</p>${tabela(p.antes_do_evento, 'Evento')}</div>
+    <div class="card"><h2>Entradas pendentes</h2>${tabela(p.entradas, 'Data')}</div>
+    <div class="card"><h2>Eventos realizados com saldo em aberto</h2><p class="ajuda">O casamento já aconteceu, mas a planilha ainda mostra saldo com estes fornecedores —
+      provavelmente pagos e não lançados. Confira e dê baixa no financeiro do casal.</p>${tabela(p.apos_evento, 'Evento')}</div>`;
+  const n = p.atrasados.length + p.a_vencer.length;
+  const badge = document.getElementById('nPag'); badge.hidden = !n; badge.textContent = n;
+}
+
+// ---------------- carga ----------------
+async function carregar() {
+  try {
+    const [painel, rec, pag] = await Promise.all([api('/api/gestao/painel'), api('/api/gestao/recebimentos'), api('/api/gestao/pagamentos')]);
+    PAINEL = painel; REC = rec;
+    renderVisao(); renderCasais(); renderRecebimentos(); renderPagamentos(pag);
+    const n = rec.totais.atrasados; const b = document.getElementById('nRec'); b.hidden = !n; b.textContent = n;
+    document.getElementById('sub').textContent = `Atualizado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;
+  } catch (e) {
+    document.querySelectorAll('section.aba').forEach((s) => { if (!s.querySelector('.kpis')) s.innerHTML = `<div class="card" style="color:var(--erro)">Não foi possível carregar: ${esc(e.message)}</div>`; });
+  }
+}
+mostrarAba();
+carregar();
+</script>
+</body>
+</html>

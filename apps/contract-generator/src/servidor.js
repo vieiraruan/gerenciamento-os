@@ -27,6 +27,7 @@ const ev = require('./evento');
 const planilhaCasal = require('./planilha');
 const evPadrao = require('./eventoPadrao');
 const fin = require('./financeiro');
+const gestao = require('./gestao');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -199,6 +200,11 @@ function enviarFinanceiro(q, arquivoEnviado) {
   } else if (op === 'pagamento') {
     const r = fin.registrarPagamento(f, pasta, dados.id, dados, arquivoEnviado);
     resposta = { comprovante: r.pagamento.comprovante };
+  } else if (op === 'recebimento') {
+    // recebimento da Tayná (contrato de assessoria/cerimonial): cria a linha da Tayná no financeiro se faltar
+    const item = gestao.garantirItemTayna(f, pasta, campos);
+    const r = fin.registrarPagamento(f, pasta, item.id, { ...dados, sem_comprovante: !arquivoEnviado }, arquivoEnviado);
+    resposta = { item_id: item.id, comprovante: r.pagamento.comprovante };
   } else if (op === 'remover-pagamento') {
     fin.removerPagamento(f, dados.id, dados.pagamento_id);
   } else if (op === 'remover') {
@@ -206,8 +212,50 @@ function enviarFinanceiro(q, arquivoEnviado) {
   } else {
     throw new Error('Operação desconhecida.');
   }
-  fin.salvar(DADOS, arquivo, f, campos.numero_os);
+  // só escreve de volta no Google (Apps Script) quando o casal tem planilha do Google copiada
+  const temGoogle = fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`));
+  fin.salvar(DADOS, arquivo, f, temGoogle ? campos.numero_os : undefined);
   return { ok: true, ...resposta, ...fin.resumo(f) };
+}
+
+/**
+ * Financeiro do casal como está agora. Enquanto nada foi lançado no sistema para o casal, acompanha a planilha
+ * (reimporta a aba FINANCEIRO quando a cópia do Google ou o .xlsx é mais novo que a última importação).
+ */
+function financeiroAtual(arquivo, campos, local = null) {
+  const { pasta, existe } = local || acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+  let dados = fin.carregar(DADOS, arquivo);
+  let importado = null;
+  const soImportado = (d) => d && d.importado_de && d.itens.every((i) => i.importado && !i.removido
+    && (i.pagamentos || []).every((p) => p.importado) && !i.contrato && !i.atualizado_em);
+  if (dados && !soImportado(dados)) return { dados, importado };
+  const pl0 = existe ? ev.localizarPlanilha(pasta) : {};
+  const bruto = planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl0.arquivo, campos.numero_os);
+  if (bruto && (!dados || Number(bruto.quando) > Number(dados.importado_de.quando || 0))) {
+    const novo = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
+    if (novo.itens.length || !dados) {
+      dados = novo;
+      dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
+      // só importado: a planilha continua igual, nada a escrever de volta no Google ainda
+      fin.salvar(DADOS, arquivo, dados);
+      importado = dados.itens.length;
+    }
+  }
+  return { dados, importado };
+}
+
+/** Contratos com número + financeiro atual de cada um (para a gestão). */
+function contratosComFinanceiro() {
+  const contratos = listarTxt(DADOS).filter((c) => c.campos.numero_os);
+  const cache = {};
+  const carregarFin = (arquivo) => {
+    if (!(arquivo in cache)) {
+      const c = contratos.find((x) => x.arquivo === arquivo);
+      try { cache[arquivo] = c ? financeiroAtual(arquivo, c.campos).dados : fin.carregar(DADOS, arquivo); } catch { cache[arquivo] = fin.carregar(DADOS, arquivo); }
+    }
+    return cache[arquivo];
+  };
+  return { contratos, carregarFin };
 }
 
 const rotas = {
@@ -215,29 +263,28 @@ const rotas = {
   'GET /api/financeiro': (q) => {
     const { arquivo, campos } = contratoDe(q.get('arquivo'));
     const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
-    let dados = fin.carregar(DADOS, arquivo);
-    let importado = null;
-    // enquanto nada foi lançado no sistema para o casal, acompanha a planilha (reimporta quando ela muda)
-    const soImportado = (d) => d && d.importado_de && d.itens.every((i) => i.importado && !i.removido
-      && (i.pagamentos || []).every((p) => p.importado) && !i.contrato && !i.atualizado_em);
-    const pl0 = ev.localizarPlanilha(pasta);
-    const bruto = (!dados || soImportado(dados)) ? planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl0.arquivo, campos.numero_os) : null;
-    if (bruto && (!dados || Number(bruto.quando) > Number(dados.importado_de.quando || 0))) {
-      {
-        // importa a aba FINANCEIRO da planilha do casal (cópia diária do Google ou .xlsx)
-        dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
-        dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
-        // só importado: a planilha continua igual, nada a escrever de volta no Google ainda
-        fin.salvar(DADOS, arquivo, dados);
-        importado = dados.itens.length;
-      }
-    }
+    const { dados, importado } = financeiroAtual(arquivo, campos, { pasta, existe });
     return {
       ...fin.resumo(dados), importado, sem_dados: !dados, importado_de: dados?.importado_de || null,
       planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet), pasta, pasta_existe: existe,
       fornecedores: fin.listarFornecedores(DADOS), formas: fin.FORMAS, casal: campos.evento_nomes, numero_os: campos.numero_os,
       data_evento: campos.evento_data || '', valor_assessoria: campos.valor_total || '',
     };
+  },
+
+  // ---- Gestão: recebimentos da Tayná, pagamentos de todos os casais, painel ----
+  'GET /api/gestao/recebimentos': () => { const { contratos, carregarFin } = contratosComFinanceiro(); return gestao.recebimentos(contratos, carregarFin); },
+  'GET /api/gestao/pagamentos': (q) => {
+    const { contratos, carregarFin } = contratosComFinanceiro();
+    return gestao.pagamentos(contratos, carregarFin, undefined, { dias: Number(q.get('dias')) || 30 });
+  },
+  'GET /api/gestao/painel': () => {
+    const { contratos, carregarFin } = contratosComFinanceiro();
+    const cronograma = (arquivo, campos) => {
+      const evento = ev.carregarEvento(DADOS, arquivo, campos, {});
+      return montarChecklist(campos, evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao'), undefined, evento).ritmo;
+    };
+    return gestao.painel(contratos, carregarFin, cronograma);
   },
 
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
@@ -479,7 +526,7 @@ const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
