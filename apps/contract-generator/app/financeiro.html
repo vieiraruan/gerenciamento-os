@@ -194,6 +194,7 @@
       <h2>Casais</h2>
       <input id="busca" placeholder="Buscar por nome ou número…" style="margin-bottom:10px">
       <ul class="lista" id="lista"><li class="vazio">Carregando…</li></ul>
+      <p class="salvo" style="margin:8px 2px 0">Só casais de assessoria. Recebimentos dos casais de cerimonial: Painel de gestão.</p>
     </div>
   </aside>
   <main id="principal">
@@ -719,7 +720,8 @@ $('#colOk').onclick = async () => {
 
 (async () => {
   try {
-    contratos = await api('/api/contratos');
+    // só casais de assessoria (AS): os de cerimonial não acompanham fornecedores aqui
+    contratos = (await api('/api/contratos')).filter((c) => /^AS-/i.test(c.numero_os || ''));
     renderLista();
     const pedido = new URLSearchParams(location.search).get('casal');
     if (pedido) selecionar(pedido);

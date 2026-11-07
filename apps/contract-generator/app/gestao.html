@@ -256,7 +256,7 @@ function renderVisao() {
         <h2>Atenção</h2>
         <p class="ajuda">Casais com algo a resolver (recebimento atrasado, fornecedor a pagar, cronograma atrasado ou dado divergente).</p>
         ${comAlerta.length ? `<table class="t">${comAlerta.slice(0, 14).map((c) => `<tr>
-          <td><span class="num">${esc(c.numero_os)}</span><br>${lkFin(c.arquivo, c.casal)}<div class="s">${c.evento_data ? `${data(c.evento_data)} · ${quando(c.dias)}` : esc(c.evento_periodo || 'data a definir')}</div></td>
+          <td><span class="num">${esc(c.numero_os)}</span><br>${c.linha === 'AS' ? lkFin(c.arquivo, c.casal) : `<b>${esc(c.casal)}</b>`}<div class="s">${c.evento_data ? `${data(c.evento_data)} · ${quando(c.dias)}` : esc(c.evento_periodo || 'data a definir')}</div></td>
           <td>${c.alertas.map((x) => `<div class="${/atraso|atrasado/.test(x) ? 'alerta-li' : 'aviso-li'}">• ${esc(x)}</div>`).join('')}</td></tr>`).join('')}</table>
           ${comAlerta.length > 14 ? `<div class="s" style="margin-top:6px">+ ${comAlerta.length - 14} casal(is) — veja a aba <a class="lk" href="#casais">Casais</a>.</div>` : ''}`
           : '<div class="vazio">Nada pendente. 🎉</div>'}
@@ -278,7 +278,7 @@ function renderCasais() {
         <td><span class="num">${esc(c.numero_os)}</span><br><b>${esc(c.casal)}</b></td>
         <td style="white-space:nowrap">${c.evento_data ? `${data(c.evento_data)}<div class="s">${quando(c.dias)}</div>` : `<span class="s">${esc(c.evento_periodo || 'a definir')}</span>`}</td>
         <td>${a.total ? `${moeda(a.recebido)} <span class="s">de ${moeda(a.total)}</span>${barra(a.percentual)}<span class="badge ${BADGE[a.status] || 'b-neutro'}" style="margin-top:4px">${esc(a.status)}</span>` : '<span class="s">sem valor no contrato</span>'}</td>
-        <td>${f && f.quantidade ? `${lkFin(c.arquivo, `${f.quantidade} fornecedor(es)`)}<div class="s">${moeda(f.pago)} pagos · ${moeda(f.saldo)} a pagar</div>${barra(f.percentual)}` : `${lkFin(c.arquivo, 'abrir financeiro')}<div class="s">nenhum fornecedor ainda</div>`}</td>
+        <td>${c.linha !== 'AS' ? '<span class="s">— (cerimonial)</span>' : f && f.quantidade ? `${lkFin(c.arquivo, `${f.quantidade} fornecedor(es)`)}<div class="s">${moeda(f.pago)} pagos · ${moeda(f.saldo)} a pagar</div>${barra(f.percentual)}` : `${lkFin(c.arquivo, 'abrir financeiro')}<div class="s">nenhum fornecedor ainda</div>`}</td>
         <td>${k ? `${lkCk(c.arquivo, `${k.concluidas}/${k.total} tarefas`)}${barra(k.percentual)}${ck ? `<span class="badge ${ck[1]}" style="margin-top:4px">${ck[0]}${k.saldo ? ` (${k.saldo > 0 ? '+' : ''}${k.saldo})` : ''}</span>` : ''}` : '<span class="s">—</span>'}</td>
         <td>${c.alertas.map((x) => `<div class="${/atraso|atrasado/.test(x) ? 'alerta-li' : 'aviso-li'}">• ${esc(x)}</div>`).join('') || '<span class="s">—</span>'}</td>
       </tr>`;
@@ -336,7 +336,7 @@ function detalheRec(i) {
     : '<li class="s">Nenhum recebimento registrado.</li>';
   return `<div class="duas" style="gap:24px"><div><b>Plano do contrato</b><ul class="etapas">${etapas}</ul></div>
     <div><b>Recebimentos</b><ul class="etapas">${pags}</ul>
-    <div style="margin-top:8px">${lkFin(i.arquivo, 'Abrir o financeiro do casal →')}</div></div></div>
+    ${i.linha === 'AS' ? `<div style="margin-top:8px">${lkFin(i.arquivo, 'Abrir o financeiro do casal →')}</div>` : ''}</div></div>
     ${i.divergencia ? `<div class="aviso-li" style="margin-top:8px">⚠ ${esc(i.divergencia)}</div>` : ''}`;
 }
 
