@@ -122,9 +122,54 @@ const arquivoFinanceiro = (dirDados, contratoArquivo) => path.join(dirDados, 'fi
 function carregar(dirDados, contratoArquivo) {
   const arq = arquivoFinanceiro(dirDados, contratoArquivo);
   if (!fs.existsSync(arq)) return null;
-  return JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^﻿/, ''));
+  return aplicarVencimentos(JSON.parse(fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, '')));
 }
 
+// ---------------------------------------------------------------------------
+// Vencimentos do saldo (cadastrados no sistema) — guardados à parte, por fornecedor, para não tirar o casal
+// do acompanhamento da planilha nem reescrever a aba FINANCEIRO no Google; sobrevivem a uma reimportação.
+// ---------------------------------------------------------------------------
+/** Chave estável do fornecedor no financeiro do casal (nome; repetido → nome#2, nome#3...). */
+function chaveItem(fin, item) {
+  const k = chave(item.nome);
+  const iguais = fin.itens.filter((i) => !i.removido && chave(i.nome) === k);
+  const n = iguais.indexOf(item);
+  return n > 0 ? `${k}#${n + 1}` : k;
+}
+
+/** Aplica fin.vencimentos às linhas (nº de parcelas, 1º vencimento e valor da parcela). */
+function aplicarVencimentos(fin) {
+  if (!fin || !fin.vencimentos) return fin;
+  for (const item of fin.itens.filter((i) => !i.removido)) {
+    const v = fin.vencimentos[chaveItem(fin, item)];
+    if (!v) continue;
+    item.parcelas = { ...(item.parcelas || {}), quantidade: v.quantidade, primeiro_vencimento: v.primeiro_vencimento,
+      valor: v.valor, vencimentos_do_sistema: true };
+  }
+  return fin;
+}
+
+/**
+ * Define os vencimentos do que falta pagar: lista de { id, restantes, a_partir (data da próxima parcela), valor? }.
+ * restantes = 0 (ou sem data) remove o que estava cadastrado.
+ */
+function definirVencimentos(fin, lista) {
+  fin.vencimentos = fin.vencimentos || {};
+  for (const x of lista || []) {
+    const item = fin.itens.find((i) => i.id === x.id);
+    if (!item) continue;
+    const k = chaveItem(fin, item);
+    const restantes = Number(x.restantes) || 0;
+    const aPartir = dataDe(x.a_partir) || (/^\d{4}-\d{2}-\d{2}$/.test(x.a_partir || '') ? x.a_partir : '');
+    if (!restantes || !aPartir) { delete fin.vencimentos[k]; continue; }
+    // parcelas já pagas (lançadas como parcela ou contadas na importação)
+    const pagas = (item.pagamentos || []).filter((p) => p.tipo === 'parcela').length + (Number(item.parcelas?.pagas_importadas) || 0);
+    const c = calcular({ ...item, parcelas: { ...item.parcelas, quantidade: 0, primeiro_vencimento: '' } });
+    const valor = valorDe(x.valor) || (c.saldo > 0 ? r2(c.saldo / restantes) : null);
+    fin.vencimentos[k] = { quantidade: pagas + restantes, primeiro_vencimento: somarMeses(aPartir, -pagas), valor, definido_em: agora() };
+  }
+  return aplicarVencimentos(fin);
+}
 function salvar(dirDados, contratoArquivo, fin, numeroOs) {
   const arq = arquivoFinanceiro(dirDados, contratoArquivo);
   fs.mkdirSync(path.dirname(arq), { recursive: true });
@@ -459,7 +504,7 @@ function gravarParaGoogle(dirDados, numeroOs, fin) {
 module.exports = {
   FORMAS, TIPOS_PAGAMENTO, valorDe, dataDe, dataBr, moeda,
   listarFornecedores, obterFornecedor, salvarFornecedor, textoPagamento,
-  carregar, salvar, novoFinanceiro, calcular, resumo,
+  carregar, salvar, novoFinanceiro, calcular, resumo, aplicarVencimentos, definirVencimentos,
   acharPastaExistente, garantirPasta, gravarArquivo,
   adicionarItem, atualizarItem, registrarPagamento, removerPagamento,
   importarLinhas, linhasParaGoogle, gravarParaGoogle,

@@ -235,7 +235,8 @@ function financeiroAtual(arquivo, campos, local = null) {
   if (bruto && (!dados || Number(bruto.quando) > Number(dados.importado_de.quando || 0))) {
     const novo = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
     if (novo.itens.length || !dados) {
-      dados = novo;
+      if (dados && dados.vencimentos) novo.vencimentos = dados.vencimentos; // vencimentos cadastrados no sistema continuam
+      dados = fin.aplicarVencimentos(novo);
       dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
       // só importado: a planilha continua igual, nada a escrever de volta no Google ainda
       fin.salvar(DADOS, arquivo, dados);
@@ -297,6 +298,17 @@ const rotas = {
     return { ...painel, recebimentos: gestao.recebimentos(contratos, carregarFin), pagamentos: gestao.pagamentos(contratos, carregarFin) };
   },
 
+  // vencimentos do saldo de cada fornecedor (não muda a planilha nem tira o casal do acompanhamento dela)
+  'POST /api/financeiro/vencimentos': (q, corpo) => {
+    const { arquivo } = contratoDe(corpo.arquivo);
+    const f = fin.carregar(DADOS, arquivo);
+    if (!f) throw new Error('Este casal ainda não tem financeiro.');
+    fin.definirVencimentos(f, corpo.itens || []);
+    fin.salvar(DADOS, arquivo, f);
+    limparCacheFin();
+    return { ok: true, ...fin.resumo(f) };
+  },
+
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
   'POST /api/fornecedores': (q, corpo) => fin.salvarFornecedor(DADOS, corpo.fornecedor || {}),
 
@@ -314,6 +326,7 @@ const rotas = {
       : planilhaCasal.linhasFinanceiro(DADOS, arquivo, pl.arquivo, campos.numero_os);
     if (!bruto) throw new Error('Ainda não há cópia da aba FINANCEIRO deste casal: use "Colar da planilha" (ou instale a cópia diária do Google).');
     const dados = fin.importarLinhas(bruto.linhas, existe ? pasta : null);
+    if (atual && atual.vencimentos) { dados.vencimentos = atual.vencimentos; fin.aplicarVencimentos(dados); }
     if (!dados.itens.length) throw new Error('Não encontrei fornecedores no que foi colado. Copie a aba FINANCEIRO a partir da linha do cabeçalho (Fornecedor) até o TOTAL.');
     dados.importado_de = { ...bruto.fonte, quando: bruto.quando, em: new Date().toISOString() };
     fin.salvar(DADOS, arquivo, dados);

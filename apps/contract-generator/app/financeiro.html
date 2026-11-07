@@ -319,6 +319,7 @@ function renderLista() {
 }
 
 async function selecionar(arquivo) {
+  if (arquivo !== atual) vencAberto = null;
   if (arquivo !== atual) aberto = new Set();
   atual = arquivo; renderLista();
   $('#principal').innerHTML = '<div class="card"><div class="vazio">Carregando financeiro…</div></div>';
@@ -375,6 +376,8 @@ function render() {
       </div>
     </div>
 
+    ${cardVencimentos()}
+
     <div class="card"><h2>Controle financeiro</h2>
       <div style="overflow-x:auto"><table class="fin">
         <tr><th>Nº</th><th>Fornecedor</th><th>Contratado</th><th>Entrada</th><th>Parcelas</th><th>Pago</th><th>Restante</th><th>Status</th><th></th></tr>
@@ -382,6 +385,7 @@ function render() {
         <tr class="total"><td></td><td>TOTAL</td><td class="n">${brl(t.contratado)}</td><td></td><td></td><td class="n">${brl(t.pago)}</td><td class="n">${brl(t.saldo)}</td><td colspan="2"></td></tr>
       </table></div>
     </div>`;
+  ligarVencimentos();
   $('#btnNovo').onclick = () => abrirFornecedor(null);
   $('#abrirPasta').onclick = () => abrir(D.pasta);
   if ($('#btnReimportar')) $('#btnReimportar').onclick = reimportar;
@@ -402,6 +406,65 @@ function render() {
     if (!confirm('Tirar este fornecedor do financeiro do casal? (A pasta e os arquivos continuam no Drive.)')) return;
     await enviar('remover', { id: b.dataset.rmitem }); selecionar(atual);
   });
+}
+
+// ---- Vencimentos do saldo (próximas parcelas de cada fornecedor) ----
+let vencAberto = null;
+const isoEvento = () => { const d = dataContrato(D.data_evento); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : ''; };
+const menosDias = (iso, n) => { if (!iso) return ''; const [a, m, d] = iso.split('-').map(Number); const x = new Date(a, m - 1, d - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+function linhasVenc() {
+  // a linha da própria Tayná fica de fora: os recebimentos dela seguem o contrato (Painel de gestão)
+  const ehTayna = (i) => /\btayna\b/.test(String(i.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+  return D.itens.filter((i) => i.calc.saldo !== null && i.calc.saldo > 0.009 && !ehTayna(i)).map((i) => {
+    const prox = i.calc.vencimentos.filter((v) => !v.paga);
+    const faltam = prox.length || Math.max(1, (i.calc.parcelas_total || 0) - (i.calc.parcelas_pagas || 0));
+    return { i, prox, faltam, temData: prox.length > 0 };
+  });
+}
+function cardVencimentos() {
+  const linhas = linhasVenc();
+  if (!linhas.length) return '';
+  const sem = linhas.filter((l) => !l.temData).length;
+  if (vencAberto === null) vencAberto = false;
+  const evento = isoEvento();
+  const padrao = evento && evento > hoje() ? menosDias(evento, 15) : '';
+  return `<div class="card" id="cardVenc"><h2 style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <span>Vencimentos do que falta pagar</span>
+      <button class="btn peq" id="btnVenc">${vencAberto ? 'Fechar' : sem ? `Cadastrar datas (${sem} sem data)` : 'Editar datas'}</button></h2>
+    <p class="salvo" style="margin:0 0 8px">${sem ? `<b style="color:var(--aviso)">${sem} de ${linhas.length} fornecedor(es) com saldo não têm data de vencimento</b> — sem data, eles não aparecem nos avisos de atrasados e a vencer.`
+      : `Todos os ${linhas.length} fornecedor(es) com saldo têm data de vencimento.`} As datas ficam só no sistema: não mudam a planilha.</p>
+    ${vencAberto ? `<div style="overflow-x:auto"><table class="fin" id="tabVenc">
+      <tr><th>Fornecedor</th><th>A pagar</th><th>Já pagas</th><th>Parcelas que faltam</th><th>Próximo vencimento</th><th>Valor da parcela</th></tr>
+      ${linhas.map(({ i, prox, faltam }) => `<tr data-id="${i.id}">
+        <td>${esc(i.nome)}<div class="salvo">${esc(i.descricao || '').slice(0, 50)}</div></td>
+        <td class="n">${brl(i.calc.saldo)}</td>
+        <td class="n">${i.calc.parcelas_pagas || 0}</td>
+        <td><input type="number" min="0" max="48" data-c="restantes" value="${faltam}" style="width:80px"></td>
+        <td><input type="date" data-c="a_partir" value="${prox[0]?.vencimento || padrao}"></td>
+        <td><input data-c="valor" inputmode="decimal" placeholder="${brl(i.calc.saldo / faltam)}" value="${prox.length && i.parcelas?.vencimentos_do_sistema ? String((prox[0].valor || 0).toFixed(2)).replace('.', ',') : ''}" style="width:120px"></td>
+      </tr>`).join('')}</table></div>
+      <div class="linha-acoes"><button class="btn primario" id="btnVencSalvar">Salvar vencimentos</button>
+        <span class="salvo">Uma parcela só = quitar o saldo até a data. Valor vazio = saldo dividido pelas parcelas que faltam. Data vazia = sem vencimento.${padrao ? ` Data sugerida: 15 dias antes do evento.` : ''}</span></div>
+      <div id="vencMsg"></div>` : ''}
+  </div>`;
+}
+function ligarVencimentos() {
+  const b = $('#btnVenc'); if (!b) return;
+  b.onclick = () => { vencAberto = !vencAberto; render(); };
+  document.querySelectorAll('#tabVenc input[data-c=restantes]').forEach((inp) => inp.oninput = () => {
+    const tr = inp.closest('tr'); const it = D.itens.find((x) => x.id === tr.dataset.id); const n = Number(inp.value) || 1;
+    tr.querySelector('[data-c=valor]').placeholder = brl(it.calc.saldo / n);
+  });
+  const s = $('#btnVencSalvar'); if (!s) return;
+  s.onclick = async () => {
+    const itens = [...document.querySelectorAll('#tabVenc tr[data-id]')].map((tr) => ({
+      id: tr.dataset.id, restantes: tr.querySelector('[data-c=restantes]').value,
+      a_partir: tr.querySelector('[data-c=a_partir]').value, valor: tr.querySelector('[data-c=valor]').value,
+    }));
+    s.disabled = true;
+    try { await api('/api/financeiro/vencimentos', { arquivo: atual, itens }); vencAberto = false; await selecionar(atual); }
+    catch (e) { $('#vencMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; s.disabled = false; }
+  };
 }
 
 function linhaItem(i) {
