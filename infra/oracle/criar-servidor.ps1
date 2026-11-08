@@ -1,4 +1,4 @@
-<#
+﻿<#
   Cria a máquina do Lotus online na Oracle (plano Sempre Gratuito) e liga o IP fixo a ela.
 
   O plano gratuito costuma responder "Out of host capacity" para máquinas ARM; o script tenta de novo a cada
@@ -16,11 +16,13 @@ param(
   [string] $Perfil = 'LOTUS',
   [string] $Ad = 'dkax:SA-SAOPAULO-1-AD-1',
   [string] $ChaveSsh = "$env:USERPROFILE\.ssh\lotus_oci.pub",
-  [string] $CloudInit = (Join-Path $PSScriptRoot 'cloud-init.yaml'),
+  [string] $CloudInit = '',
   [int] $Intervalo = 10,
   [int] $Dias = 7
 )
 $env:SUPPRESS_LABEL_WARNING = 'True'
+# No Windows PowerShell 5.1, $PSScriptRoot ainda é vazio nos valores padrão do param()
+if (-not $CloudInit) { $CloudInit = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'cloud-init.yaml' }
 $pasta = Join-Path $env:LOCALAPPDATA 'TaynaAlves'
 New-Item -ItemType Directory -Force $pasta | Out-Null
 $log = Join-Path $pasta 'lotus-servidor.log'
