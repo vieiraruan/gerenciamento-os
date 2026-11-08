@@ -30,17 +30,39 @@ const RAIZ = path.resolve(__dirname, '..');
 const NOME_SAIDA = 'CONTRATOS GERADOS';
 const NOME_DADOS = '_DADOS DO SISTEMA';
 
-/** Procura a pasta CONTRATOS do Google Drive para computador. */
+/** Pasta CONTRATOS escolhida no instalador (%LOCALAPPDATA%\\TaynaAlves\\pasta-contratos.txt). */
+function pastaEscolhida() {
+  const base = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const arq = path.join(base, 'TaynaAlves', 'pasta-contratos.txt');
+  try {
+    const p = fs.readFileSync(arq, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)[0].trim();
+    return p && fs.statSync(p).isDirectory() ? path.resolve(p) : null;
+  } catch { return null; }
+}
+
+/**
+ * Procura a pasta CONTRATOS do Google Drive para computador: a escolhida no instalador; senão, em todas as
+ * contas (G:, H:...), drives compartilhados e pastas espelho — de preferência a que tem _DADOS DO SISTEMA.
+ */
 function encontrarDrive() {
   if (process.env.CONTRATOS_DRIVE) {
     return fs.existsSync(process.env.CONTRATOS_DRIVE) ? path.resolve(process.env.CONTRATOS_DRIVE) : null;
   }
+  const escolhida = pastaEscolhida();
+  if (escolhida) return escolhida;
   const nomes = ['Meu Drive', 'My Drive'];
   const candidatos = [];
+  const eDir = (c) => { try { return fs.statSync(c).isDirectory(); } catch { return false; } };
   if (process.platform === 'win32') {
-    // modo "streaming": unidade virtual (normalmente G:)
+    // modo "streaming": uma unidade virtual por conta (normalmente G:)
     for (const letra of 'GHIJKLMNOPQRSTUVWXYZDEF') {
       for (const n of nomes) candidatos.push(`${letra}:\\${n}\\CONTRATOS`);
+      for (const n of ['Drives compartilhados', 'Shared drives']) {
+        const dc = `${letra}:\\${n}`;
+        if (eDir(dc)) {
+          try { for (const d of fs.readdirSync(dc)) candidatos.push(path.join(dc, d, 'CONTRATOS')); } catch { /* sem acesso */ }
+        }
+      }
     }
   }
   // modo "espelho" e macOS
@@ -55,9 +77,8 @@ function encontrarDrive() {
       for (const n of nomes) candidatos.push(path.join(cloud, conta, n, 'CONTRATOS'));
     }
   }
-  return candidatos.find((c) => {
-    try { return fs.statSync(c).isDirectory(); } catch { return false; }
-  }) || null;
+  const achadas = candidatos.filter(eDir);
+  return achadas.find((c) => eDir(path.join(c, NOME_SAIDA, NOME_DADOS))) || achadas[0] || null;
 }
 
 /**

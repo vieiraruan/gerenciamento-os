@@ -80,23 +80,74 @@ function AcharSoffice {
   }
   return $null
 }
-function AcharDrive {
+# Pasta CONTRATOS escolhida/confirmada (o aplicativo lê o mesmo arquivo)
+$CONFIG_LOCAL = Join-Path $env:LOCALAPPDATA 'TaynaAlves'
+$ARQ_CONTRATOS = Join-Path $CONFIG_LOCAL 'pasta-contratos.txt'
+function RaizesDrive {
+  # todas as raízes do Google Drive para computador: cada conta é uma unidade (G:, H:...) ou pasta espelho
+  $r = New-Object System.Collections.ArrayList
   foreach ($letra in 'GHIJKLMNOPQRSTUVWXYZDEF'.ToCharArray()) {
-    foreach ($n in 'Meu Drive', 'My Drive') {
+    foreach ($n in 'Meu Drive', 'My Drive') { $p = "$($letra):\$n"; if (Test-Path -LiteralPath $p) { [void]$r.Add($p) } }
+    foreach ($n in 'Drives compartilhados', 'Shared drives') {
       $p = "$($letra):\$n"
-      if (Test-Path -LiteralPath $p) { return $p }
+      if (Test-Path -LiteralPath $p) { Get-ChildItem -LiteralPath $p -Directory -ErrorAction SilentlyContinue | ForEach-Object { [void]$r.Add($_.FullName) } }
     }
   }
-  foreach ($n in 'Meu Drive', 'My Drive') {
-    $p = Join-Path $env:USERPROFILE $n
-    if (Test-Path -LiteralPath $p) { return $p }
+  foreach ($n in 'Meu Drive', 'My Drive', 'Google Drive\Meu Drive', 'Google Drive\My Drive') {
+    $p = Join-Path $env:USERPROFILE $n; if (Test-Path -LiteralPath $p) { [void]$r.Add($p) }
   }
+  return $r
+}
+function AcharDrive {
+  $raizes = RaizesDrive
+  if ($raizes.Count) { return $raizes[0] }
   return $null
+}
+# Pasta CONTRATOS da empresa (com CONTRATOS GERADOS\_DADOS DO SISTEMA, de preferência)
+function AcharContratos {
+  if (Test-Path -LiteralPath $ARQ_CONTRATOS) {
+    $p = (Get-Content -LiteralPath $ARQ_CONTRATOS -Encoding UTF8 -ErrorAction SilentlyContinue | Select-Object -First 1)
+    if ($p -and (Test-Path -LiteralPath $p.Trim())) { return $p.Trim() }
+  }
+  $achadas = @()
+  foreach ($raiz in RaizesDrive) {
+    $c = Join-Path $raiz 'CONTRATOS'
+    if (Test-Path -LiteralPath $c) { $achadas += $c }
+  }
+  $comDados = $achadas | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'CONTRATOS GERADOS\_DADOS DO SISTEMA') } | Select-Object -First 1
+  if ($comDados) { return $comDados }
+  return ($achadas | Select-Object -First 1)
+}
+function GuardarContratos([string]$p) {
+  New-Item -ItemType Directory -Force $CONFIG_LOCAL | Out-Null
+  Set-Content -LiteralPath $ARQ_CONTRATOS -Value $p -Encoding UTF8
+}
+function ExeDrive {
+  $base = "$env:ProgramFiles\Google\Drive File Stream"
+  if (-not (Test-Path $base)) { return $null }
+  $exe = Get-ChildItem $base -Recurse -Filter 'GoogleDriveFS.exe' -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+  if ($exe) { return $exe.FullName }
+  return $null
+}
+function AbrirDrive {
+  # o Drive instalado mas fechado não monta a unidade G:
+  if (Get-Process GoogleDriveFS -ErrorAction SilentlyContinue) { return $true }
+  $exe = ExeDrive
+  if (-not $exe) { return $false }
+  Log "Abrindo o Google Drive: $exe"
+  try { Start-Process $exe | Out-Null } catch { Log "Não abriu: $($_.Exception.Message)"; return $false }
+  return $true
 }
 function DestinoPadrao {
   $aqui = if ($env:INSTALADOR) { Split-Path -Parent $env:INSTALADOR } else { '' }
   if ($aqui -and (Test-Path (Join-Path $aqui '.git'))) { return $aqui }
-  return Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'gerenciamento-os'
+  $docs = [Environment]::GetFolderPath('MyDocuments')
+  $emDocs = Join-Path $docs 'gerenciamento-os'
+  # instalação antiga em Documentos (fora do OneDrive) continua onde está
+  if ((Test-Path (Join-Path $emDocs '.git')) -and $docs -notmatch 'OneDrive') { return $emDocs }
+  # Documentos no OneDrive: as bibliotecas (node_modules) falham sincronizando; instala fora dele
+  if ($docs -match 'OneDrive' -or -not $docs) { return Join-Path $env:USERPROFILE 'TaynaAlves\gerenciamento-os' }
+  return $emDocs
 }
 
 function Log([string]$texto) {
@@ -318,6 +369,8 @@ function Rodar-Instalacao {
   $instalarDrive  = if ($GUI) { $script:chkDrive.Checked } else { -not $SemDrive }
   $dest = if ($GUI) { $script:txtDestino.Text.Trim() } elseif ($Destino) { $Destino } else { DestinoPadrao }
   Log "Instalação iniciada em $(Get-Date) | destino: $dest"
+  Log ("Windows: " + [Environment]::OSVersion.VersionString + " | usuário: $env:USERNAME | computador: $env:COMPUTERNAME | Documentos: " + [Environment]::GetFolderPath('MyDocuments'))
+  if ($dest -match 'OneDrive') { Log 'ATENÇÃO: a pasta do sistema está no OneDrive; isso costuma quebrar o npm.' }
 
   # 1. winget
   Etapa-Inicio 'winget'
@@ -364,15 +417,36 @@ function Rodar-Instalacao {
 
   # 5. Google Drive
   Etapa-Inicio 'drive'
-  $drive = AcharDrive
-  $driveApp = Test-Path "$env:ProgramFiles\Google\Drive File Stream"
-  if ($drive) { Etapa-Fim 'ok' "Conectado em $drive" }
-  elseif (-not $instalarDrive) { Etapa-Fim 'pulada' 'Não instalar: contratos ficam numa pasta local' }
-  elseif ($driveApp) { Etapa-Fim 'aviso' 'Instalado, mas sem conta conectada: abra o Google Drive e entre com a conta da empresa.' }
-  else {
-    if (-not (Winget 'Google.GoogleDrive' 'Google Drive')) { DriveDireto }
-    Etapa-Fim 'aviso' 'Abra o Google Drive e entre com contatotaynaassessoria@gmail.com; depois rode o instalador de novo.'
+  $contratos = AcharContratos
+  if (-not $contratos -and $instalarDrive) {
+    $driveApp = [bool](ExeDrive)
+    if (-not $driveApp) {
+      if (-not (Winget 'Google.GoogleDrive' 'Google Drive')) { DriveDireto }
+      AtualizarPath
+    }
+    if (AbrirDrive) {
+      # espera a unidade do Drive aparecer (até ~60 s)
+      for ($i = 0; $i -lt 30 -and -not $contratos -and -not $script:cancelado; $i++) {
+        Etapa-Detalhe "Esperando o Google Drive conectar... ($([int](($i + 1) * 2)) s)"
+        Start-Sleep -Seconds 2; Bombear
+        $contratos = AcharContratos
+      }
+    }
   }
+  $raizes = RaizesDrive
+  if ($contratos) {
+    GuardarContratos $contratos
+    $temDados = Test-Path -LiteralPath (Join-Path $contratos 'CONTRATOS GERADOS\_DADOS DO SISTEMA')
+    if ($temDados) { Etapa-Fim 'ok' "Pasta CONTRATOS: $contratos" }
+    else { Etapa-Fim 'aviso' "Pasta CONTRATOS em $contratos, mas sem CONTRATOS GERADOS\_DADOS DO SISTEMA (é a pasta da empresa?)" }
+  }
+  elseif (-not $instalarDrive) { Etapa-Fim 'pulada' 'Não instalar: contratos ficam numa pasta local' }
+  elseif ($raizes.Count) {
+    $raizes | ForEach-Object { Log "Drive encontrado sem a pasta CONTRATOS: $_" }
+    Etapa-Fim 'aviso' "O Google Drive está em $($raizes[0]), mas sem a pasta CONTRATOS: entre com contatotaynaassessoria@gmail.com no Google Drive (ou use 'Escolher pasta CONTRATOS')."
+  }
+  elseif (ExeDrive) { Etapa-Fim 'aviso' 'Google Drive instalado, mas não conectado: abra o Google Drive (ícone perto do relógio), entre com contatotaynaassessoria@gmail.com e clique em Tentar de novo.' }
+  else { Etapa-Fim 'aviso' 'Google Drive não foi instalado: baixe em google.com/drive/download, entre com a conta da empresa e clique em Tentar de novo.' }
   if ($script:cancelado) { return }
 
   # 6. Projeto
@@ -409,24 +483,46 @@ function Rodar-Instalacao {
     $cmdNpm = if (Test-Path (Join-Path $app 'package-lock.json')) { 'ci' } else { 'install' }
     Etapa-Detalhe "Instalando bibliotecas (npm $cmdNpm)..."
     $rc = Executar 'cmd.exe' @('/d', '/c', 'npm.cmd', $cmdNpm, '--no-audit', '--no-fund', '--loglevel=error') $app
-    if ($rc -ne 0) { Etapa-Fim 'erro' "npm $cmdNpm falhou (veja os detalhes)." }
+    if ($rc -ne 0) {
+      # segunda tentativa: limpa o que ficou pela metade (arquivo preso por antivírus/OneDrive) e usa npm install
+      Etapa-Detalhe 'Primeira tentativa falhou; limpando e tentando de novo...'
+      try { Remove-Item -LiteralPath (Join-Path $app 'node_modules') -Recurse -Force -ErrorAction Stop } catch { Log "Não deu para limpar node_modules: $($_.Exception.Message)" }
+      [void](Executar 'cmd.exe' @('/d', '/c', 'npm.cmd', 'cache', 'verify') $app)
+      $rc = Executar 'cmd.exe' @('/d', '/c', 'npm.cmd', 'install', '--no-audit', '--no-fund', '--loglevel=error') $app
+    }
+    if ($rc -ne 0) {
+      $dicaNpm = if ($app -match 'OneDrive') { ' A pasta está no OneDrive: escolha outra pasta (ex.: C:\TaynaAlves) em Alterar... e tente de novo.' } else { ' Veja os detalhes; antivírus ou falta de internet costumam ser a causa.' }
+      Etapa-Fim 'erro' ("Falha ao instalar as bibliotecas (npm)." + $dicaNpm)
+    }
     else {
       Etapa-Detalhe 'Verificando o aplicativo...'
-      Push-Location $app
-      $teste = & node -e "require('docxtemplater');require('pizzip');require('extenso');const p=require('./src/pastas').resolverPastas();console.log(p.modo+'|'+p.saida+'|'+p.dados)" 2>$null
-      $okTeste = ($LASTEXITCODE -eq 0) -and $teste
+      # teste num arquivo (sem problemas de aspas) e com a mensagem de erro no registro
+      $teste = Join-Path $env:TEMP 'verificar-tayna-alves.js'
+      Set-Content -LiteralPath $teste -Encoding UTF8 -Value @"
+process.chdir(process.argv[2]);
+for (const m of ['docxtemplater', 'pizzip', 'extenso']) require(require.resolve(m, { paths: [process.argv[2]] }));
+const p = require(require('path').join(process.argv[2], 'src', 'pastas.js')).resolverPastas();
+console.log([p.modo, p.saida, p.dados].join('|'));
+"@
+      $saidaTeste = & node $teste $app 2>&1
+      $rcTeste = $LASTEXITCODE
+      $saidaTeste | ForEach-Object { Log "$_" }
+      $linhaOk = $saidaTeste | Where-Object { "$_" -match '^(drive|local|manual)\|' } | Select-Object -Last 1
+      $okTeste = ($rcTeste -eq 0) -and $linhaOk
       if ($okTeste) {
-        $modo, $saida, $dados = "$teste".Split('|')
+        $modo, $saida, $dados = "$linhaOk".Split('|')
         Log "modo=$modo saida=$saida dados=$dados"
-        if ($modo -ne 'drive' -and -not (Test-Path 'config\empresa.json')) {
-          Copy-Item 'config\empresa.exemplo.json' 'config\empresa.json'
+        if ($modo -ne 'drive' -and -not (Test-Path (Join-Path $app 'config\empresa.json'))) {
+          Copy-Item (Join-Path $app 'config\empresa.exemplo.json') (Join-Path $app 'config\empresa.json')
           Log 'Criado config\empresa.json de exemplo (preencher com os dados da empresa).'
         }
       }
-      Pop-Location
-      if (-not $okTeste) { Etapa-Fim 'erro' 'O aplicativo não passou na verificação.' }
+      if (-not $okTeste) {
+        $erroTeste = ($saidaTeste | Where-Object { "$_" -match 'Error|Erro|Cannot' } | Select-Object -First 1)
+        Etapa-Fim 'erro' ("O aplicativo não passou na verificação" + $(if ($erroTeste) { ": $erroTeste" } else { ' (veja os detalhes).' }))
+      }
       elseif ($modo -eq 'drive') { Etapa-Fim 'ok' "Pronto; contratos no Drive ($saida)" }
-      else { Etapa-Fim 'aviso' "Pronto, mas sem Drive: contratos em $saida" }
+      else { Etapa-Fim 'aviso' "Pronto, mas sem a pasta CONTRATOS do Drive: o aplicativo vai usar $saida até o Drive conectar" }
     }
   }
   if ($script:cancelado) { return }
@@ -458,6 +554,22 @@ function Rodar-Instalacao {
   }
 }
 
+# Cópia do registro na Área de Trabalho (e na pasta gerenciamento-os do Drive, se houver) para mandar ao suporte
+function Copiar-Registro {
+  try {
+    $desk = [Environment]::GetFolderPath('Desktop')
+    Copy-Item -LiteralPath $LOG -Destination (Join-Path $desk 'Registro da instalacao - Tayna Alves.txt') -Force
+    $raiz = AcharDrive
+    if ($raiz) {
+      $pasta = Join-Path $raiz 'gerenciamento-os\registros'
+      if (Test-Path -LiteralPath (Join-Path $raiz 'gerenciamento-os')) {
+        New-Item -ItemType Directory -Force $pasta | Out-Null
+        Copy-Item -LiteralPath $LOG -Destination (Join-Path $pasta ("$env:COMPUTERNAME-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')) -Force
+      }
+    }
+  } catch {}
+}
+
 # ---------------------------------------------------------------------------
 # Modo texto (-SemInterface)
 # ---------------------------------------------------------------------------
@@ -466,6 +578,7 @@ if (-not $GUI) {
   Write-Host '  Tayná Alves Assessoria - instalação / atualização do sistema' -ForegroundColor Magenta
   Write-Host "  Registro: $LOG"
   Rodar-Instalacao
+  Copiar-Registro
   Write-Host ''
   if ($script:falhas.Count) {
     Write-Host "  Terminou com $($script:falhas.Count) problema(s). Veja o registro: $LOG" -ForegroundColor Red
@@ -546,7 +659,7 @@ $topo.Controls.Add($sub)
 
 # Opções
 $grp = New-Object System.Windows.Forms.GroupBox
-$grp.Text = 'Opções'; $grp.SetBounds(18, 122, 624, 112); $grp.ForeColor = $COR_MARCA
+$grp.Text = 'Opções'; $grp.SetBounds(18, 122, 624, 146); $grp.ForeColor = $COR_MARCA
 $form.Controls.Add($grp)
 $lblDest = New-Object System.Windows.Forms.Label
 $lblDest.Text = 'Pasta do sistema:'; $lblDest.ForeColor = [System.Drawing.Color]::Black
@@ -574,10 +687,38 @@ $script:chkDrive.Text = 'Instalar Google Drive para computador se faltar (pasta 
 $script:chkDrive.Checked = -not $SemDrive; $script:chkDrive.ForeColor = [System.Drawing.Color]::Black
 $script:chkDrive.SetBounds(14, 80, 590, 24)
 $grp.Controls.Add($script:chkDrive)
+$lblCont = New-Object System.Windows.Forms.Label
+$lblCont.Text = 'Pasta CONTRATOS:'; $lblCont.ForeColor = [System.Drawing.Color]::Black
+$lblCont.AutoSize = $true; $lblCont.Location = New-Object System.Drawing.Point(14, 113)
+$grp.Controls.Add($lblCont)
+$script:txtContratos = New-Object System.Windows.Forms.TextBox
+$script:txtContratos.SetBounds(130, 110, 280, 24); $script:txtContratos.ReadOnly = $true
+$script:txtContratos.Text = $(try { $c = AcharContratos; if ($c) { $c } else { '(não encontrada: abra o Google Drive)' } } catch { '' })
+$grp.Controls.Add($script:txtContratos)
+$btnCont = New-Object System.Windows.Forms.Button
+$btnCont.Text = 'Escolher...'; $btnCont.SetBounds(418, 108, 92, 28); $btnCont.ForeColor = [System.Drawing.Color]::Black
+$btnCont.Add_Click({
+  $d = New-Object System.Windows.Forms.FolderBrowserDialog
+  $d.Description = 'Escolha a pasta CONTRATOS da empresa no Google Drive (a que tem ASSESSORIA, CERIMONIAL e CONTRATOS GERADOS)'
+  $d.ShowNewFolderButton = $false
+  if ($d.ShowDialog() -eq 'OK') {
+    $sel = $d.SelectedPath
+    if ((Split-Path $sel -Leaf) -ne 'CONTRATOS' -and (Test-Path -LiteralPath (Join-Path $sel 'CONTRATOS'))) { $sel = Join-Path $sel 'CONTRATOS' }
+    GuardarContratos $sel; $script:txtContratos.Text = $sel
+  }
+})
+$grp.Controls.Add($btnCont)
+$btnDrive = New-Object System.Windows.Forms.Button
+$btnDrive.Text = 'Abrir Drive'; $btnDrive.SetBounds(518, 108, 92, 28); $btnDrive.ForeColor = [System.Drawing.Color]::Black
+$btnDrive.Add_Click({
+  if (-not (AbrirDrive)) { [System.Windows.Forms.MessageBox]::Show('Google Drive para computador não está instalado. Clique em Instalar (com a opção do Google Drive marcada) ou baixe em google.com/drive/download.', 'Google Drive') | Out-Null }
+  else { [System.Windows.Forms.MessageBox]::Show('O Google Drive foi aberto. Entre com contatotaynaassessoria@gmail.com (ícone do Drive perto do relógio) e depois clique em Instalar / Tentar de novo.', 'Google Drive') | Out-Null }
+})
+$grp.Controls.Add($btnDrive)
 
 # Lista de etapas
 $painel = New-Object System.Windows.Forms.Panel
-$painel.SetBounds(18, 244, 624, 8 * 34 + 12); $painel.BackColor = [System.Drawing.Color]::White
+$painel.SetBounds(18, 278, 624, 8 * 34 + 12); $painel.BackColor = [System.Drawing.Color]::White
 $painel.BorderStyle = 'FixedSingle'
 $form.Controls.Add($painel)
 $script:linhas = @{}
@@ -607,15 +748,15 @@ foreach ($e in $ETAPAS) { Definir-Status $e.id 'pendente' 'aguardando' }
 # Progresso
 $script:lblAtual = New-Object System.Windows.Forms.Label
 $script:lblAtual.Text = 'Clique em Instalar para começar.'; $script:lblAtual.ForeColor = $COR_SUAVE
-$script:lblAtual.SetBounds(18, 538, 624, 20)
+$script:lblAtual.SetBounds(18, 572, 624, 20)
 $form.Controls.Add($script:lblAtual)
 $script:barra = New-Object System.Windows.Forms.ProgressBar
-$script:barra.SetBounds(18, 560, 624, 16); $script:barra.Maximum = $ETAPAS.Count
+$script:barra.SetBounds(18, 594, 624, 16); $script:barra.Maximum = $ETAPAS.Count
 $form.Controls.Add($script:barra)
 
 # Detalhes
 $btnDet = New-Object System.Windows.Forms.LinkLabel
-$btnDet.Text = 'Mostrar detalhes'; $btnDet.SetBounds(18, 584, 200, 20); $btnDet.LinkColor = $COR_MARCA
+$btnDet.Text = 'Mostrar detalhes'; $btnDet.SetBounds(18, 618, 200, 20); $btnDet.LinkColor = $COR_MARCA
 $form.Controls.Add($btnDet)
 $script:txtLog = New-Object System.Windows.Forms.TextBox
 $script:txtLog.Multiline = $true; $script:txtLog.ReadOnly = $true; $script:txtLog.ScrollBars = 'Vertical'
@@ -644,9 +785,9 @@ $form.Controls.Add($lnkLog)
 
 function Posicionar {
   $extra = if ($script:txtLog.Visible) { 180 } else { 0 }
-  $script:txtLog.Top = 608
-  $btnInstalar.Top = 616 + $extra; $btnAbrir.Top = 616 + $extra; $btnFechar.Top = 616 + $extra; $lnkLog.Top = 628 + $extra
-  $form.ClientSize = New-Object System.Drawing.Size(660, (672 + $extra))
+  $script:txtLog.Top = 642
+  $btnInstalar.Top = 650 + $extra; $btnAbrir.Top = 650 + $extra; $btnFechar.Top = 650 + $extra; $lnkLog.Top = 662 + $extra
+  $form.ClientSize = New-Object System.Drawing.Size(660, (706 + $extra))
 }
 Posicionar
 $btnDet.Add_LinkClicked({
@@ -687,6 +828,8 @@ $btnInstalar.Add_Click({
   $script:barra.Value = 0; $script:txtLog.Clear()
   foreach ($e in $ETAPAS) { Definir-Status $e.id 'pendente' 'aguardando' }
   try { Rodar-Instalacao } catch { Log "Erro inesperado: $($_.Exception.Message)"; [void]$script:falhas.Add($_.Exception.Message) }
+  Copiar-Registro
+  try { $c = AcharContratos; if ($c) { $script:txtContratos.Text = $c } } catch {}
   $script:rodando = $false
   $grp.Enabled = $true; $btnInstalar.Enabled = $true; $lnkLog.Visible = $true
   $btnFechar.Text = 'Fechar'
