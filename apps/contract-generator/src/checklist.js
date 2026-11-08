@@ -411,7 +411,7 @@ function planilhaChecklist(ck) {
     F: { f: `SUM(F${primeiraItem}:F${ultimaItem})`, s: 'totalMoeda' },
     G: { f: `SUM(G${primeiraItem}:G${ultimaItem})`, s: 'totalMoeda' }, H: { s: 'total' },
   }, 20);
-  linha(n + 2, { B: { v: `Gerado pelo sistema Tayná Alves Assessoria em ${dataBr(new Date())}.`, s: 'nota' } });
+  linha(n + 2, { B: { v: `Gerado pelo Lotus (Tayná Alves Assessoria) em ${dataBr(new Date())}.`, s: 'nota' } });
 
   const faixa = `D${primeiraItem}:D${ultimaItem}`;
   return criarXlsx({

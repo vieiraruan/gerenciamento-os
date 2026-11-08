@@ -1,5 +1,5 @@
 ' ============================================================
-'  Abre os aplicativos da Tayna Alves Assessoria em segundo plano,
+'  Abre o Lotus (sistema da Tayna Alves Assessoria) em segundo plano,
 '  sem janela preta. E o alvo do atalho da Area de Trabalho.
 '  Mensagens ficam em %LOCALAPPDATA%\TaynaAlves\aplicativo.log
 '  Para encerrar: botao "Encerrar" na tela inicial do aplicativo.
@@ -25,7 +25,7 @@ rc = sh.Run("cmd /c """"" & pasta & "\abrir-aplicativo.cmd"" --oculto > """ & lo
 
 If rc <> 0 Then
   If MsgBox("O aplicativo nao abriu ou foi encerrado com erro (codigo " & rc & ")." & vbCrLf & vbCrLf & _
-            "Deseja ver o registro?", vbExclamation + vbYesNo, "Tayna Alves Assessoria") = vbYes Then
+            "Deseja ver o registro?", vbExclamation + vbYesNo, "Lotus") = vbYes Then
     sh.Run "notepad.exe """ & logArq & """", 1, False
   End If
 End If

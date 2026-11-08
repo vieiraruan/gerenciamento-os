@@ -19,7 +19,7 @@ def b64png(caminho, largura, modo):
 CABECALHO = r'''<# : -------------------------------------------------------------------------
 @echo off
 rem ===========================================================================
-rem  Instalador / atualizador do sistema Tayna Alves Assessoria
+rem  Instalador / atualizador do Lotus (sistema da Tayna Alves Assessoria)
 rem
 rem  Arquivo unico: copie para qualquer computador Windows e de dois cliques.
 rem  Abre uma janela que mostra cada etapa: instala o que faltar (Git, Node.js,

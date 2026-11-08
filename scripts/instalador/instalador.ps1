@@ -7,7 +7,7 @@ param(
   [switch]$SemAtalho
 )
 # ===========================================================================
-#  Instalador / atualizador do sistema Tayná Alves Assessoria
+#  Instalador / atualizador do Lotus, sistema de gestão da Tayná Alves Assessoria
 #  (fonte do instalar-sistema.cmd — gerado por scripts/instalador/montar.py)
 # ===========================================================================
 
@@ -21,8 +21,8 @@ $env:GCM_INTERACTIVE = 'never'
 $REPO     = $Repositorio
 $NODE_MIN = [version]'22.20.0'
 $APP_REL  = 'apps\contract-generator'
-$ATALHO   = 'Tayna Alves Assessoria'
-$LOG      = Join-Path $env:TEMP ('instalar-tayna-alves-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.log')
+$ATALHO   = 'Lotus'
+$LOG      = Join-Path $env:TEMP ('instalar-lotus-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.log')
 $GUI      = -not $SemInterface
 $script:cancelado = $false
 $script:falhas = New-Object System.Collections.ArrayList
@@ -127,7 +127,7 @@ function EstaNoDrive([string]$p) {
   }
   return $false
 }
-function DestinoLocal { return Join-Path $env:USERPROFILE 'TaynaAlves\gerenciamento-os' }
+function DestinoLocal { return Join-Path $env:USERPROFILE 'Lotus\gerenciamento-os' }
 function DestinoPadrao {
   $aqui = if ($env:INSTALADOR) { Split-Path -Parent $env:INSTALADOR } else { '' }
   if ($aqui -and (Test-Path (Join-Path $aqui '.git')) -and -not (EstaNoDrive $aqui)) { return $aqui }
@@ -532,8 +532,11 @@ console.log([p.modo, p.saida, p.dados].join('|'));
   else {
     try {
       $desk = [Environment]::GetFolderPath('Desktop')
-      $velho = Join-Path $desk 'Contratos - Tayna Alves.lnk'
-      if (Test-Path $velho) { Remove-Item $velho -Force }
+      # atalhos com os nomes antigos
+      foreach ($v in 'Contratos - Tayna Alves.lnk', 'Tayna Alves Assessoria.lnk') {
+        $velho = Join-Path $desk $v
+        if (Test-Path $velho) { Remove-Item $velho -Force }
+      }
       $ws = New-Object -ComObject WScript.Shell
       $lnk = $ws.CreateShortcut((Join-Path $desk "$ATALHO.lnk"))
       # abre em segundo plano (sem janela preta) pelo .vbs; o .cmd fica para diagnóstico
@@ -546,7 +549,7 @@ console.log([p.modo, p.saida, p.dados].join('|'));
       }
       $lnk.WorkingDirectory = $app
       $lnk.IconLocation = (Join-Path $app 'templates\marca\icone.ico') + ',0'
-      $lnk.Description = 'Aplicativos Tayna Alves Assessoria'
+      $lnk.Description = 'Lotus - sistema de gestão da Tayná Alves Assessoria'
       $lnk.Save()
       Etapa-Fim 'ok' "Atalho '$ATALHO' criado"
     } catch { Etapa-Fim 'erro' "Não foi possível criar o atalho: $($_.Exception.Message)" }
@@ -557,7 +560,7 @@ console.log([p.modo, p.saida, p.dados].join('|'));
 function Copiar-Registro {
   try {
     $desk = [Environment]::GetFolderPath('Desktop')
-    Copy-Item -LiteralPath $LOG -Destination (Join-Path $desk 'Registro da instalacao - Tayna Alves.txt') -Force
+    Copy-Item -LiteralPath $LOG -Destination (Join-Path $desk 'Registro da instalacao - Lotus.txt') -Force
     $raiz = AcharDrive
     if ($raiz) {
       $pasta = Join-Path $raiz 'gerenciamento-os\registros'
@@ -574,7 +577,7 @@ function Copiar-Registro {
 # ---------------------------------------------------------------------------
 if (-not $GUI) {
   Write-Host ''
-  Write-Host '  Tayná Alves Assessoria - instalação / atualização do sistema' -ForegroundColor Magenta
+  Write-Host '  Lotus - instalação / atualização do sistema (Tayná Alves Assessoria)' -ForegroundColor Magenta
   Write-Host "  Registro: $LOG"
   Rodar-Instalacao
   Copiar-Registro
@@ -583,7 +586,7 @@ if (-not $GUI) {
     Write-Host "  Terminou com $($script:falhas.Count) problema(s). Veja o registro: $LOG" -ForegroundColor Red
     exit 1
   }
-  Write-Host '  Tudo pronto! Abra o atalho "Tayna Alves Assessoria" na Área de Trabalho.' -ForegroundColor Green
+  Write-Host '  Tudo pronto! Abra o atalho "Lotus" na Área de Trabalho.' -ForegroundColor Green
   exit 0
 }
 
@@ -626,7 +629,7 @@ function Imagem($b64) {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Instalação - Tayná Alves Assessoria'
+$form.Text = 'Instalação do Lotus - Tayná Alves Assessoria'
 $form.ClientSize = New-Object System.Drawing.Size(660, 700)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedSingle'
@@ -648,11 +651,11 @@ if ($logo) {
   $topo.Controls.Add($pic)
 }
 $tit = New-Object System.Windows.Forms.Label
-$tit.Text = 'Instalação do sistema'; $tit.Font = $FONTE_TIT; $tit.ForeColor = $COR_MARCA
+$tit.Text = 'Instalação do Lotus'; $tit.Font = $FONTE_TIT; $tit.ForeColor = $COR_MARCA
 $tit.AutoSize = $true; $tit.Location = New-Object System.Drawing.Point(160, 28)
 $topo.Controls.Add($tit)
 $sub = New-Object System.Windows.Forms.Label
-$sub.Text = 'Instala ou atualiza tudo o que o aplicativo precisa neste computador.'
+$sub.Text = 'Sistema de gestão da Tayná Alves Assessoria: instala ou atualiza tudo neste computador.'
 $sub.ForeColor = $COR_SUAVE; $sub.AutoSize = $true; $sub.Location = New-Object System.Drawing.Point(162, 62)
 $topo.Controls.Add($sub)
 
@@ -849,7 +852,7 @@ $btnInstalar.Add_Click({
     $script:barra.Maximum = $script:barra.Maximum + 1; $script:barra.Value = $script:barra.Maximum
     $script:barra.Value = $script:barra.Maximum - 1; $script:barra.Maximum = $script:barra.Maximum - 1
     $script:lblAtual.Text = if ($script:avisos.Count) { "Pronto, com $($script:avisos.Count) aviso(s). O atalho está na Área de Trabalho." }
-                            else { 'Tudo pronto! O atalho "Tayna Alves Assessoria" está na Área de Trabalho.' }
+                            else { 'Tudo pronto! O atalho "Lotus" está na Área de Trabalho.' }
     $script:lblAtual.ForeColor = if ($script:avisos.Count) { $CORES.aviso } else { $CORES.ok }
     $btnInstalar.Text = 'Atualizar de novo'
     $btnAbrir.Visible = [bool]$script:app

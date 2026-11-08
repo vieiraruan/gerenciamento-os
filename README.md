@@ -1,4 +1,4 @@
-# gerenciamento-os
+# Lotus — sistema de gestão da Tayná Alves Assessoria
 
 Sistema de gestão para assessoria de eventos: contratos, fornecedores, pagamentos,
 documentos (Google Drive) e acompanhamento da produção de cada evento.

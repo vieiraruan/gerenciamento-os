@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Aplicativos - Tayna Alves Assessoria
+title Lotus - Tayna Alves Assessoria
 
 rem ============================================================
-rem  Abre os aplicativos da Tayna Alves Assessoria no navegador.
+rem  Abre o Lotus (sistema da Tayna Alves Assessoria) no navegador.
 rem  O atalho da Area de Trabalho usa o abrir-aplicativo.vbs, que roda
 rem  este arquivo escondido (--oculto). Abrir este .cmd direto mostra a
 rem  janela com as mensagens - util para investigar problemas.

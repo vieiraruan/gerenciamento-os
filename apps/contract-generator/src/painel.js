@@ -206,7 +206,7 @@ function gerarPainel(d) {
       ${d[`${l}_telefone`] ? `<div class="acoes">${telefoneLinks(d[`${l}_telefone`])}<span class="num">${esc(d[`${l}_telefone`])}</span></div>` : ''}</div>`).join('') : ''}
     ${d.observacoes ? `<div class="card"><b>Observações</b><p style="white-space:pre-wrap;margin:6px 0 0">${esc(d.observacoes)}</p></div>` : ''}
   </section>
-  <div class="rodape">Gerado em ${esc(d.gerado_em)} · Tayná Alves Assessoria · as marcações ficam salvas neste aparelho
+  <div class="rodape">Gerado em ${esc(d.gerado_em)} · Lotus · Tayná Alves Assessoria · as marcações ficam salvas neste aparelho
     <button id="zerar">Limpar marcações</button></div>
 </main>
 <script>

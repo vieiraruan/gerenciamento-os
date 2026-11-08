@@ -680,9 +680,24 @@ const servidor = http.createServer(async (req, res) => {
   }
 });
 
+/** Instalações antigas: o atalho "Tayna Alves Assessoria" da Área de Trabalho passa a se chamar "Lotus". */
+function renomearAtalho() {
+  if (process.platform !== 'win32') return;
+  const candidatas = [path.join(require('os').homedir(), 'Desktop'), path.join(require('os').homedir(), 'OneDrive', 'Desktop'),
+    path.join(require('os').homedir(), 'OneDrive', 'Área de Trabalho')];
+  for (const desk of candidatas) {
+    try {
+      const velho = path.join(desk, 'Tayna Alves Assessoria.lnk');
+      const novo = path.join(desk, 'Lotus.lnk');
+      if (fs.existsSync(velho) && !fs.existsSync(novo)) fs.renameSync(velho, novo);
+    } catch { /* sem permissão: fica com o nome antigo */ }
+  }
+}
+
 servidor.listen(PORTA, '127.0.0.1', () => {
   const endereco = `http://localhost:${PORTA}`;
-  console.log('Tayná Alves Assessoria — aplicativos');
+  console.log('Lotus — sistema de gestão da Tayná Alves Assessoria');
+  renomearAtalho();
   console.log(`  Aplicativo: ${endereco}`);
   console.log(PASTAS.modo === 'drive'
     ? `  Google Drive: ${DIR_GERADOS}`
