@@ -1,0 +1,22 @@
+#cloud-config
+# Servidor do Lotus online (Ubuntu 24.04 ARM, Oracle Sempre Gratuito)
+timezone: America/Recife
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - fail2ban
+  - unattended-upgrades
+runcmd:
+  # As imagens Ubuntu da Oracle só liberam a porta 22 no iptables
+  - iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+  - netfilter-persistent save
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu
+  - mkdir -p /opt/lotus
+  - chown ubuntu:ubuntu /opt/lotus
+  - sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication no/" /etc/ssh/sshd_config
+  - systemctl reload ssh
