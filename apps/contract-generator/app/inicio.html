@@ -141,6 +141,7 @@ const ICONES = {
   checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/></svg>',
   financeiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>',
   painel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  usuarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.7.8 2.8 2.5 3 5.2"/></svg>',
 };
 const APPS = [
   { id: 'contratos', nome: 'Gerador de Contratos', icone: 'contrato', status: 'ativo', link: '/contratos',
@@ -151,7 +152,12 @@ const APPS = [
     desc: 'Fornecedores contratados por casal: entrada, parcelas e pagamentos com comprovante na pasta do fornecedor; quanto foi pago e quanto falta.' },
   { id: 'painel', nome: 'Painel de gestão', icone: 'painel', status: 'ativo', link: '/gestao',
     desc: 'Recebimentos da Tayná por contrato, pagamentos de fornecedores de todos os casais, faturamento por mês e cronogramas atrasados.' },
+  { id: 'usuarios', nome: 'Usuários', icone: 'usuarios', status: 'ativo', link: '/usuarios', so: 'admin',
+    desc: 'Quem pode entrar no Lotus online com a conta Google: admin, equipe ou casal (só o próprio evento).' },
 ];
+// perfil de quem está usando (no computador: admin, sem login)
+let EU = { login: false, papel: 'admin' };
+const APPS_EQUIPE = ['checklist'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -160,7 +166,8 @@ const NOMES_SERV = { te_deixa_tranquila: 'Te Deixa Tranquila', necessario: 'O Ne
 let CONFIG = {};
 
 function renderApps() {
-  document.getElementById('apps').innerHTML = APPS.map((a) => {
+  const visiveis = APPS.filter((a) => (EU.papel === 'admin' ? true : EU.papel === 'equipe' ? APPS_EQUIPE.includes(a.id) : false));
+  document.getElementById('apps').innerHTML = visiveis.map((a) => {
     const ativo = a.status === 'ativo';
     const tag = ativo ? 'a' : 'div';
     return `<${tag} class="app ${ativo ? '' : 'breve'}" ${ativo ? `href="${a.link}"` : 'aria-disabled="true"'}>
@@ -192,13 +199,14 @@ async function carregar() {
   document.getElementById('hoje').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   try {
+    if (EU.login && EU.papel !== 'admin') throw new Error('sem configuração para este perfil');
     CONFIG = await (await fetch('/api/config')).json();
-    document.getElementById('local').innerHTML = CONFIG.modo === 'drive'
+    if (!EU.login) document.getElementById('local').innerHTML = CONFIG.modo === 'drive'
       ? '<span class="badge ok">Google Drive</span><br>' + esc(CONFIG.pasta)
       : '<span class="badge alerta">Sem Google Drive</span><br>' + esc(CONFIG.pasta);
     document.getElementById('kAS').textContent = proximo(CONFIG.sequencias, 'AS');
     document.getElementById('kCE').textContent = proximo(CONFIG.sequencias, 'CE');
-  } catch { document.getElementById('local').textContent = 'Não foi possível ler a configuração.'; }
+  } catch { if (!EU.login) document.getElementById('local').textContent = 'Não foi possível ler a configuração.'; }
 
   try {
     const lista = await (await fetch('/api/contratos')).json();
@@ -247,8 +255,20 @@ document.getElementById('btnEncerrar').addEventListener('click', async () => {
   document.getElementById('btnEncerrar').remove();
 });
 
-renderApps();
-carregar();
+(async () => {
+  try { EU = await (await fetch('/api/eu')).json(); } catch { /* sem login */ }
+  if (EU.login) {
+    // Lotus online: quem entrou + Sair; nada que mexa no computador do servidor
+    document.getElementById('local').innerHTML = `<span class="badge ok">${esc({ admin: 'Admin', equipe: 'Equipe', casal: 'Casal' }[EU.papel] || EU.papel)}</span><br>${esc(EU.nome || EU.email)}`;
+    const b = document.getElementById('btnEncerrar');
+    b.textContent = 'Sair'; b.title = 'Sair do Lotus';
+    b.replaceWith(Object.assign(b.cloneNode(true), { onclick: () => { location.href = '/sair'; } }));
+    document.querySelector('.atalhos')?.remove();
+    if (EU.papel !== 'admin') { document.getElementById('financas')?.remove(); }
+  }
+  renderApps();
+  carregar();
+})();
 
 // Resumo de pagamentos (fornecedores de todos os casais) e recebimentos da Tayná → Painel de gestão
 (async () => {

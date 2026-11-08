@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nosso casamento · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root { --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; padding: 8px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--borda); }
+  header img { height: 52px; } header .esp { flex: 1; } header .quem { font-size: 13px; color: var(--suave); text-align: right; }
+  header a { color: var(--marca); font-weight: 600; text-decoration: none; font-size: 13px; }
+  main { max-width: 900px; margin: 0 auto; padding: 18px 16px 40px; }
+  .capa { text-align: center; padding: 18px 10px 8px; }
+  .capa h1 { font-size: 28px; color: var(--marca); margin: 0; font-weight: 600; }
+  .capa .data { color: var(--suave); margin-top: 4px; }
+  .contagem { display: inline-block; margin-top: 12px; background: #fff; border: 1px solid var(--borda); border-radius: 99px; padding: 6px 16px; color: var(--marca); font-weight: 600; }
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 16px 18px; margin-top: 16px; }
+  .card h2 { font-size: 15px; color: var(--marca); margin: 0 0 10px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 600px) { .kpis { grid-template-columns: 1fr; } }
+  .kpi { border: 1px solid #f0e6e0; border-radius: 10px; padding: 10px 12px; background: #fdfaf8; }
+  .kpi .r { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .v { font-size: 20px; font-weight: 700; color: var(--marca); }
+  .barra { height: 8px; background: #f1e7e1; border-radius: 99px; overflow: hidden; margin-top: 6px; } .barra i { display: block; height: 100%; background: var(--marca-2); }
+  details { border-top: 1px solid #f3ebe6; padding: 8px 0; } summary { cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+  summary .s { font-weight: 400; } ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  li { padding: 4px 0; display: flex; gap: 8px; font-size: 14px; } li .m { width: 20px; flex: none; text-align: center; }
+  li.ok { color: var(--suave); } li.ok .t { text-decoration: line-through; } li.atr .m { color: var(--erro); }
+  .s { font-size: 12.5px; color: var(--suave); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; } th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; padding: 6px; border-bottom: 1px solid var(--borda); }
+  td { padding: 8px 6px; border-top: 1px solid #f3ebe6; } td.n, th.n { text-align: right; white-space: nowrap; }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; } .b-ok { background: #e6f2ea; color: var(--ok); } .b-p { background: #efe9e5; color: var(--suave); }
+  footer { text-align: center; color: var(--suave); font-size: 12px; margin-top: 26px; }
+</style>
+</head>
+<body>
+<header><img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="esp"></div><div class="quem" id="quem"></div></header>
+<main id="conteudo"><div class="s" style="text-align:center;padding:40px">Carregando…</div></main>
+<footer>Lotus · Tayná Alves Assessoria e Produção · informações só para consulta</footer>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const moeda = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+const dBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+(async () => {
+  try {
+    const eu = await (await fetch('/api/eu')).json();
+    if (eu.login) document.getElementById('quem').innerHTML = `${esc(eu.nome || eu.email)}<br><a href="/sair">Sair</a>`;
+    const arq = new URLSearchParams(location.search).get('arquivo');
+    const r = await fetch('/api/meu-evento' + (arq ? `?arquivo=${encodeURIComponent(arq)}` : ''));
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || 'Erro');
+    const ev = d.evento;
+    const [dd, mm, aa] = String(ev.data || '').split('/');
+    const dataEv = aa ? new Date(+aa, +mm - 1, +dd) : null;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = dataEv ? Math.round((dataEv - hoje) / 864e5) : null;
+    const c = d.cronograma; const t = d.totais;
+    document.getElementById('conteudo').innerHTML = `
+      <div class="capa"><h1>${esc(ev.nomes)}</h1>
+        <div class="data">${esc(ev.data_extenso || ev.data || ev.periodo || 'data a definir')}${ev.horario ? ` · ${esc(ev.horario)}` : ''}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
+        ${dias !== null ? `<div class="contagem">${dias > 1 ? `Faltam ${dias} dias` : dias === 1 ? 'É amanhã!' : dias === 0 ? 'É hoje!' : 'Casamento realizado'}</div>` : ''}</div>
+      ${c ? `<div class="card"><h2>Preparativos</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="r">Concluídos</div><div class="v">${c.ritmo.concluidas} de ${c.ritmo.total}</div><div class="barra"><i style="width:${c.ritmo.percentual}%"></i></div></div>
+          <div class="kpi"><div class="r">Em andamento</div><div class="v">${c.ritmo.em_andamento || 0}</div></div>
+          <div class="kpi"><div class="r">Ritmo</div><div class="v" style="font-size:16px">${c.ritmo.situacao === 'atrasado' ? 'Precisamos acelerar' : c.ritmo.situacao === 'adiantado' ? 'Adiantados' : 'Em dia'}</div></div>
+        </div>
+        ${c.secoes.map((s) => {
+          const feitas = s.itens.filter((i) => i.concluida).length;
+          return `<details ${s.situacao === 'atual' ? 'open' : ''}><summary><span>${esc(s.rotulo)}</span><span class="s">${feitas}/${s.itens.length}${s.inicio ? ` · ${esc(s.inicio)} a ${esc(s.fim)}` : ''}</span></summary>
+            <ul>${s.itens.map((i) => `<li class="${i.concluida ? 'ok' : i.atrasada ? 'atr' : ''}"><span class="m">${i.concluida ? '✔' : i.atrasada ? '!' : '○'}</span><span class="t">${esc(i.texto)}</span></li>`).join('')}</ul></details>`;
+        }).join('')}
+        ${c.concluidas.length ? `<details><summary><span>Já concluídos</span><span class="s">${c.concluidas.length}</span></summary>
+          <ul>${c.concluidas.map((i) => `<li class="ok"><span class="m">✔</span><span class="t">${esc(i.texto)}</span></li>`).join('')}</ul></details>` : ''}</div>` : ''}
+      ${d.fornecedores.length ? `<div class="card"><h2>Fornecedores e pagamentos</h2>
+        ${t ? `<div class="kpis" style="margin-bottom:12px"><div class="kpi"><div class="r">Contratado</div><div class="v">${moeda(t.contratado)}</div></div>
+          <div class="kpi"><div class="r">Pago</div><div class="v">${moeda(t.pago)}</div><div class="barra"><i style="width:${t.percentual}%"></i></div></div>
+          <div class="kpi"><div class="r">A pagar</div><div class="v">${moeda(t.saldo)}</div></div></div>` : ''}
+        <div style="overflow-x:auto"><table><tr><th>Fornecedor</th><th class="n">Contratado</th><th class="n">Pago</th><th class="n">A pagar</th><th>Próximo</th></tr>
+        ${d.fornecedores.map((f) => `<tr><td><b>${esc(f.nome)}</b><div class="s">${esc(f.descricao).slice(0, 60)}</div></td><td class="n">${moeda(f.contratado)}</td><td class="n">${moeda(f.pago)}</td>
+          <td class="n">${f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : moeda(f.saldo)}</td>
+          <td class="s">${f.proxima ? `${moeda(f.proxima.valor)} · ${dBr(f.proxima.vencimento)}` : ''}</td></tr>`).join('')}</table></div></div>` : ''}`;
+  } catch (e) { document.getElementById('conteudo').innerHTML = `<div class="card" style="color:var(--erro)">${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

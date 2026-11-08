@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usuários · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root { --marca: #824634; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --erro: #b3261e; --ok: #2f7a4f; --aviso: #9a6400; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--borda); }
+  header img { height: 58px; } header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; } header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; } header a { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  main { max-width: 1040px; margin: 0 auto; padding: 20px 24px 40px; }
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 4px; color: var(--marca); }
+  .ajuda { font-size: 12.5px; color: var(--suave); margin: 0 0 12px; }
+  .aviso { background: #fbf1dc; color: var(--aviso); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; padding: 6px; border-bottom: 1px solid var(--borda); }
+  td { padding: 9px 6px; border-top: 1px solid #f3ebe6; vertical-align: middle; }
+  .badge { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: #efe9e5; color: var(--suave); }
+  .b-admin { background: #f3e1da; color: var(--marca); } .b-equipe { background: #e3eef6; color: #1f4e78; } .b-casal { background: #e6f2ea; color: var(--ok); }
+  .b-bloq { background: #fbeceb; color: var(--erro); }
+  .s { font-size: 12.5px; color: var(--suave); }
+  form.novo { display: grid; grid-template-columns: 2fr 1.5fr 1fr 2fr auto; gap: 8px; align-items: end; }
+  @media (max-width: 800px) { form.novo { grid-template-columns: 1fr 1fr; } }
+  label { font-size: 12px; font-weight: 600; color: var(--suave); display: block; margin-bottom: 3px; }
+  input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; font-size: 14px; background: #fffdfb; }
+  button { font: inherit; font-size: 13px; border-radius: 8px; border: 1px solid var(--marca); padding: 7px 12px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; white-space: nowrap; }
+  button.primario { background: var(--marca); color: #fff; } button.perigo { border-color: var(--erro); color: var(--erro); }
+  .msg { font-size: 13px; margin-top: 8px; } .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="sep"></div>
+  <div><h1>Usuários</h1><div class="sub">Quem pode entrar no Lotus online (com a conta Google)</div></div>
+  <div class="esp"></div><a href="/">← Início</a>
+</header>
+<main>
+  <div class="aviso" id="avisoLocal" hidden>Este é o Lotus do computador: aqui ele abre sem login. A lista abaixo vale para o
+    Lotus online — os mesmos usuários, guardados na pasta do sistema no Drive.</div>
+  <div class="card">
+    <h2>Liberar acesso</h2>
+    <p class="ajuda">A pessoa entra com a conta Google deste e-mail. <b>Admin</b>: tudo. <b>Equipe</b>: tela inicial, eventos e checklist
+      (sem financeiro, gestão, contratos e valores). <b>Casal</b>: só o próprio evento, cronograma e fornecedores, sem alterar nada.</p>
+    <form class="novo" id="formNovo">
+      <div><label>E-mail (conta Google)</label><input id="nEmail" type="email" required placeholder="nome@gmail.com"></div>
+      <div><label>Nome</label><input id="nNome" placeholder="opcional"></div>
+      <div><label>Perfil</label><select id="nPapel"><option value="equipe">Equipe</option><option value="casal">Casal</option><option value="admin">Admin</option></select></div>
+      <div id="boxCasal" hidden><label>Casal</label><select id="nCasal"></select></div>
+      <div><button class="primario" type="submit">Liberar</button></div>
+    </form>
+    <div class="msg" id="msgNovo"></div>
+  </div>
+  <div class="card">
+    <h2>Acessos liberados</h2>
+    <p class="ajuda">Trocar o perfil, bloquear ou "Encerrar sessões" desconecta a pessoa na hora.</p>
+    <div style="overflow-x:auto"><table id="tab"></table></div>
+    <div class="msg" id="msgTab"></div>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const NOME = { admin: 'Admin', equipe: 'Equipe', casal: 'Casal' };
+let D = null;
+async function api(url, corpo) {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : undefined);
+  const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'Erro'); return j;
+}
+function render() {
+  $('#avisoLocal').hidden = D.login;
+  $('#nCasal').innerHTML = D.casais.map((c) => `<option value="${esc(c.arquivo)}">${esc(c.numero_os)} · ${esc(c.casal)}</option>`).join('');
+  const casal = (a) => (D.casais.find((c) => c.arquivo === a) || {}).casal || a;
+  $('#tab').innerHTML = `<tr><th>E-mail</th><th>Nome</th><th>Perfil</th><th></th></tr>` + (D.usuarios.map((u) => `<tr>
+    <td>${esc(u.email)}${u.fixo ? ' <span class="s">(admin fixo do servidor)</span>' : ''}</td>
+    <td>${esc(u.nome)}</td>
+    <td>${u.fixo ? `<span class="badge b-admin">Admin</span>` : `<select data-papel="${esc(u.email)}" style="width:auto">${['admin', 'equipe', 'casal'].map((p) => `<option value="${p}" ${u.papel === p ? 'selected' : ''}>${NOME[p]}</option>`).join('')}</select>`}
+      ${u.papel === 'casal' ? `<div class="s">${esc(casal(u.casal))}</div>` : ''}${u.bloqueado ? ' <span class="badge b-bloq">bloqueado</span>' : ''}</td>
+    <td style="text-align:right">${u.fixo ? '' : `<button data-acao="${u.bloqueado ? 'desbloquear' : 'bloquear'}" data-email="${esc(u.email)}">${u.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>
+      <button data-acao="encerrar" data-email="${esc(u.email)}">Encerrar sessões</button>
+      <button class="perigo" data-acao="remover" data-email="${esc(u.email)}">Remover</button>`}</td></tr>`).join('') || '<tr><td colspan="4" class="s">Nenhum usuário ainda.</td></tr>');
+  document.querySelectorAll('[data-papel]').forEach((sel) => sel.onchange = async () => {
+    const u = D.usuarios.find((x) => x.email === sel.dataset.papel);
+    let casalSel = u.casal;
+    if (sel.value === 'casal' && !casalSel) { alert('Para o perfil Casal, remova e libere de novo escolhendo o casal.'); sel.value = u.papel; return; }
+    await acao({ ...u, papel: sel.value, casal: casalSel });
+  });
+  document.querySelectorAll('[data-acao]').forEach((b) => b.onclick = async () => {
+    const u = D.usuarios.find((x) => x.email === b.dataset.email);
+    if (b.dataset.acao === 'remover') { if (!confirm(`Remover o acesso de ${u.email}?`)) return; await acao({ acao: 'remover', email: u.email }); }
+    else if (b.dataset.acao === 'encerrar') await acao({ acao: 'encerrar', email: u.email }, 'Sessões encerradas.');
+    else await acao({ ...u, bloqueado: b.dataset.acao === 'bloquear' });
+  });
+}
+async function acao(corpo, ok) {
+  try { const r = await api('/api/usuarios', corpo); D.usuarios = r.usuarios; render(); $('#msgTab').className = 'msg ok'; $('#msgTab').textContent = ok || 'Salvo.'; }
+  catch (e) { $('#msgTab').className = 'msg erro'; $('#msgTab').textContent = e.message; }
+}
+$('#nPapel').onchange = () => { $('#boxCasal').hidden = $('#nPapel').value !== 'casal'; };
+$('#formNovo').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api('/api/usuarios', { email: $('#nEmail').value, nome: $('#nNome').value, papel: $('#nPapel').value, casal: $('#nPapel').value === 'casal' ? $('#nCasal').value : '' });
+    D.usuarios = r.usuarios; render(); $('#formNovo').reset(); $('#boxCasal').hidden = true;
+    $('#msgNovo').className = 'msg ok'; $('#msgNovo').textContent = 'Acesso liberado.';
+  } catch (err) { $('#msgNovo').className = 'msg erro'; $('#msgNovo').textContent = err.message; }
+};
+(async () => { try { D = await api('/api/usuarios'); render(); } catch (e) { $('#msgTab').className = 'msg erro'; $('#msgTab').textContent = e.message; } })();
+</script>
+</body>
+</html>

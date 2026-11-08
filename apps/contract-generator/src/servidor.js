@@ -30,6 +30,7 @@ const fin = require('./financeiro');
 const gestao = require('./gestao');
 const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
+const { criarAuth } = require('./auth');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -326,6 +327,9 @@ function contratosComFinanceiro() {
   return { contratos, carregarFin };
 }
 
+// Login (Lotus online): desligado no computador; LOTUS_LOGIN=1 no servidor
+const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json') });
+
 const rotas = {
   // ---- Financeiro (fornecedores do casal, pagamentos e comprovantes) ----
   'GET /api/financeiro': (q) => {
@@ -410,6 +414,51 @@ const rotas = {
     return gerarRelatorioIR({ contratos, carregarFin, clienteDe, empresa: lerJson(ARQ_EMPRESA, {}), ano, pasta: path.join(DIR_GERADOS, 'RELATÓRIOS') });
   },
 
+  // quem está usando (tela inicial mostra o nome, o botão Sair e só os aplicativos do perfil)
+  'GET /api/eu': (q, corpo, u) => ({ login: AUTH.ativo, email: u?.email || '', nome: u?.nome || '', papel: u?.papel || 'admin', casal: u?.casal || '', foto: u?.foto || '' }),
+
+  // portal do casal: o próprio evento, cronograma e fornecedores (só leitura). Admin pode ver qualquer um (?arquivo=)
+  'GET /api/meu-evento': (q, corpo, u) => {
+    const pedido = u && u.papel === 'casal' ? u.casal : q.get('arquivo');
+    if (!pedido) throw new Error('Nenhum casal ligado a este acesso.');
+    const { arquivo, campos, cliente } = contratoDe(pedido);
+    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    const vertente = evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
+    const ck = /^AS/i.test(campos.numero_os || '') ? montarChecklist(campos, vertente, undefined, evento) : null;
+    const f = fin.carregar(DADOS, arquivo);
+    const r = f ? fin.resumo(f) : null;
+    return {
+      evento: ck ? ck.evento : { numero_os: campos.numero_os || '', nomes: campos.evento_nomes || '', data: campos.evento_data || '', periodo: campos.evento_periodo || '', horario: campos.evento_horario || '', local: campos.evento_local || '' },
+      cronograma: ck ? {
+        ritmo: ck.ritmo,
+        secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao,
+          itens: sec.itens.map((i) => ({ texto: i.texto, concluida: i.concluida, status: i.status, atrasada: i.atrasada })) })),
+        concluidas: ck.concluidas.map((i) => ({ texto: i.texto, concluida_em: i.concluida_em || '' })),
+      } : null,
+      fornecedores: r ? r.itens.filter((i) => !i.removido).map((i) => ({ nome: i.nome, descricao: i.descricao || '', contratado: i.calc.contratado, pago: i.calc.pago,
+        saldo: i.calc.saldo, status: i.calc.status, proxima: i.calc.proxima || null })) : [],
+      totais: r ? r.totais : null,
+    };
+  },
+
+  // usuários do Lotus online (só admin)
+  'GET /api/usuarios': () => ({
+    login: AUTH.ativo,
+    usuarios: AUTH.usuarios.listar(),
+    casais: listarTxt(DADOS).filter((c) => c.campos.numero_os).map((c) => ({ arquivo: c.arquivo, numero_os: c.campos.numero_os, casal: c.campos.evento_nomes || c.arquivo })),
+  }),
+  'POST /api/usuarios': (q, corpo, u) => {
+    if (corpo.acao === 'remover') {
+      if (corpo.email && u && corpo.email.toLowerCase() === u.email) throw new Error('Você não pode remover o próprio acesso.');
+      AUTH.usuarios.remover(corpo.email);
+    } else if (corpo.acao === 'encerrar') AUTH.usuarios.encerrarSessoes(corpo.email);
+    else {
+      if (u && !u.local && corpo.email && corpo.email.toLowerCase() === u.email && corpo.papel !== 'admin') throw new Error('Você não pode tirar o próprio perfil de admin.');
+      AUTH.usuarios.salvar(corpo, u?.email);
+    }
+    return { ok: true, usuarios: AUTH.usuarios.listar() };
+  },
+
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
   'POST /api/fornecedores': (q, corpo) => fin.salvarFornecedor(DADOS, corpo.fornecedor || {}),
 
@@ -467,7 +516,7 @@ const rotas = {
     return lerTxt(arq);
   },
 
-  'GET /api/contratos': () =>
+  'GET /api/contratos': (q, corpo, u) =>
     listarTxt(DADOS).map(({ arquivo, campos }) => ({
       arquivo,
       numero_os: campos.numero_os || '',
@@ -650,8 +699,16 @@ const rotas = {
 const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
+    if (req.method === 'GET' && url.pathname === '/saude') return responder(res, 200, { ok: true });
+    // login (no computador, sem LOTUS_LOGIN, todo mundo é admin e nada muda)
+    const acesso = await AUTH.tratar(req, res, url);
+    if (acesso.fim) return;
+    req.usuario = acesso.usuario;
+    if (req.usuario && req.usuario.papel === 'casal' && req.method === 'GET' && (url.pathname === '/' || url.pathname === '/inicio')) {
+      res.writeHead(302, { Location: '/meu-evento' }); return res.end();
+    }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
@@ -673,7 +730,12 @@ const servidor = http.createServer(async (req, res) => {
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
     const corpo = req.method === 'POST' ? await lerCorpo(req) : {};
-    return responder(res, 200, await rota(url.searchParams, corpo));
+    let resposta = await rota(url.searchParams, corpo, req.usuario);
+    // equipe não vê valores dos contratos
+    if (req.usuario && req.usuario.papel !== 'admin' && url.pathname === '/api/contratos' && Array.isArray(resposta)) {
+      resposta = resposta.map(({ valor_total, situacao_financeira, ...resto }) => resto);
+    }
+    return responder(res, 200, resposta);
   } catch (e) {
     const detalhes = e.properties?.errors?.map((x) => x.properties.explanation).join(' · ');
     return responder(res, 400, { erro: detalhes ? `${e.message}: ${detalhes}` : e.message });
@@ -694,7 +756,13 @@ function renomearAtalho() {
   }
 }
 
-servidor.listen(PORTA, '127.0.0.1', () => {
+// no computador: só 127.0.0.1; no servidor (contêiner): HOST=0.0.0.0, e aí o login é obrigatório
+const HOST = process.env.HOST || '127.0.0.1';
+if (!['127.0.0.1', 'localhost', '::1'].includes(HOST) && !AUTH.ativo) {
+  console.error('Recusado: para atender fora deste computador (HOST=' + HOST + ') ligue o login (LOTUS_LOGIN=1).');
+  process.exit(1);
+}
+servidor.listen(PORTA, HOST, () => {
   const endereco = `http://localhost:${PORTA}`;
   console.log('Lotus — sistema de gestão da Tayná Alves Assessoria');
   renomearAtalho();
