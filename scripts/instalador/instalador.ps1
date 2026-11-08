@@ -3,7 +3,8 @@ param(
   [string]$Repositorio = 'https://github.com/vieiraruan/gerenciamento-os.git',
   [switch]$SemPdf,
   [switch]$SemDrive,
-  [switch]$SemInterface
+  [switch]$SemInterface,
+  [switch]$SemAtalho
 )
 # ===========================================================================
 #  Instalador / atualizador do sistema Tayná Alves Assessoria
@@ -110,15 +111,32 @@ function AbrirDrive {
   try { Start-Process $exe | Out-Null } catch { Log "Não abriu: $($_.Exception.Message)"; return $false }
   return $true
 }
+# Pasta dentro do Google Drive (Meu Drive, drives compartilhados ou a unidade G: inteira)? O sistema não pode
+# ficar lá: as bibliotecas (milhares de arquivos) não funcionam no Drive e iriam para a nuvem de todo mundo.
+function EstaNoDrive([string]$p) {
+  if (-not $p) { return $false }
+  try { $p = [IO.Path]::GetFullPath($p) } catch {}
+  if ($p -match '\\(Meu Drive|My Drive|Drives compartilhados|Shared drives|Google Drive)(\\|$)') { return $true }
+  foreach ($raiz in RaizesDrive) {
+    # modo streaming: a unidade inteira (ex.: G:\) é do Google Drive
+    if ($raiz -match '^[A-Za-z]:\\(Meu Drive|My Drive|Drives compartilhados|Shared drives)(\\|$)') {
+      $unidade = $raiz.Substring(0, 3)
+      if ($p.StartsWith($unidade, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+    }
+    if ($p.StartsWith($raiz, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+  }
+  return $false
+}
+function DestinoLocal { return Join-Path $env:USERPROFILE 'TaynaAlves\gerenciamento-os' }
 function DestinoPadrao {
   $aqui = if ($env:INSTALADOR) { Split-Path -Parent $env:INSTALADOR } else { '' }
-  if ($aqui -and (Test-Path (Join-Path $aqui '.git'))) { return $aqui }
+  if ($aqui -and (Test-Path (Join-Path $aqui '.git')) -and -not (EstaNoDrive $aqui)) { return $aqui }
   $docs = [Environment]::GetFolderPath('MyDocuments')
   $emDocs = Join-Path $docs 'gerenciamento-os'
   # instalação antiga em Documentos (fora do OneDrive) continua onde está
   if ((Test-Path (Join-Path $emDocs '.git')) -and $docs -notmatch 'OneDrive') { return $emDocs }
   # Documentos no OneDrive: as bibliotecas (node_modules) falham sincronizando; instala fora dele
-  if ($docs -match 'OneDrive' -or -not $docs) { return Join-Path $env:USERPROFILE 'TaynaAlves\gerenciamento-os' }
+  if ($docs -match 'OneDrive' -or -not $docs -or (EstaNoDrive $docs)) { return DestinoLocal }
   return $emDocs
 }
 
@@ -340,6 +358,13 @@ function Rodar-Instalacao {
   $instalarOffice = if ($GUI) { $script:chkOffice.Checked } else { -not $SemPdf }
   $instalarDrive  = if ($GUI) { $script:chkDrive.Checked } else { -not $SemDrive }
   $dest = if ($GUI) { $script:txtDestino.Text.Trim() } elseif ($Destino) { $Destino } else { DestinoPadrao }
+  if (EstaNoDrive $dest) {
+    $novo = DestinoLocal
+    Log "A pasta escolhida ($dest) está no Google Drive; instalando em $novo."
+    [void]$script:avisos.Add("A pasta escolhida estava no Google Drive; o sistema foi instalado em $novo.")
+    $dest = $novo
+    if ($GUI) { $script:txtDestino.Text = $novo }
+  }
   Log "Instalação iniciada em $(Get-Date) | destino: $dest"
   Log ("Windows: " + [Environment]::OSVersion.VersionString + " | usuário: $env:USERNAME | computador: $env:COMPUTERNAME | Documentos: " + [Environment]::GetFolderPath('MyDocuments'))
   if ($dest -match 'OneDrive') { Log 'ATENÇÃO: a pasta do sistema está no OneDrive; isso costuma quebrar o npm.' }
@@ -501,7 +526,9 @@ console.log([p.modo, p.saida, p.dados].join('|'));
 
   # 8. Atalho
   Etapa-Inicio 'atalho'
-  if (-not (Test-Path (Join-Path $app 'abrir-aplicativo.cmd'))) { Etapa-Fim 'pulada' 'Sem aplicativo para o atalho.' }
+  if ($SemAtalho) { Etapa-Fim 'pulada' 'Atalho não criado (-SemAtalho).' }
+  elseif ($script:falhas.Count) { Etapa-Fim 'pulada' 'Atalho não criado: corrija os problemas acima e clique em Tentar de novo.' }
+  elseif (-not (Test-Path (Join-Path $app 'abrir-aplicativo.cmd'))) { Etapa-Fim 'pulada' 'Sem aplicativo para o atalho.' }
   else {
     try {
       $desk = [Environment]::GetFolderPath('Desktop')
@@ -646,7 +673,11 @@ $btnPasta.Text = 'Alterar...'; $btnPasta.SetBounds(518, 23, 92, 28); $btnPasta.F
 $btnPasta.Add_Click({
   $d = New-Object System.Windows.Forms.FolderBrowserDialog
   $d.Description = 'Escolha a pasta onde o sistema será instalado'
-  if ($d.ShowDialog() -eq 'OK') { $script:txtDestino.Text = Join-Path $d.SelectedPath 'gerenciamento-os' }
+  if ($d.ShowDialog() -eq 'OK') {
+    if (EstaNoDrive $d.SelectedPath) {
+      [System.Windows.Forms.MessageBox]::Show('O sistema não pode ficar dentro do Google Drive. Escolha uma pasta do computador (por exemplo C:\TaynaAlves).', 'Pasta do sistema') | Out-Null
+    } else { $script:txtDestino.Text = Join-Path $d.SelectedPath 'gerenciamento-os' }
+  }
 })
 $grp.Controls.Add($btnPasta)
 $script:chkOffice = New-Object System.Windows.Forms.CheckBox
