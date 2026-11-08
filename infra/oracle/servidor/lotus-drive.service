@@ -1,0 +1,23 @@
+# Monta a pasta CONTRATOS do Google Drive da empresa em /srv/drive/CONTRATOS (rclone).
+# A credencial do Drive fica em /etc/lotus/rclone.conf (remote "drive"), só no servidor.
+[Unit]
+Description=Lotus - Google Drive (rclone)
+Wants=network-online.target
+After=network-online.target
+Before=docker.service
+
+[Service]
+Type=notify
+ExecStartPre=/bin/mkdir -p /srv/drive/CONTRATOS /var/cache/lotus-rclone
+ExecStart=/usr/bin/rclone mount drive:CONTRATOS /srv/drive/CONTRATOS \
+  --config /etc/lotus/rclone.conf \
+  --allow-other --uid 1000 --gid 1000 --umask 002 \
+  --vfs-cache-mode full --vfs-cache-max-size 5G --cache-dir /var/cache/lotus-rclone \
+  --dir-cache-time 30s --poll-interval 15s --vfs-write-back 2s \
+  --drive-export-formats docx,xlsx,pdf
+ExecStop=/bin/fusermount3 -uz /srv/drive/CONTRATOS
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

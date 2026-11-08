@@ -1,0 +1,10 @@
+node_modules
+saida
+clientes/*
+!clientes/_modelo.txt
+config/empresa.json
+config/sequencias.json
+*.log
+.env
+*.cmd
+*.vbs

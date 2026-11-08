@@ -1,0 +1,31 @@
+# Lotus online: o aplicativo (Node) atrás do Caddy, que cuida do HTTPS (Let's Encrypt) sozinho.
+# A pasta CONTRATOS do Google Drive da empresa chega por /srv/drive (rclone, serviço lotus-drive no host).
+services:
+  lotus:
+    build: ../../../apps/contract-generator
+    image: lotus:atual
+    restart: unless-stopped
+    env_file: .env                     # segredos: só no servidor, nunca no git (modelo: .env.exemplo)
+    volumes:
+      - type: bind
+        source: /srv/drive
+        target: /drive
+        bind: { propagation: rslave }  # enxerga o Drive mesmo se o rclone remontar
+    expose: ["3210"]
+    mem_limit: 3g
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [lotus]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      LOTUS_DOMINIO: ${LOTUS_DOMINIO:?defina LOTUS_DOMINIO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_dados:
+  caddy_config:

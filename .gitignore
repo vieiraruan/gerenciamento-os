@@ -5,6 +5,7 @@ saida/
 .env
 .env.*
 !.env.example
+!.env.exemplo
 # dados reais da empresa ficam fora do git
 apps/contract-generator/config/empresa.json
 *.pem
