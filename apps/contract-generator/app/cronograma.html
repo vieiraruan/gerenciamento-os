@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cronograma · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root { --marca: #824634; --marca-2: #97492d; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --erro: #b3261e; --ok: #2f7a4f; --aviso: #9a6400; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+  header img { height: 58px; } header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; } header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; } header a { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 18px 24px 40px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kpi { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; }
+  .kpi .v { font-size: 26px; font-weight: 700; color: var(--marca); } .kpi .r { font-size: 12.5px; color: var(--suave); }
+  .kpi.alerta .v { color: var(--erro); }
+  .corpo { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .lista { flex: 1 1 380px; min-width: 0; max-width: 460px; }
+  .detalhe { flex: 999 1 560px; min-width: 0; }
+  .filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filtros button { font: inherit; font-size: 13px; border-radius: 10px; border: 1px solid var(--borda); padding: 7px 11px; background: #fff; cursor: pointer; color: var(--texto); }
+  .filtros button.on { border-color: var(--marca); color: var(--marca); font-weight: 600; }
+  .casal { display: block; width: 100%; text-align: left; font: inherit; background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; color: var(--texto); }
+  .casal:hover { border-color: #d9c3b6; } .casal.sel { border-color: var(--marca); box-shadow: 0 0 0 2px #f3e1da; }
+  .casal .topo { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .casal .nome { font-weight: 700; } .casal .num { font-size: 12px; color: var(--marca-2); font-weight: 700; }
+  .casal .linha { font-size: 12.5px; color: var(--suave); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #efe9e5; color: var(--suave); }
+  .b-atrasado { background: #fbeceb; color: var(--erro); } .b-em_dia, .b-adiantado { background: #e6f2ea; color: var(--ok); }
+  .barra { height: 8px; border-radius: 99px; background: #f0ebe8; overflow: hidden; margin: 8px 0 2px; }
+  .barra > div { height: 100%; background: var(--ok); }
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 18px 20px; }
+  .card h2 { margin: 0; font-size: 20px; } .card .num { color: var(--marca-2); font-weight: 700; font-size: 13px; }
+  .vazio { padding: 30px; text-align: center; color: var(--suave); }
+  .ritmo { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; margin-top: 4px; } .ritmo b { color: var(--marca); }
+  .acoesTopo { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .btn { font: inherit; font-size: 13px; border-radius: 8px; border: 1px solid var(--marca); padding: 8px 12px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; }
+  .btn.primario { background: var(--marca); color: #fff; }
+  .msg { font-size: 13px; } .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
+  .secao { border: 1px solid var(--borda); border-radius: 10px; margin-top: 10px; overflow: hidden; background: #fff; }
+  .secao > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #faf5f1; flex-wrap: wrap; }
+  .secao > summary::-webkit-details-marker { display: none; }
+  .secao > summary::before { content: '▸'; color: var(--marca); transition: transform .15s; }
+  .secao[open] > summary::before { transform: rotate(90deg); }
+  .secao .rot { font-weight: 700; color: var(--marca); } .secao .per { font-size: 13px; color: var(--suave); } .secao .qtd { margin-left: auto; font-size: 12px; color: var(--suave); }
+  .sit { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+  .sit.vencida { background: #fbeceb; color: var(--erro); } .sit.atual { background: #e6f2ea; color: var(--ok); } .sit.futura { background: #f0ebe8; color: var(--suave); }
+  .itens { list-style: none; margin: 0; padding: 4px 14px 10px; }
+  .itens li { display: grid; grid-template-columns: 34px 1fr 172px minmax(120px, 230px); gap: 8px; padding: 6px 0; border-top: 1px solid #f3ebe6; font-size: 14px; align-items: center; }
+  .itens li:first-child { border-top: 0; }
+  .itens .o { color: var(--suave); font-weight: 700; text-align: right; }
+  .itens li.feita span.t { color: var(--suave); text-decoration: line-through; }
+  select, input { font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid var(--borda); border-radius: 8px; background: #fffdfb; width: 100%; }
+  select.FINALIZADO { background: #e2f0d9; color: #375623; font-weight: 700; } select.EM-ANDAMENTO { background: #fff2cc; color: #7f6000; font-weight: 700; }
+  select.EM-COTACAO { background: #ddebf7; color: #1f4e78; font-weight: 700; } select.NAO-SE-APLICA, select.NAO-DESEJO { background: #ededed; color: #7f7f7f; font-weight: 700; }
+  .tag { font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+  .tag.atr { color: var(--erro); background: #fbeceb; } .tag.pl { color: #1f4e78; background: #e3eef6; }
+  .agora { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--texto); } .agora li { margin: 1px 0; }
+  .agora .atr { color: var(--erro); }
+  @media (max-width: 760px) { .itens li { grid-template-columns: 34px 1fr; } .lista { max-width: none; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="sep"></div>
+  <div><h1>Cronograma</h1><div class="sub">Tarefas até o casamento de cada casal de assessoria: o que já foi feito e o que falta</div></div>
+  <div class="esp"></div><a href="/">← Início</a>
+</header>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="corpo">
+    <section class="lista">
+      <div class="filtros" id="filtros"></div>
+      <div id="casais"><div class="vazio">Carregando os casais…</div></div>
+    </section>
+    <section class="detalhe" id="detalhe"><div class="card vazio">Escolha um casal para ver e marcar as tarefas.</div></section>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const STATUS = ['', 'EM ANDAMENTO', 'EM COTAÇÃO', 'FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'];
+const SIT = { vencida: 'prazo passou', atual: 'agora', futura: 'próxima' };
+const RITMO = { atrasado: 'Atrasado', em_dia: 'Em dia', adiantado: 'Adiantado' };
+const classeStatus = (st) => String(st || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '-');
+let LISTA = []; let CK = null; let filtro = 'proximos';
+let atual = new URLSearchParams(location.search).get('casal');
+
+async function api(url, corpo) {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+
+async function carregarLista(inicial) {
+  try { LISTA = (await api('/api/cronograma')).casais; } catch (e) { $('#casais').innerHTML = `<div class="vazio">${esc(e.message)}</div>`; return; }
+  LISTA.sort((a, b) => (a.dias ?? 99999) - (b.dias ?? 99999));
+  renderLista();
+  if (inicial && atual) abrir(atual);
+}
+
+function renderLista() {
+  const futuros = LISTA.filter((c) => c.dias == null || c.dias >= 0);
+  const atrasados = futuros.filter((c) => c.ritmo && c.ritmo.situacao === 'atrasado');
+  const agora = futuros.reduce((s, c) => s + ((c.agora && c.agora.itens.filter((i) => !['FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'].includes(i.status)).length) || 0), 0);
+  const pend = futuros.reduce((s, c) => s + ((c.ritmo && c.ritmo.pendentes) || 0), 0);
+  $('#kpis').innerHTML = `
+    <div class="kpi"><div class="v">${futuros.length}</div><div class="r">casais de assessoria com casamento pela frente</div></div>
+    <div class="kpi ${atrasados.length ? 'alerta' : ''}"><div class="v">${atrasados.length}</div><div class="r">com o cronograma atrasado</div></div>
+    <div class="kpi"><div class="v">${agora}</div><div class="r">tarefas para fazer neste período (todos os casais)</div></div>
+    <div class="kpi"><div class="v">${pend}</div><div class="r">tarefas que ainda faltam no total</div></div>`;
+  const grupos = { proximos: (c) => c.dias == null || c.dias >= 0, atrasados: (c) => (c.dias == null || c.dias >= 0) && c.ritmo && c.ritmo.situacao === 'atrasado',
+    mes: (c) => c.dias != null && c.dias >= 0 && c.dias <= 31, realizados: (c) => c.dias != null && c.dias < 0, todos: () => true };
+  const rot = { proximos: 'Próximos', atrasados: 'Atrasados', mes: 'Casam em até 30 dias', realizados: 'Já realizados', todos: 'Todos' };
+  $('#filtros').innerHTML = Object.keys(grupos).map((k) => `<button data-f="${k}" class="${k === filtro ? 'on' : ''}">${rot[k]} (${LISTA.filter(grupos[k]).length})</button>`).join('');
+  document.querySelectorAll('#filtros button').forEach((b) => b.onclick = () => { filtro = b.dataset.f; renderLista(); });
+  const vis = LISTA.filter(grupos[filtro]);
+  $('#casais').innerHTML = vis.length ? vis.map((c) => {
+    if (c.erro) return `<div class="casal"><div class="nome">${esc(c.nomes)}</div><div class="linha" style="color:var(--erro)">${esc(c.erro)}</div></div>`;
+    const r = c.ritmo || {};
+    const falta = c.agora ? c.agora.itens.filter((i) => !['FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'].includes(i.status)) : [];
+    const quando = c.dias == null ? 'sem data' : c.dias < 0 ? 'realizado' : c.dias === 0 ? 'é hoje!' : `faltam ${c.dias} dias`;
+    return `<button class="casal ${c.arquivo === atual ? 'sel' : ''}" data-a="${esc(c.arquivo)}">
+      <div class="topo"><span class="nome">${esc(c.nomes)}</span><span class="num">${esc(c.numero_os)}</span></div>
+      <div class="linha"><span>${esc(c.data || 'data a definir')}</span><span>${quando}</span>${r.situacao ? `<span class="badge b-${r.situacao}">${RITMO[r.situacao]}</span>` : ''}</div>
+      <div class="barra"><div style="width:${r.percentual || 0}%"></div></div>
+      <div class="linha"><span>${r.concluidas || 0} de ${r.total || 0} tarefas (${r.percentual || 0}%)</span>${r.atrasadas ? `<span style="color:var(--erro)">${r.atrasadas} atrasada(s)</span>` : ''}</div>
+      ${falta.length && (c.dias == null || c.dias >= 0) ? `<ul class="agora">${falta.slice(0, 3).map((i) => `<li class="${i.atrasada ? 'atr' : ''}">${esc(i.texto)}</li>`).join('')}${falta.length > 3 ? `<li style="list-style:none;color:var(--suave)">+ ${falta.length - 3} neste período</li>` : ''}</ul>` : ''}
+    </button>`;
+  }).join('') : '<div class="vazio">Nenhum casal aqui.</div>';
+  document.querySelectorAll('.casal[data-a]').forEach((b) => b.onclick = () => abrir(b.dataset.a));
+}
+
+async function abrir(arquivo) {
+  atual = arquivo; history.replaceState(null, '', `?casal=${encodeURIComponent(arquivo)}`);
+  document.querySelectorAll('.casal').forEach((b) => b.classList.toggle('sel', b.dataset.a === arquivo));
+  $('#detalhe').innerHTML = '<div class="card vazio">Carregando o cronograma…</div>';
+  try { renderDetalhe(await api(`/api/cronograma/casal?arquivo=${encodeURIComponent(arquivo)}`)); }
+  catch (e) { $('#detalhe').innerHTML = `<div class="card vazio">${esc(e.message)}</div>`; }
+}
+
+function linhaTarefa(i) {
+  const tags = (i.atrasada ? '<span class="tag atr" title="O prazo desta tarefa no modelo já passou">atrasada</span>' : '')
+    + (i.origem === 'planilha' ? '<span class="tag pl" title="Situação vinda da planilha do casal">planilha</span>' : '')
+    + (i.origem === 'financeiro' ? '<span class="tag pl" title="Fornecedor já está no controle financeiro">financeiro</span>' : '')
+    + (i.origem === 'contrato' ? '<span class="tag pl" title="Data definida no contrato">contrato</span>' : '');
+  return `<li class="${i.concluida ? 'feita' : ''}"><span class="o">${i.ordem}</span>
+    <span><span class="t">${esc(i.texto)}</span>${tags}${i.fornecedor ? ` <span style="font-size:12px;color:var(--suave)">· ${esc(i.fornecedor)}</span>` : ''}</span>
+    <select data-t="${esc(i.chave)}" class="${classeStatus(i.status)}" aria-label="Situação da tarefa">${STATUS.map((st) => `<option value="${st}" ${st === i.status ? 'selected' : ''}>${st || '— a fazer —'}</option>`).join('')}</select>
+    <input data-o="${esc(i.chave)}" value="${esc(i.obs || '')}" placeholder="Observação" aria-label="Observação"></li>`;
+}
+
+function renderDetalhe(ck) {
+  CK = ck;
+  const r = ck.ritmo || {}; const e = ck.evento;
+  const sitTxt = { adiantado: `<b style="color:var(--ok)">adiantado</b> (${r.saldo} à frente do previsto)`, em_dia: '<b style="color:var(--ok)">em dia</b>',
+    atrasado: `<b style="color:var(--erro)">atrasado</b> (${-r.saldo} tarefa(s) atrás do previsto)` }[r.situacao];
+  const abertos = [...document.querySelectorAll('#detalhe details[open] .rot')].map((x) => x.textContent);
+  $('#detalhe').innerHTML = `<div class="card">
+    <div class="num">${esc(e.numero_os)}</div>
+    <h2>${esc(e.nomes)}</h2>
+    <div style="font-size:13.5px;color:var(--suave)">${e.data ? `${esc(e.data_extenso)}` : 'data a definir'}${e.local ? ` · ${esc(e.local)}` : ''} · ${esc(ck.titulo || '')}</div>
+    <div class="barra" style="height:10px;margin-top:12px"><div style="width:${r.percentual || 0}%"></div></div>
+    <div class="ritmo">
+      <span><b>${r.concluidas}</b> de ${r.total} concluídas (${r.percentual}%)</span>
+      ${r.em_andamento ? `<span>${r.em_andamento} em andamento/cotação</span>` : ''}
+      ${ck.meses_restantes ? `<span>${ck.meses_restantes} ${ck.meses_restantes > 1 ? 'meses' : 'mês'} até o casamento</span>` : `<span>${e.data ? 'evento já realizado' : 'sem data definida'}</span>`}
+      ${sitTxt ? `<span>Ritmo: ${sitTxt}</span>` : ''}
+      ${r.por_mes_necessario != null ? `<span>Faltam ${r.pendentes}: cerca de <b>${String(r.por_mes_necessario).replace('.', ',')}</b> por mês</span>` : ''}
+      ${r.previsao_termino ? `<span>No ritmo atual termina em ${esc(r.previsao_termino)}${r.termina_antes ? '' : ' <b style="color:var(--erro)">(depois do casamento)</b>'}</span>` : ''}
+    </div>
+    <div class="acoesTopo"><button class="btn" id="btnPlanilha">Gerar planilha do cronograma (.xlsx)</button><span class="msg" id="msg"></span></div>
+    <div style="font-size:12.5px;color:var(--suave);margin-top:8px">Marque o que já foi feito: as concluídas saem do cronograma e o que falta é redistribuído nos meses que restam.
+      A situação também vem da aba ASSESSORIA da planilha do casal (vale a edição mais recente).</div>
+    ${ck.secoes.map((s) => `<details class="secao" ${s.situacao === 'atual' || (abertos.includes(s.rotulo)) ? 'open' : ''}>
+        <summary><span class="rot">${esc(s.rotulo)}</span>${s.inicio ? `<span class="per">${esc(s.inicio)} a ${esc(s.fim)}</span>` : ''}
+          ${s.situacao ? `<span class="sit ${s.situacao}">${SIT[s.situacao]}</span>` : ''}<span class="qtd">${s.itens.length} tarefas</span></summary>
+        <ul class="itens">${s.itens.map(linhaTarefa).join('')}</ul></details>`).join('')}
+    ${(ck.concluidas || []).length ? `<details class="secao" ${abertos.includes('Já concluídas') ? 'open' : ''}><summary><span class="rot" style="color:var(--ok)">Já concluídas</span><span class="qtd">${ck.concluidas.length} tarefas</span></summary>
+      <ul class="itens">${ck.concluidas.map(linhaTarefa).join('')}</ul></details>` : ''}
+  </div>`;
+  document.querySelectorAll('#detalhe [data-t]').forEach((el) => el.onchange = () => marcar(el.dataset.t, { status: el.value }));
+  let t = null;
+  document.querySelectorAll('#detalhe [data-o]').forEach((el) => el.oninput = () => { clearTimeout(t); t = setTimeout(() => marcar(el.dataset.o, { obs: el.value }, true), 700); });
+  $('#btnPlanilha').onclick = gerarPlanilha;
+}
+
+async function marcar(chave, mudanca, soTexto) {
+  const msg = $('#msg'); msg.className = 'msg'; msg.textContent = 'Salvando…';
+  const it = [...CK.secoes.flatMap((s) => s.itens), ...(CK.concluidas || [])].find((i) => i.chave === chave) || {};
+  try {
+    const ck = await api('/api/cronograma/tarefa', { arquivo: atual, chave, ...mudanca, status_atual: it.status || '', fornecedor: it.fornecedor || '' });
+    if (!soTexto) { renderDetalhe(ck); carregarLista(); }
+    else CK = ck;
+    const m = $('#msg'); m.className = 'msg ok'; m.textContent = `salvo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  } catch (e) { msg.className = 'msg erro'; msg.textContent = e.message; }
+}
+
+async function gerarPlanilha() {
+  const b = $('#btnPlanilha'); b.disabled = true; const msg = $('#msg'); msg.className = 'msg'; msg.textContent = 'Gerando…';
+  try {
+    const nome = (a) => String(a || '').split(/[\\/]/).pop();
+    let r = await api('/api/checklist/gerar', { arquivo: atual, tipo: 'cronograma', vertente: CK.vertente });
+    if (r.existe) {
+      if (!confirm(`Já existe "${nome(r.arquivo)}" na pasta do casal. Gerar uma nova versão (com data e hora no nome)?`)) { msg.textContent = ''; return; }
+      r = await api('/api/checklist/gerar', { arquivo: atual, tipo: 'cronograma', vertente: CK.vertente, novaVersao: true });
+    }
+    msg.className = 'msg ok'; msg.textContent = `Planilha salva na pasta do casal: ${nome(r.arquivo)}`;
+  } catch (e) { msg.className = 'msg erro'; msg.textContent = e.message; } finally { b.disabled = false; }
+}
+
+carregarLista(true);
+</script>
+</body>
+</html>

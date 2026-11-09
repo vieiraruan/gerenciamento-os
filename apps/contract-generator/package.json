@@ -7,7 +7,7 @@
     "gerar": "node src/index.js",
     "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py",
     "app": "node src/servidor.js",
-    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js && node scripts/testar-pedidos.js"
+    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js && node scripts/testar-pedidos.js && node scripts/testar-cronograma.js"
   },
   "keywords": [],
   "author": "",

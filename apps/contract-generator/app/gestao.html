@@ -190,7 +190,7 @@ const quando = (dias) => (dias === null || dias === undefined ? '' : dias === 0 
 const BADGE = { Quitado: 'b-ok', 'Em dia': 'b-neutro', Atrasado: 'b-erro', 'Sem lançamento': 'b-aviso', 'Sem valor': 'b-neutro' };
 const CRONO = { atrasado: ['Atrasado', 'b-erro'], em_dia: ['Em dia', 'b-ok'], adiantado: ['Adiantado', 'b-adiantado'] };
 const lkFin = (arquivo, txt) => `<a class="lk" href="/financeiro?casal=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
-const lkCk = (arquivo, txt) => `<a class="lk" href="/checklist?contrato=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
+const lkCk = (arquivo, txt) => `<a class="lk" href="/cronograma?casal=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
 const barra = (p) => `<div class="barra"><i style="width:${Math.max(0, Math.min(100, p || 0))}%"></i></div>`;
 
 async function api(url) {

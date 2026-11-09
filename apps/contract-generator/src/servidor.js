@@ -15,13 +15,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const { parseTxt } = require('./parser');
+const { parseTxt, parseData } = require('./parser');
 const { enriquecer } = require('./calculos');
 const { montarContrato } = require('./contrato');
 const { gerarContrato, criarPlanilhaDoContrato } = require('./index');
 
 const { resolverPastas, prepararPastas, acharPastaCasal } = require('./pastas');
-const { listarVertentes, montarChecklist, gravarChecklist } = require('./checklist');
+const { listarVertentes, montarChecklist, gravarChecklist, CONCLUIDO } = require('./checklist');
 const { gravarChecklistEvento } = require('./roteiro');
 const ev = require('./evento');
 const planilhaCasal = require('./planilha');
@@ -396,6 +396,8 @@ function resumoPedido(p, datasContratadas) {
   };
 }
 
+const vertenteDe = (evento, campos) => (evento && evento.vertente) || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
+
 /** Commit com que este servidor foi iniciado (o atalho compara com o do disco e reinicia se mudou). */
 function versaoNoDisco() {
   try {
@@ -768,6 +770,54 @@ const rotas = {
     };
   },
 
+  // ---- Cronograma de tarefas até o casamento (só casais de assessoria, AS) ----
+  'GET /api/cronograma': () => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const casais = listarTxt(DADOS).filter((c) => /^AS-/i.test(c.campos.numero_os || '')).map((c) => {
+      try {
+        const evento = ev.carregarEvento(DADOS, c.arquivo, c.campos, {});
+        const ck = montarChecklist(c.campos, vertenteDe(evento, c.campos), undefined, evento);
+        const atual = ck.secoes.find((s) => s.situacao === 'atual') || ck.secoes.find((s) => s.situacao === 'vencida') || ck.secoes[0] || null;
+        let dias = null;
+        try { if (c.campos.evento_data) dias = Math.round((parseData(c.campos.evento_data) - hoje) / 864e5); } catch { dias = null; }
+        return {
+          arquivo: c.arquivo, numero_os: c.campos.numero_os, nomes: ck.evento.nomes, data: ck.evento.data, dias, local: ck.evento.local,
+          vertente: ck.vertente, ritmo: ck.ritmo, meses_restantes: ck.meses_restantes,
+          agora: atual ? { rotulo: atual.rotulo, inicio: atual.inicio, fim: atual.fim, situacao: atual.situacao,
+            itens: atual.itens.map((i) => ({ texto: i.texto, status: i.status, atrasada: Boolean(i.atrasada) })) } : null,
+        };
+      } catch (e) { return { arquivo: c.arquivo, numero_os: c.campos.numero_os, nomes: c.campos.evento_nomes || c.arquivo, erro: e.message }; }
+    });
+    return { casais, hoje: hoje.toISOString() };
+  },
+  'GET /api/cronograma/casal': (q) => {
+    const { arquivo, campos, cliente } = contratoDe(q.get('arquivo'));
+    if (!/^AS-/i.test(campos.numero_os || '')) throw new Error('O cronograma é só para casais de assessoria (AS).');
+    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    const ck = montarChecklist(campos, q.get('vertente') || vertenteDe(evento, campos), undefined, evento);
+    const destino = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
+    return { ...ck, arquivo, pasta: destino.pasta, pasta_existe: destino.existe };
+  },
+  // marca uma tarefa (situação e/ou observação); a última edição vence a da planilha do casal
+  'POST /api/cronograma/tarefa': (q, corpo) => {
+    const { arquivo, campos, cliente } = contratoDe(corpo.arquivo);
+    if (!/^AS-/i.test(campos.numero_os || '')) throw new Error('O cronograma é só para casais de assessoria (AS).');
+    const chaveT = String(corpo.chave || '').slice(0, 300);
+    if (!chaveT) throw new Error('Tarefa inválida.');
+    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    const tarefas = { ...(evento.tarefas || {}) };
+    const antes = tarefas[chaveT] || { status: corpo.status_atual || '', obs: '', fornecedor: corpo.fornecedor || '' };
+    const novo = { ...antes, editado_em: new Date().toISOString() };
+    if (typeof corpo.status === 'string') novo.status = corpo.status;
+    if (typeof corpo.obs === 'string') novo.obs = corpo.obs.slice(0, 500);
+    const feito = CONCLUIDO.has(novo.status);
+    novo.concluida_em = feito ? (antes.concluida_em || new Date().toISOString()) : '';
+    tarefas[chaveT] = novo;
+    ev.salvarEvento(DADOS, arquivo, { ...evento, tarefas });
+    const salvo = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+    return montarChecklist(campos, vertenteDe(salvo, campos), undefined, salvo);
+  },
+
   // ---- Gerador de Checklist ----
   'GET /api/checklist/vertentes': () => listarVertentes(),
 
@@ -877,7 +927,7 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: '/meu-evento' }); return res.end();
     }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);

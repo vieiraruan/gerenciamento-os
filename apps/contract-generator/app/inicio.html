@@ -141,6 +141,7 @@ const ICONES = {
   checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/></svg>',
   financeiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>',
   painel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  cronograma: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/><path d="M8 14l2 2 4-4"/></svg>',
   pedidos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
   usuarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.7.8 2.8 2.5 3 5.2"/></svg>',
 };
@@ -148,7 +149,9 @@ const APPS = [
   { id: 'contratos', nome: 'Gerador de Contratos', icone: 'contrato', status: 'ativo', link: '/contratos',
     desc: 'Contrato e ordem de serviço com numeração AS/CE, pasta do casal e planilha de assessoria no Drive.' },
   { id: 'checklist', nome: 'Gerador de Checklist', icone: 'checklist', status: 'ativo', link: '/checklist',
-    desc: 'Checklist e painel do dia do evento (fornecedores, telefones e horários) e cronograma de tarefas pelos meses que faltam. Versão destination.' },
+    desc: 'Checklist e painel do dia do evento: fornecedores, telefones, horários, cortejo e atrações. Versões destination e sem destination.' },
+  { id: 'cronograma', nome: 'Cronograma', icone: 'cronograma', status: 'ativo', link: '/cronograma',
+    desc: 'Tarefas até o casamento de cada casal de assessoria: o que já foi feito, o que falta neste mês e quem está atrasado.' },
   { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', status: 'ativo', link: '/financeiro',
     desc: 'Fornecedores contratados por casal: entrada, parcelas e pagamentos com comprovante na pasta do fornecedor; quanto foi pago e quanto falta.' },
   { id: 'painel', nome: 'Painel de gestão', icone: 'painel', status: 'ativo', link: '/gestao',
@@ -160,7 +163,7 @@ const APPS = [
 ];
 // perfil de quem está usando (no computador: admin, sem login)
 let EU = { login: false, papel: 'admin' };
-const APPS_EQUIPE = ['checklist'];
+const APPS_EQUIPE = ['checklist', 'cronograma'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];

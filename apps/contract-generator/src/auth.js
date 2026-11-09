@@ -201,6 +201,7 @@ const EQUIPE = [
   /^GET \/(inicio)?$/, /^GET \/checklist$/, /^GET \/api\/eu$/,
   /^GET \/api\/contratos$/, /^GET \/api\/sincronizacao$/,
   /^GET \/api\/checklist\/(vertentes|previa)$/, /^GET \/api\/evento$/, /^POST \/api\/evento(\/importar)?$/, /^POST \/api\/checklist\/gerar$/,
+  /^GET \/cronograma$/, /^GET \/api\/cronograma(\/casal)?$/, /^POST \/api\/cronograma\/tarefa$/,
 ];
 const CASAL = [/^GET \/(inicio)?$/, /^GET \/api\/eu$/, /^GET \/meu-evento$/, /^GET \/api\/meu-evento$/];
 // rotas que mexem no computador onde o servidor roda: nunca no Lotus online

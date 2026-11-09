@@ -115,6 +115,8 @@ async function entrar(email, opcoes = {}) {
     const equipe = cookiesDe(await entrar('equipe@exemplo.com'));
     await t('equipe: checklist sim; financeiro, gestão, usuários e valores não', async () => {
       assert.strictEqual((await pedir('GET', '/checklist', { cookie: equipe })).status, 200);
+      assert.strictEqual((await pedir('GET', '/cronograma', { cookie: equipe })).status, 200);
+      assert.strictEqual((await pedir('GET', '/api/cronograma', { cookie: equipe })).status, 200);
       for (const p of ['/financeiro', '/gestao', '/contratos', '/usuarios', '/pedidos']) assert.strictEqual((await pedir('GET', p, { cookie: equipe })).status, 403, p);
       for (const p of ['/api/financeiro?arquivo=ana-e-bia.txt', '/api/gestao/painel', '/api/usuarios', '/api/config']) assert.strictEqual((await pedir('GET', p, { cookie: equipe })).status, 403, p);
       const lista = JSON.parse((await pedir('GET', '/api/contratos', { cookie: equipe })).corpo);
