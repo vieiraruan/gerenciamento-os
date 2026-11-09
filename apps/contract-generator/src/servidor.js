@@ -396,6 +396,20 @@ function resumoPedido(p, datasContratadas) {
   };
 }
 
+/** Commit com que este servidor foi iniciado (o atalho compara com o do disco e reinicia se mudou). */
+function versaoNoDisco() {
+  try {
+    const git = path.resolve(__dirname, '..', '..', '..', '.git');
+    const head = fs.readFileSync(path.join(git, 'HEAD'), 'utf8').trim();
+    if (!head.startsWith('ref:')) return head.slice(0, 40);
+    const ref = head.slice(4).trim();
+    try { return fs.readFileSync(path.join(git, ref), 'utf8').trim().slice(0, 40); } catch { /* ref empacotada */ }
+    const linha = fs.readFileSync(path.join(git, 'packed-refs'), 'utf8').split('\n').find((l) => l.endsWith(` ${ref}`));
+    return linha ? linha.slice(0, 40) : '';
+  } catch { return ''; }
+}
+const VERSAO = versaoNoDisco();
+
 // Login (Lotus online): desligado no computador; LOTUS_LOGIN=1 no servidor
 const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json') });
 
@@ -854,7 +868,7 @@ const rotas = {
 const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (req.method === 'GET' && url.pathname === '/saude') return responder(res, 200, { ok: true });
+    if (req.method === 'GET' && url.pathname === '/saude') return responder(res, 200, { ok: true, versao: VERSAO });
     // login (no computador, sem LOTUS_LOGIN, todo mundo é admin e nada muda)
     const acesso = await AUTH.tratar(req, res, url);
     if (acesso.fim) return;

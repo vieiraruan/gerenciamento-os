@@ -259,7 +259,8 @@ document.getElementById('btnEncerrar').addEventListener('click', async () => {
 });
 
 (async () => {
-  try { EU = await (await fetch('/api/eu')).json(); } catch { /* sem login */ }
+  // Só vale a resposta com perfil: um servidor antigo (sem /api/eu) devolvia erro e a tela ficava sem aplicativos
+  try { const r = await fetch('/api/eu'); const j = await r.json(); if (r.ok && j && j.papel) EU = j; } catch { /* sem login */ }
   if (EU.login) {
     // Lotus online: quem entrou + Sair; nada que mexa no computador do servidor
     document.getElementById('local').innerHTML = `<span class="badge ok">${esc({ admin: 'Admin', equipe: 'Equipe', casal: 'Casal' }[EU.papel] || EU.papel)}</span><br>${esc(EU.nome || EU.email)}`;

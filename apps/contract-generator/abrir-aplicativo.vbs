@@ -9,13 +9,17 @@ Dim sh, fso, pasta, logDir, logArq, rc
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-' Ja esta aberto? So abre o navegador.
-If JaAberto() Then
-  sh.Run "http://localhost:3210/", 1, False
-  WScript.Quit 0
-End If
-
 pasta = fso.GetParentFolderName(WScript.ScriptFullName)
+
+' Ja esta aberto? Se for a mesma versao do disco, so abre o navegador; se o codigo foi
+' atualizado depois que ele abriu (versao antiga rodando), encerra para abrir a nova.
+If JaAberto() Then
+  If VersaoRodando() = "" Or VersaoRodando() = VersaoDisco() Then
+    sh.Run "http://localhost:3210/", 1, False
+    WScript.Quit 0
+  End If
+  Encerrar
+End If
 logDir = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\TaynaAlves"
 If Not fso.FolderExists(logDir) Then fso.CreateFolder logDir
 logArq = logDir & "\aplicativo.log"
@@ -29,6 +33,58 @@ If rc <> 0 Then
     sh.Run "notepad.exe """ & logArq & """", 1, False
   End If
 End If
+
+Function VersaoRodando()
+  On Error Resume Next
+  Dim h, t, i
+  VersaoRodando = ""
+  Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+  h.setTimeouts 1000, 1000, 1000, 1000
+  h.open "GET", "http://127.0.0.1:3210/saude", False
+  h.send
+  If Err.Number <> 0 Then
+    Err.Clear
+    Exit Function
+  End If
+  t = h.responseText
+  i = InStr(t, """versao"":""")
+  If i > 0 Then VersaoRodando = Mid(t, i + 10, 40)
+  ' servidor antigo (sem versao): considera desatualizado
+  If i = 0 And h.status = 200 Then VersaoRodando = "antiga"
+  Err.Clear
+End Function
+
+Function VersaoDisco()
+  On Error Resume Next
+  Dim git, head, ref
+  VersaoDisco = ""
+  git = fso.GetParentFolderName(fso.GetParentFolderName(pasta)) & "\.git"
+  head = Trim(fso.OpenTextFile(git & "\HEAD", 1).ReadLine)
+  If Left(head, 4) = "ref:" Then
+    ref = Replace(Trim(Mid(head, 5)), "/", "\")
+    If fso.FileExists(git & "\" & ref) Then VersaoDisco = Left(Trim(fso.OpenTextFile(git & "\" & ref, 1).ReadLine), 40)
+  Else
+    VersaoDisco = Left(head, 40)
+  End If
+  ' sem como ler a versao do disco: nao reinicia
+  If VersaoDisco = "" Then VersaoDisco = VersaoRodando()
+  Err.Clear
+End Function
+
+Sub Encerrar()
+  On Error Resume Next
+  Dim h, n
+  Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+  h.setTimeouts 2000, 2000, 2000, 2000
+  h.open "POST", "http://127.0.0.1:3210/api/encerrar", False
+  h.setRequestHeader "Content-Type", "application/json"
+  h.send "{}"
+  Err.Clear
+  For n = 1 To 20
+    WScript.Sleep 500
+    If Not JaAberto() Then Exit For
+  Next
+End Sub
 
 Function JaAberto()
   On Error Resume Next
