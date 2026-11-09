@@ -83,6 +83,11 @@ async function entrar(email, opcoes = {}) {
       assert.match((await entrar('tayna@exemplo.com', { aud: 'outro-app' })).headers.location, /^\/entrar\?erro=/);
       assert.match((await entrar('tayna@exemplo.com', { verificado: false })).headers.location, /^\/entrar\?erro=/);
     });
+    await t('online: formulário do site aberto, pedidos só com login', async () => {
+      assert.strictEqual((await pedir('GET', '/api/publico/servicos')).status, 200);
+      assert.strictEqual((await pedir('GET', '/api/pedidos')).status, 401);
+      assert.strictEqual((await pedir('GET', '/pedidos')).status, 302);
+    });
     await t('e-mail não liberado não entra', async () => {
       const r = await entrar('estranho@exemplo.com');
       assert.match(decodeURIComponent(r.headers.location), /não tem acesso/);
@@ -110,7 +115,7 @@ async function entrar(email, opcoes = {}) {
     const equipe = cookiesDe(await entrar('equipe@exemplo.com'));
     await t('equipe: checklist sim; financeiro, gestão, usuários e valores não', async () => {
       assert.strictEqual((await pedir('GET', '/checklist', { cookie: equipe })).status, 200);
-      for (const p of ['/financeiro', '/gestao', '/contratos', '/usuarios']) assert.strictEqual((await pedir('GET', p, { cookie: equipe })).status, 403, p);
+      for (const p of ['/financeiro', '/gestao', '/contratos', '/usuarios', '/pedidos']) assert.strictEqual((await pedir('GET', p, { cookie: equipe })).status, 403, p);
       for (const p of ['/api/financeiro?arquivo=ana-e-bia.txt', '/api/gestao/painel', '/api/usuarios', '/api/config']) assert.strictEqual((await pedir('GET', p, { cookie: equipe })).status, 403, p);
       const lista = JSON.parse((await pedir('GET', '/api/contratos', { cookie: equipe })).corpo);
       assert.strictEqual(lista[0].valor_total, undefined);

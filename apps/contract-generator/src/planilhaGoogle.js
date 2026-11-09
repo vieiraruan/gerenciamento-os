@@ -21,30 +21,24 @@ function configuracao(dirDados) {
 }
 
 /**
- * Envia o arquivo financeiro-google/<numero>.json (o mesmo que o gatilho de 10 min usa) para a planilha.
- * Nunca lança erro: devolve { ok, em, linhas, planilha } ou { erro, em } ou { pendente: true } (sem conexão direta).
+ * Chama o script do Google (App da Web) com uma ação. Nunca lança erro: devolve a resposta do script
+ * ({ ok, … } ou { erro }) com `em`, ou { pendente: true } quando a conexão direta não está configurada.
  */
-async function enviarFinanceiro(dirDados, numero, { fetchFn = globalThis.fetch, tempo = 30000 } = {}) {
+async function chamar(dirDados, acao, dados, { fetchFn = globalThis.fetch, tempo = 30000 } = {}) {
   const em = () => new Date().toISOString();
   const conf = configuracao(dirDados);
   if (!conf) return { pendente: true, em: em() };
-  let pacote;
-  try {
-    pacote = JSON.parse(fs.readFileSync(path.join(dirDados, 'financeiro-google', `${String(numero).trim()}.json`), 'utf8'));
-  } catch {
-    return { erro: 'dados do financeiro para a planilha não encontrados', em: em() };
-  }
-  const corpo = JSON.stringify({ chave: conf.chave, numero: pacote.numero, gerado_em: pacote.gerado_em, linhas: pacote.linhas });
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), tempo);
   try {
     // o Apps Script responde com um redirecionamento para o resultado (o fetch segue sozinho)
-    const r = await fetchFn(conf.url, { method: 'POST', body: corpo, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, signal: ctl.signal, redirect: 'follow' });
+    const r = await fetchFn(conf.url, { method: 'POST', body: JSON.stringify({ ...dados, acao, chave: conf.chave }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, signal: ctl.signal, redirect: 'follow' });
     const texto = await r.text();
     let j;
     try { j = JSON.parse(texto); } catch { return { erro: `resposta inesperada do Google (HTTP ${r.status})`, em: em() }; }
-    if (j.ok) return { ok: true, em: j.em || em(), linhas: j.linhas, planilha: j.planilha || '' };
-    return { erro: j.erro || 'o Google recusou a atualização', em: em() };
+    if (j.ok) return { ...j, em: j.em || em() };
+    return { erro: j.erro || 'o Google recusou o pedido', em: em() };
   } catch (e) {
     return { erro: e.name === 'AbortError' ? 'o Google demorou para responder' : 'sem conexão com o Google', em: em() };
   } finally {
@@ -52,4 +46,17 @@ async function enviarFinanceiro(dirDados, numero, { fetchFn = globalThis.fetch, 
   }
 }
 
-module.exports = { configuracao, enviarFinanceiro, ARQUIVO };
+/** Envia o arquivo financeiro-google/<numero>.json (o mesmo que o gatilho de 10 min usa) para a planilha. */
+async function enviarFinanceiro(dirDados, numero, opcoes = {}) {
+  if (!configuracao(dirDados)) return { pendente: true, em: new Date().toISOString() };
+  let pacote;
+  try {
+    pacote = JSON.parse(fs.readFileSync(path.join(dirDados, 'financeiro-google', `${String(numero).trim()}.json`), 'utf8'));
+  } catch {
+    return { erro: 'dados do financeiro para a planilha não encontrados', em: new Date().toISOString() };
+  }
+  const r = await chamar(dirDados, 'financeiro', { numero: pacote.numero, gerado_em: pacote.gerado_em, linhas: pacote.linhas }, opcoes);
+  return r.ok ? { ok: true, em: r.em, linhas: r.linhas, planilha: r.planilha || '' } : r;
+}
+
+module.exports = { configuracao, chamar, enviarFinanceiro, ARQUIVO };

@@ -7,7 +7,7 @@
     "gerar": "node src/index.js",
     "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py",
     "app": "node src/servidor.js",
-    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js"
+    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js && node scripts/testar-pedidos.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +15,7 @@
   "dependencies": {
     "docxtemplater": "^3.71.1",
     "extenso": "^3.0.0",
+    "pdfkit": "^0.17.2",
     "pizzip": "^3.3.0"
   },
   "bin": {

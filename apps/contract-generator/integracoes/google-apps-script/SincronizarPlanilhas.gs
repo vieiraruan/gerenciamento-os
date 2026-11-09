@@ -13,7 +13,8 @@
  * nome do fornecedor; células com fórmula — saldo, valor restante, total — não são tocadas).
  *
  * CONEXÃO DIRETA (na hora): o script também é publicado como "App da Web". O Lotus envia cada lançamento para
- * doPost, que escreve a aba FINANCEIRO na hora e responde. `conectarLotus` grava o endereço e a chave em
+ * doPost, que escreve a aba FINANCEIRO na hora e responde. Pelo mesmo caminho o Lotus manda os e-mails dos pedidos do
+ * site (Gmail da empresa) e consulta/marca as conversas com a Tayná no Google Agenda. `conectarLotus` grava o endereço e a chave em
  * _DADOS DO SISTEMA/integracoes/google-planilhas.json, onde o Lotus os lê. O gatilho de 10 minutos continua
  * como reserva (por exemplo, se o computador estava sem internet no momento do lançamento).
  *
@@ -98,7 +99,13 @@ function conectarLotus(endereco) {
   Logger.log('Lotus conectado: ' + url);
 }
 
-/** O Lotus envia { chave, numero, gerado_em, linhas } e recebe { ok, linhas, em } ou { erro }. */
+/**
+ * Pedidos do Lotus (App da Web). Todo pedido traz a chave; `acao` escolhe o que fazer:
+ *  - financeiro (padrão): { numero, gerado_em, linhas } → escreve a aba FINANCEIRO do casal na hora
+ *  - email:      { para, assunto, html, texto, responder_para, anexos: [{ nome, tipo, base64 }] } → envia pelo Gmail da empresa
+ *  - horarios:   { dias, minutos, grade } → horários livres na agenda da empresa (Google Agenda)
+ *  - agendar:    { inicio, minutos, titulo, descricao, convidado } → cria o evento e manda o convite ao casal
+ */
 function doPost(e) {
   const responder = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
   let pedido;
@@ -106,27 +113,99 @@ function doPost(e) {
   const props = PropertiesService.getScriptProperties();
   const chave = props.getProperty('LOTUS_CHAVE');
   if (!chave || pedido.chave !== chave) return responder({ erro: 'chave inválida' });
+  try {
+    const acao = pedido.acao || 'financeiro';
+    if (acao === 'financeiro') return responder(lotusFinanceiro_(pedido, props));
+    if (acao === 'email') return responder(lotusEmail_(pedido));
+    if (acao === 'horarios') return responder(lotusHorarios_(pedido));
+    if (acao === 'agendar') return responder(lotusAgendar_(pedido));
+    return responder({ erro: 'ação desconhecida' });
+  } catch (x) {
+    return responder({ erro: String(x && x.message || x) });
+  }
+}
+
+function lotusFinanceiro_(pedido, props) {
   const numero = String(pedido.numero || '').toUpperCase();
-  if (!/^(AS|CE)-\d{4}$/.test(numero)) return responder({ erro: 'número do contrato inválido' });
+  if (!/^(AS|CE)-\d{4}$/.test(numero)) return { erro: 'número do contrato inválido' };
   const trava = LockService.getScriptLock();
-  if (!trava.tryLock(25000)) return responder({ erro: 'planilhas ocupadas, tente de novo' });
+  if (!trava.tryLock(25000)) return { erro: 'planilhas ocupadas, tente de novo' };
   try {
     const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
     const casal = raiz && acharPastaCasal_(raiz, numero);
-    if (!casal) return responder({ erro: 'pasta do casal não encontrada no Drive' });
+    if (!casal) return { erro: 'pasta do casal não encontrada no Drive' };
     const pl = acharPlanilha_(casal, 0);
-    if (!pl) return responder({ erro: 'planilha do casal não encontrada' });
+    if (!pl) return { erro: 'planilha do casal não encontrada' };
     const sh = SpreadsheetApp.openById(pl.id).getSheetByName('FINANCEIRO');
-    if (!sh) return responder({ erro: 'planilha sem aba FINANCEIRO' });
+    if (!sh) return { erro: 'planilha sem aba FINANCEIRO' };
     const n = escreverAba_(sh, pedido.linhas || []);
     SpreadsheetApp.flush();
     if (pedido.gerado_em) props.setProperty(`fin:${numero}`, pedido.gerado_em); // o gatilho de 10 min não repete
-    return responder({ ok: true, linhas: n, planilha: pl.nome || '', em: new Date().toISOString() });
-  } catch (x) {
-    return responder({ erro: String(x && x.message || x) });
+    return { ok: true, linhas: n, planilha: pl.nome || '', em: new Date().toISOString() };
   } finally {
     trava.releaseLock();
   }
+}
+
+function lotusEmail_(p) {
+  const para = String(p.para || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para)) return { erro: 'e-mail do destinatário inválido' };
+  if (MailApp.getRemainingDailyQuota() < 1) return { erro: 'limite diário de e-mails do Google atingido' };
+  const opcoes = { name: p.nome_remetente || 'Tayná Alves Assessoria', htmlBody: p.html || '' };
+  if (p.responder_para) opcoes.replyTo = p.responder_para;
+  if (p.anexos && p.anexos.length) {
+    opcoes.attachments = p.anexos.map((a) => Utilities.newBlob(Utilities.base64Decode(a.base64), a.tipo || 'application/pdf', a.nome));
+  }
+  MailApp.sendEmail(para, String(p.assunto || '').slice(0, 250), p.texto || '', opcoes);
+  return { ok: true, em: new Date().toISOString() };
+}
+
+// grade padrão de horários para conversa com a Tayná (0 = domingo); o Lotus pode mandar outra
+const GRADE_PADRAO = { 1: ['10:00', '15:00', '19:00'], 2: ['10:00', '15:00', '19:00'], 3: ['10:00', '15:00', '19:00'],
+  4: ['10:00', '15:00', '19:00'], 5: ['10:00', '15:00'], 6: ['10:00'] };
+
+function lotusHorarios_(p) {
+  const dias = Math.min(Number(p.dias) || 10, 30);
+  const minutos = Math.min(Number(p.minutos) || 30, 180);
+  const grade = p.grade || GRADE_PADRAO;
+  const agenda = CalendarApp.getDefaultCalendar();
+  const agora = new Date();
+  const inicioBusca = new Date(agora.getTime() + 20 * 3600e3); // pelo menos ~1 dia de antecedência
+  const fimBusca = new Date(agora.getTime() + dias * 86400e3);
+  const ocupados = agenda.getEvents(inicioBusca, fimBusca).filter((ev) => !ev.isAllDayEvent())
+    .map((ev) => [ev.getStartTime().getTime(), ev.getEndTime().getTime()]);
+  const fuso = Session.getScriptTimeZone();
+  const livres = [];
+  for (let d = new Date(inicioBusca); d <= fimBusca && livres.length < 12; d = new Date(d.getTime() + 86400e3)) {
+    const dia = Number(Utilities.formatDate(d, fuso, 'u')) % 7; // u: 1=segunda … 7=domingo
+    const ymd = Utilities.formatDate(d, fuso, 'yyyy-MM-dd');
+    (grade[dia] || []).forEach((hm) => {
+      const ini = Utilities.parseDate(`${ymd} ${hm}`, fuso, 'yyyy-MM-dd HH:mm');
+      const fim = new Date(ini.getTime() + minutos * 60e3);
+      if (ini < inicioBusca || ini > fimBusca) return;
+      if (ocupados.some(([a, b]) => ini.getTime() < b && fim.getTime() > a)) return;
+      livres.push(ini.toISOString());
+    });
+  }
+  return { ok: true, horarios: livres.slice(0, 12), fuso };
+}
+
+function lotusAgendar_(p) {
+  const ini = new Date(p.inicio);
+  if (isNaN(ini.getTime())) return { erro: 'horário inválido' };
+  const fim = new Date(ini.getTime() + (Math.min(Number(p.minutos) || 30, 180)) * 60e3);
+  const agenda = CalendarApp.getDefaultCalendar();
+  if (agenda.getEvents(ini, fim).some((ev) => !ev.isAllDayEvent())) return { erro: 'já existe compromisso neste horário' };
+  const opcoes = { description: String(p.descricao || '') };
+  if (p.convidado) { opcoes.guests = p.convidado; opcoes.sendInvites = true; }
+  const ev = agenda.createEvent(String(p.titulo || 'Conversa com a Tayná'), ini, fim, opcoes);
+  return { ok: true, evento: ev.getId(), em: new Date().toISOString() };
+}
+
+/** Executar uma vez depois de atualizar o código: pede ao Google as permissões de e-mail e agenda. */
+function autorizarLotus() {
+  Logger.log('E-mails restantes hoje: ' + MailApp.getRemainingDailyQuota());
+  Logger.log('Agenda: ' + CalendarApp.getDefaultCalendar().getName());
 }
 
 function sincronizar() {

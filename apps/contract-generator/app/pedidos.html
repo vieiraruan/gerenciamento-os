@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedidos do site · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root { --marca: #824634; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --erro: #b3261e; --ok: #2f7a4f; --aviso: #9a6400; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+  header img { height: 58px; } header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; } header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; } header a { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 40px; display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .lista { flex: 999 1 560px; min-width: 0; }
+  .detalhe { flex: 1 1 380px; background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 20px; position: sticky; top: 12px; }
+  .alerta { display: flex; gap: 10px; align-items: center; background: #fdebd9; color: #6a2c0e; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px; }
+  .aviso { background: #fbf1dc; color: var(--aviso); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 12px; }
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros button { font: inherit; font-size: 13px; border-radius: 10px; border: 1px solid var(--borda); padding: 8px 12px; background: #fff; cursor: pointer; color: var(--texto); }
+  .filtros button.on { border-color: var(--marca); color: var(--marca); font-weight: 600; }
+  .tabela { overflow-x: auto; background: #fff; border: 1px solid var(--borda); border-radius: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .4px; padding: 10px 12px; background: #f3e6dc; }
+  td { padding: 11px 12px; border-top: 1px solid #f3ebe6; vertical-align: top; }
+  tr.linha { cursor: pointer; } tr.linha:hover td { background: #fbf6f1; } tr.sel td { background: #f8efe9; }
+  .badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: #efe9e5; color: var(--suave); }
+  .b-novo { background: #f3e1da; color: var(--marca); } .b-em_conversa { background: #e3eef6; color: #1f4e78; }
+  .b-fechado { background: #e6f2ea; color: var(--ok); } .b-descartado { background: #efe9e5; color: var(--suave); }
+  .b-aguardando { background: #fdebd9; color: #8a3b12; } .b-confirmada { background: #e6f2ea; color: var(--ok); } .b-recusada { background: #fbeceb; color: var(--erro); }
+  .s { font-size: 12.5px; color: var(--suave); }
+  .vazio { padding: 30px; text-align: center; color: var(--suave); }
+  dl { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 14px 0; font-size: 14px; } dt { color: var(--suave); } dd { margin: 0; }
+  .msgc { background: #f8f3ef; border-radius: 10px; padding: 12px; font-size: 14px; white-space: pre-wrap; }
+  .acoes { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .acoes a, .acoes button { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; border-radius: 10px; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; border: 1px solid var(--marca); background: #fff; color: var(--marca); }
+  .acoes .verde { background: var(--ok); border-color: var(--ok); color: #fff; } .acoes .primario { background: var(--marca); color: #fff; }
+  .acoes .linha2 { display: flex; gap: 8px; } .acoes .linha2 > * { flex: 1; }
+  select { font: inherit; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 10px; background: #fffdfb; }
+  dd a { color: var(--marca); font-weight: 600; }
+  .msg { font-size: 13px; margin-top: 8px; } .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
+  .hist { margin-top: 16px; font-size: 12.5px; color: var(--suave); } .hist li { margin-bottom: 4px; }
+  .itens { width: 100%; font-size: 13.5px; min-width: 0; margin-top: 4px; } .itens td { padding: 4px 0; border: 0; } .itens td:last-child { text-align: right; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="sep"></div>
+  <div><h1>Pedidos do site</h1><div class="sub">Pedidos de orçamento e de conversa que chegam de taynaalvesassessoria.com.br</div></div>
+  <div class="esp"></div><a href="/">← Início</a>
+</header>
+<main>
+  <section class="lista">
+    <div id="avisos"></div>
+    <div class="filtros" id="filtros"></div>
+    <div class="tabela"><table>
+      <thead><tr><th>Casal</th><th>Casamento</th><th>Serviço</th><th>Conversa</th><th>Situação</th><th>Chegou</th></tr></thead>
+      <tbody id="corpo"><tr><td colspan="6" class="vazio">Carregando…</td></tr></tbody>
+    </table></div>
+  </section>
+  <aside class="detalhe" id="detalhe"><div class="vazio">Escolha um pedido para ver os detalhes.</div></aside>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const brl = (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const NOMES = { novo: 'Novo', em_conversa: 'Em conversa', fechado: 'Fechado', descartado: 'Descartado' };
+const AGENDA = { aguardando: 'Aguardando você', confirmada: 'Confirmada', recusada: 'Recusada' };
+let DADOS = { pedidos: [] }; let filtro = 'abertos'; let selecionado = new URLSearchParams(location.search).get('id');
+
+async function api(url, corpo) {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+function chegou(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (min < 60) return `há ${Math.max(1, min)} min`;
+  if (min < 24 * 60) return `há ${Math.round(min / 60)} h`;
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+async function carregar() {
+  try { DADOS = await api('/api/pedidos'); } catch (e) { $('#corpo').innerHTML = `<tr><td colspan="6" class="vazio">${esc(e.message)}</td></tr>`; return; }
+  render();
+}
+
+function render() {
+  const P = DADOS.pedidos;
+  const avisos = [];
+  if (!DADOS.google) avisos.push('<div class="aviso">A conexão com o Google (e-mail e agenda) não está configurada neste computador: os pedidos chegam, mas os e-mails e a confirmação na agenda não saem daqui.</div>');
+  const ag = P.filter((p) => p.agenda && p.agenda.estado === 'aguardando');
+  if (ag.length) avisos.push(`<div class="alerta"><b>${ag.length} solicitação(ões) de agenda</b>&nbsp;aguardando confirmação: ${ag.map((p) => `${esc(p.nome)} (${esc(p.agenda.rotulo)})`).join(', ')}.</div>`);
+  $('#avisos').innerHTML = avisos.join('');
+  const grupos = { abertos: (p) => ['novo', 'em_conversa'].includes(p.estado), novo: (p) => p.estado === 'novo', fechado: (p) => p.estado === 'fechado', descartado: (p) => p.estado === 'descartado', todos: () => true };
+  const rot = { abertos: 'Em aberto', novo: 'Novos', fechado: 'Fechados', descartado: 'Descartados', todos: 'Todos' };
+  $('#filtros').innerHTML = Object.keys(grupos).map((k) => `<button data-f="${k}" class="${k === filtro ? 'on' : ''}">${rot[k]} (${P.filter(grupos[k]).length})</button>`).join('');
+  document.querySelectorAll('#filtros button').forEach((b) => b.onclick = () => { filtro = b.dataset.f; render(); });
+  const vis = P.filter(grupos[filtro]);
+  $('#corpo').innerHTML = vis.length ? vis.map((p) => `<tr class="linha ${p.id === selecionado ? 'sel' : ''}" data-id="${p.id}">
+      <td><b>${esc(p.nome)}</b><div class="s">${esc(p.email)}</div></td>
+      <td>${esc(p.data_br || 'a definir')}${p.data_ocupada ? ' <span class="badge b-recusada" title="Já existe contrato nesta data">data com contrato</span>' : ''}<div class="s">${esc(p.cidade || '')}${p.convidados ? ` · ${p.convidados} conv.` : ''}</div></td>
+      <td>${esc(p.servico)}</td>
+      <td>${p.agenda ? `<span class="badge b-${p.agenda.estado}">${AGENDA[p.agenda.estado] || ''}</span><div class="s">${esc(p.agenda.rotulo)}</div>` : '<span class="s">—</span>'}</td>
+      <td><span class="badge b-${p.estado}">${NOMES[p.estado]}</span></td>
+      <td class="s">${chegou(p.criado_em)}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="vazio">Nenhum pedido aqui.</td></tr>';
+  document.querySelectorAll('tr.linha').forEach((tr) => tr.onclick = () => { selecionado = tr.dataset.id; history.replaceState(null, '', `?id=${selecionado}`); render(); });
+  detalhe();
+}
+
+function situacaoEmail(e) {
+  if (!e) return '<span class="s">enviando…</span>';
+  if (e.ok) return `<span style="color:var(--ok)">✔ enviado ${new Date(e.em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>`;
+  if (e.pendente) return '<span style="color:var(--aviso)">não enviado (sem conexão com o Google)</span>';
+  return `<span style="color:var(--erro)">não enviado: ${esc(e.erro)}</span>`;
+}
+
+function detalhe() {
+  const p = DADOS.pedidos.find((x) => x.id === selecionado);
+  if (!p) { $('#detalhe').innerHTML = '<div class="vazio">Escolha um pedido para ver os detalhes.</div>'; return; }
+  const ag = p.agenda;
+  $('#detalhe').innerHTML = `
+    <div class="s" style="text-transform:uppercase;letter-spacing:.06em;color:var(--marca);font-weight:700">Pedido · ${esc(NOMES[p.estado])}</div>
+    <h2 style="margin:4px 0 0;font-size:22px">${esc(p.nome)}</h2>
+    <dl>
+      <dt>Casamento</dt><dd>${esc(p.data_br || 'a definir')}${p.data_ocupada ? ' · <b style="color:var(--erro)">já há contrato nesta data</b>' : p.data_br ? ' · <span style="color:var(--ok)">data livre</span>' : ''}</dd>
+      <dt>Local</dt><dd>${esc(p.cidade || '—')}${p.fora ? ' (fora da RMR)' : ''}</dd>
+      <dt>Convidados</dt><dd>${p.convidados || '—'}</dd>
+      <dt>Serviço</dt><dd>${esc(p.servico)}</dd>
+      <dt>WhatsApp</dt><dd>${esc(p.whatsapp)}</dd>
+      <dt>E-mail</dt><dd>${esc(p.email)}</dd>
+      <dt>Orçamento prévio</dt><dd>${p.total ? `<b>${brl(p.total)}</b>` : 'tabela de referência'} · <a href="/api/pedidos/pdf?id=${p.id}" target="_blank">ver PDF</a><br>${situacaoEmail(p.emails && p.emails.casal)}</dd>
+      ${ag ? `<dt>Conversa</dt><dd><b>${esc(ag.rotulo)}</b> · <span class="badge b-${ag.estado}">${AGENDA[ag.estado]}</span></dd>` : ''}
+    </dl>
+    ${p.mensagem ? `<div class="msgc">“${esc(p.mensagem)}”</div>` : ''}
+    <div class="acoes">
+      ${ag && ag.estado === 'aguardando' ? `<button class="verde" id="aConfirmar">Confirmar conversa de ${esc(ag.rotulo)}</button><button id="aRecusar">Não posso neste horário</button>` : ''}
+      <a class="${ag && ag.estado === 'aguardando' ? '' : 'verde'}" href="${esc(p.whatsapp_link)}" target="_blank" rel="noopener">Responder no WhatsApp</a>
+      <div class="linha2">
+        <select id="aEstado">${Object.entries(NOMES).map(([k, v]) => `<option value="${k}" ${k === p.estado ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <button id="aReenviar">Reenviar orçamento</button>
+      </div>
+    </div>
+    <div class="msg" id="aMsg"></div>
+    ${p.historico && p.historico.length ? `<ul class="hist">${p.historico.slice().reverse().map((h) => `<li>${esc(h.replace(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})[^ ]*/, (m, d, t) => `${d.split('-').reverse().join('/')} ${t}`))}</li>`).join('')}</ul>` : ''}`;
+  const acao = async (dados, botao, texto) => {
+    const msg = $('#aMsg'); msg.className = 'msg'; msg.textContent = texto || 'Aguarde…';
+    if (botao) botao.disabled = true;
+    try { await api('/api/pedidos/acao', { id: p.id, ...dados }); await carregar(); const m = $('#aMsg'); if (m) { m.className = 'msg ok'; m.textContent = 'Pronto.'; } }
+    catch (e) { msg.className = 'msg erro'; msg.textContent = e.message; if (botao) botao.disabled = false; }
+  };
+  if ($('#aConfirmar')) $('#aConfirmar').onclick = (e) => acao({ acao: 'confirmar' }, e.target, 'Marcando no Google Agenda e enviando o convite…');
+  if ($('#aRecusar')) $('#aRecusar').onclick = (e) => acao({ acao: 'recusar_horario' }, e.target);
+  $('#aEstado').onchange = (e) => acao({ acao: 'estado', estado: e.target.value });
+  $('#aReenviar').onclick = (e) => { if (confirm(`Enviar de novo o orçamento prévio para ${p.email}?`)) acao({ acao: 'reenviar' }, e.target, 'Enviando…'); };
+}
+
+carregar();
+setInterval(() => { if (document.visibilityState === 'visible') carregar(); }, 60000);
+</script>
+</body>
+</html>

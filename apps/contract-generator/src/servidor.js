@@ -32,6 +32,7 @@ const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
 const { criarAuth } = require('./auth');
 const planilhaGoogle = require('./planilhaGoogle');
+const pedidos = require('./pedidos');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -338,10 +339,143 @@ function contratosComFinanceiro() {
   return { contratos, carregarFin };
 }
 
+// ---- Pedidos do site ----
+const URL_LOTUS = (process.env.LOTUS_URL || `http://localhost:${process.env.PORTA || 3210}`).replace(/\/$/, '');
+const empresa = () => { try { return JSON.parse(fs.readFileSync(ARQ_EMPRESA, 'utf8')); } catch { return {}; } };
+const emailAlertas = () => process.env.LOTUS_ALERTAS || empresa().email || '';
+
+// limite de pedidos por endereço (formulário público)
+const LIMITES = new Map();
+function limitar(req, tipo, maximo, janelaMs = 3600e3) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const k = `${tipo}:${ip}`;
+  const agora = Date.now();
+  const lista = (LIMITES.get(k) || []).filter((t) => agora - t < janelaMs);
+  if (lista.length >= maximo) throw new Error('Muitos pedidos em pouco tempo. Tente de novo mais tarde ou chame a Tayná no WhatsApp.');
+  lista.push(agora); LIMITES.set(k, lista);
+  if (LIMITES.size > 5000) LIMITES.clear();
+  return ip;
+}
+
+let CACHE_HORARIOS = { t: 0, horarios: [] };
+async function horariosLivres(forcar = false) {
+  if (!forcar && Date.now() - CACHE_HORARIOS.t < 180e3) return CACHE_HORARIOS.horarios;
+  const r = await planilhaGoogle.chamar(DADOS, 'horarios', { dias: 10, minutos: 30 }, { tempo: 20000 });
+  const horarios = r.ok ? (r.horarios || []).map((inicio) => ({ inicio, rotulo: pedidos.rotuloHorario(inicio) })) : [];
+  CACHE_HORARIOS = { t: r.ok ? Date.now() : 0, horarios };
+  return horarios;
+}
+
+/** Depois de salvo o pedido: PDF + e-mail para o casal e alerta para a Tayná (resultado fica no pedido). */
+async function processarPedido(id, { alerta = true } = {}) {
+  const p = pedidos.carregar(DADOS, id);
+  if (!p) return;
+  try {
+    const pdf = await pedidos.gerarPdf(p, empresa());
+    const e = pedidos.emailCasal(p);
+    p.emails.casal = await planilhaGoogle.chamar(DADOS, 'email', { ...e, responder_para: empresa().email || '',
+      anexos: [{ nome: `Orçamento prévio - ${p.nome}.pdf`, tipo: 'application/pdf', base64: pdf.toString('base64') }] });
+  } catch (err) { p.emails.casal = { erro: err.message, em: new Date().toISOString() }; }
+  if (alerta && emailAlertas()) {
+    const a = pedidos.emailAlerta(p, 'novo', URL_LOTUS);
+    p.emails.alerta = await planilhaGoogle.chamar(DADOS, 'email', { ...a, para: emailAlertas(), nome_remetente: 'Lotus' });
+  }
+  pedidos.salvar(DADOS, { ...pedidos.carregar(DADOS, id), emails: p.emails });
+}
+
+function resumoPedido(p, datasContratadas) {
+  const dataBr = pedidos.dataBr(p.data);
+  return {
+    id: p.id, estado: p.estado, criado_em: p.criado_em, nome: p.nome, email: p.email, whatsapp: p.whatsapp, data: p.data, data_br: dataBr,
+    cidade: p.cidade, convidados: p.convidados, fora: p.fora, mensagem: p.mensagem,
+    servico: p.orcamento.servico ? p.orcamento.servico.nome : 'Ainda não sei', total: p.orcamento.total || null, itens: p.orcamento.itens || [],
+    agenda: p.agenda ? { ...p.agenda, rotulo: pedidos.rotuloHorario(p.agenda.inicio) } : null,
+    emails: p.emails, historico: p.historico,
+    data_ocupada: Boolean(dataBr && datasContratadas.has(dataBr)),
+    whatsapp_link: pedidos.linkWhatsCasal(p),
+  };
+}
+
 // Login (Lotus online): desligado no computador; LOTUS_LOGIN=1 no servidor
 const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json') });
 
 const rotas = {
+  // ---- Site: pedido de orçamento (público, sem login) ----
+  'GET /api/publico/servicos': () => ({ servicos: pedidos.servicosDoSite() }),
+  'GET /api/publico/horarios': async () => ({ horarios: await horariosLivres(), whatsapp: pedidos.linkWhatsTayna({ nome: 'um casal', data: '' }) }),
+  'POST /api/publico/orcamento': (q, corpo, usuario, req) => {
+    if (corpo.site) return { ok: true, id: '00000000-000000', token: '' }; // robô (campo escondido preenchido): não grava
+    const ip = limitar(req, 'orcamento', 6);
+    const p = pedidos.criar(DADOS, corpo, { ip, navegador: req.headers['user-agent'] });
+    processarPedido(p.id).catch(() => {});
+    return { ok: true, ...pedidos.publico(p), whatsapp: pedidos.linkWhatsTayna(p) };
+  },
+  'POST /api/publico/agenda': async (q, corpo, usuario, req) => {
+    limitar(req, 'agenda', 20);
+    const p = pedidos.carregar(DADOS, String(corpo.id || ''));
+    const ok = p && typeof corpo.token === 'string' && corpo.token.length === p.token.length
+      && require('crypto').timingSafeEqual(Buffer.from(corpo.token), Buffer.from(p.token));
+    if (!ok) throw new Error('Pedido não encontrado.');
+    const livres = await horariosLivres(true);
+    if (!livres.some((h) => h.inicio === corpo.inicio)) throw new Error('Este horário acabou de ser ocupado. Escolha outro.');
+    p.agenda = { inicio: corpo.inicio, pedido_em: new Date().toISOString(), estado: 'aguardando' };
+    p.historico.push(`${new Date().toISOString()} - Casal pediu conversa em ${pedidos.rotuloHorario(corpo.inicio)}.`);
+    pedidos.salvar(DADOS, p);
+    if (emailAlertas()) {
+      const a = pedidos.emailAlerta(p, 'agenda', URL_LOTUS);
+      planilhaGoogle.chamar(DADOS, 'email', { ...a, para: emailAlertas(), nome_remetente: 'Lotus' })
+        .then((r) => { const atual = pedidos.carregar(DADOS, p.id); atual.emails.agenda = r; pedidos.salvar(DADOS, atual); }).catch(() => {});
+    }
+    return { ok: true, rotulo: pedidos.rotuloHorario(corpo.inicio) };
+  },
+
+  // ---- Pedidos do site (Tayná) ----
+  'GET /api/pedidos': () => {
+    const datas = new Set(listarTxt(DADOS).map((c) => String(c.campos.evento_data || '').trim()).filter(Boolean));
+    const lista = pedidos.listar(DADOS).map((p) => resumoPedido(p, datas));
+    return { pedidos: lista, novos: lista.filter((p) => p.estado === 'novo').length,
+      agendas: lista.filter((p) => p.agenda && p.agenda.estado === 'aguardando').length, google: Boolean(planilhaGoogle.configuracao(DADOS)) };
+  },
+  'POST /api/pedidos/acao': async (q, corpo) => {
+    const p = pedidos.carregar(DADOS, String(corpo.id || ''));
+    if (!p) throw new Error('Pedido não encontrado.');
+    const agora = new Date().toISOString();
+    if (corpo.acao === 'estado') {
+      if (!pedidos.ESTADOS.includes(corpo.estado)) throw new Error('Situação inválida.');
+      p.estado = corpo.estado;
+      p.historico.push(`${agora} - Situação: ${corpo.estado}.`);
+    } else if (corpo.acao === 'confirmar') {
+      if (!p.agenda) throw new Error('O casal ainda não pediu horário.');
+      const descricao = [`Conversa de fechamento — pedido do site (${p.orcamento.servico ? p.orcamento.servico.nome : 'serviço a definir'}).`,
+        `WhatsApp: ${p.whatsapp}`, p.data ? `Casamento: ${pedidos.dataBr(p.data)}${p.cidade ? `, ${p.cidade}` : ''}` : '',
+        `Lotus: ${URL_LOTUS}/pedidos?id=${p.id}`].filter(Boolean).join('\n');
+      const r = await planilhaGoogle.chamar(DADOS, 'agendar', { inicio: p.agenda.inicio, minutos: 30,
+        titulo: `Conversa com ${p.nome} (Tayná Alves Assessoria)`, descricao, convidado: p.email });
+      if (r.pendente) throw new Error('A conexão com o Google não está configurada neste computador.');
+      if (r.erro) throw new Error(`Não consegui marcar na agenda: ${r.erro}`);
+      p.agenda = { ...p.agenda, estado: 'confirmada', confirmada_em: agora, evento: r.evento };
+      if (p.estado === 'novo') p.estado = 'em_conversa';
+      p.historico.push(`${agora} - Conversa confirmada no Google Agenda; convite enviado para ${p.email}.`);
+    } else if (corpo.acao === 'recusar_horario') {
+      if (!p.agenda) throw new Error('Não há horário pedido.');
+      p.agenda = { ...p.agenda, estado: 'recusada' };
+      p.historico.push(`${agora} - Horário recusado (combinar outro pelo WhatsApp).`);
+    } else if (corpo.acao === 'reenviar') {
+      pedidos.salvar(DADOS, p);
+      await processarPedido(p.id, { alerta: false });
+      const atual = pedidos.carregar(DADOS, p.id);
+      if (atual.emails.casal && atual.emails.casal.erro) throw new Error(`E-mail não enviado: ${atual.emails.casal.erro}`);
+      if (atual.emails.casal && atual.emails.casal.pendente) throw new Error('A conexão com o Google não está configurada neste computador.');
+      atual.historico.push(`${new Date().toISOString()} - Orçamento prévio reenviado para ${atual.email}.`);
+      pedidos.salvar(DADOS, atual);
+      return { ok: true };
+    } else {
+      throw new Error('Ação desconhecida.');
+    }
+    pedidos.salvar(DADOS, p);
+    return { ok: true };
+  },
+
   // ---- Financeiro (fornecedores do casal, pagamentos e comprovantes) ----
   'GET /api/financeiro': (q) => {
     const { arquivo, campos } = contratoDe(q.get('arquivo'));
@@ -729,7 +863,7 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: '/meu-evento' }); return res.end();
     }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
@@ -748,10 +882,17 @@ const servidor = http.createServer(async (req, res) => {
       const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
       return responder(res, 200, await enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
     }
+    if (req.method === 'GET' && url.pathname === '/api/pedidos/pdf') {
+      const p = pedidos.carregar(DADOS, url.searchParams.get('id'));
+      if (!p) return responder(res, 404, { erro: 'Pedido não encontrado.' });
+      const pdf = await pedidos.gerarPdf(p, empresa());
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="orcamento-previo-${p.id}.pdf"` });
+      return res.end(pdf);
+    }
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
     const corpo = req.method === 'POST' ? await lerCorpo(req) : {};
-    let resposta = await rota(url.searchParams, corpo, req.usuario);
+    let resposta = await rota(url.searchParams, corpo, req.usuario, req);
     // equipe não vê valores dos contratos
     if (req.usuario && req.usuario.papel !== 'admin' && url.pathname === '/api/contratos' && Array.isArray(resposta)) {
       resposta = resposta.map(({ valor_total, situacao_financeira, ...resto }) => resto);
