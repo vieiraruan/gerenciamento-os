@@ -12,6 +12,11 @@ execução diária), o script reescreve a aba FINANCEIRO da planilha do casal co
 fornecedor, sem mexer nas células com fórmula (saldo devedor, valor restante, total). Se faltar linha livre antes
 do TOTAL, a situação mostra o erro e é só inserir linhas na planilha.
 
+**Na hora (conexão direta):** publicado como *App da Web*, o script também recebe cada lançamento direto do Lotus e
+escreve a aba FINANCEIRO no mesmo instante; a tela do Financeiro mostra "✔ Planilha do Google atualizada em …".
+O gatilho de 10 minutos fica de reserva (computador sem internet na hora, por exemplo). Datas vão como data
+(8 de novembro), não como texto — o Google Planilhas lia "08/11/2026" como 11 de agosto.
+
 ## Instalar (uma vez, ~3 minutos)
 1. Entre em <https://script.google.com> **com a conta da empresa** e clique em **Novo projeto**.
 2. Renomeie o projeto para `Tayná Alves – cópia das planilhas`.
@@ -27,9 +32,22 @@ do TOTAL, a situação mostra o erro e é só inserir linhas na planilha.
 Para copiar na hora (sem esperar o dia seguinte): abra o projeto, escolha `sincronizar` e clique em Executar.
 Para parar: execute `desinstalar`.
 
+## Conexão direta com o Lotus (uma vez, ~2 minutos)
+1. No projeto, **Implantar › Nova implantação** › tipo **App da Web**.
+   - Descrição: `Lotus`; **Executar como:** Eu (a conta da empresa); **Quem pode acessar:** Qualquer pessoa.
+   - *Qualquer pessoa* é necessário para o Lotus chamar sem login do Google; cada pedido precisa da chave secreta
+     do Lotus, sem ela o script recusa.
+2. **Implantar** e autorize, se pedir. Copie o **URL do app da Web** (termina em `/exec`).
+3. No editor, escolha a função **`conectarLotus`** e clique em **Executar**. Ela cria a chave e grava
+   `_DADOS DO SISTEMA/integracoes/google-planilhas.json` (endereço + chave), que os computadores com Lotus leem
+   pelo Google Drive. Não compartilhe esse arquivo fora da empresa.
+4. Ao atualizar o código depois: **Implantar › Gerenciar implantações** › editar (lápis) › Versão: *Nova versão* ›
+   Implantar — o endereço continua o mesmo.
+
 ## Atualizar o script (quando o sistema ganhar novidades)
 Abra o projeto em script.google.com, substitua todo o código pelo novo `SincronizarPlanilhas.gs` e salve.
-Depois execute `instalar` de novo (recria os gatilhos); se o Google pedir, autorize de novo.
+Depois execute `instalar` de novo (recria os gatilhos); se o Google pedir, autorize de novo. Com a conexão direta,
+publique também a nova versão (Gerenciar implantações › editar › Nova versão).
 
 ## Como conferir
 - A tela inicial do aplicativo mostra quando foi a última cópia e se houve erro em algum casal.

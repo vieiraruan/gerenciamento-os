@@ -12,6 +12,11 @@
  * Antes da cópia, o script reescreve a aba FINANCEIRO da planilha do casal com esses dados (linha a linha, pelo
  * nome do fornecedor; células com fórmula — saldo, valor restante, total — não são tocadas).
  *
+ * CONEXÃO DIRETA (na hora): o script também é publicado como "App da Web". O Lotus envia cada lançamento para
+ * doPost, que escreve a aba FINANCEIRO na hora e responde. `conectarLotus` grava o endereço e a chave em
+ * _DADOS DO SISTEMA/integracoes/google-planilhas.json, onde o Lotus os lê. O gatilho de 10 minutos continua
+ * como reserva (por exemplo, se o computador estava sem internet no momento do lançamento).
+ *
  * Instalação (uma vez): ver INSTALAR.md nesta pasta — colar este código em script.google.com, executar
  * `instalar` e autorizar. Nada é enviado para fora do Google Drive da própria conta.
  */
@@ -60,6 +65,64 @@ function escreverFinanceiro() {
     j.financeiro = res;
     s.setContent(JSON.stringify(j, null, 1));
   } catch (e) { /* situação ilegível: a cópia diária regrava */ }
+}
+
+/**
+ * Conexão direta com o Lotus. Executar UMA vez depois de publicar o script como App da Web (Implantar › Nova
+ * implantação › App da Web; Executar como: eu; Quem pode acessar: qualquer pessoa). Cria a chave e grava o
+ * endereço para o Lotus em _DADOS DO SISTEMA/integracoes/google-planilhas.json.
+ */
+function conectarLotus(endereco) {
+  const props = PropertiesService.getScriptProperties();
+  let chave = props.getProperty('LOTUS_CHAVE');
+  if (!chave) {
+    chave = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    props.setProperty('LOTUS_CHAVE', chave);
+  }
+  const url = typeof endereco === 'string' && endereco ? endereco : ScriptApp.getService().getUrl();
+  if (!url || !/\/exec$/.test(url)) {
+    throw new Error('Publique o script como App da Web antes (Implantar › Nova implantação) e rode de novo. Endereço: ' + url);
+  }
+  const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
+  if (!raiz) throw new Error(`Pasta "${RAIZ}" não encontrada no Meu Drive.`);
+  let dados = raiz;
+  CAMINHO_DADOS.forEach((n) => { dados = pasta_(dados, n) || dados.createFolder(n); });
+  const dir = pasta_(dados, 'integracoes') || dados.createFolder('integracoes');
+  const conteudo = JSON.stringify({ url, chave, criado_em: new Date().toISOString() }, null, 1);
+  const arq = arquivo_(dir, 'google-planilhas.json');
+  if (arq) arq.setContent(conteudo); else dir.createFile('google-planilhas.json', conteudo, 'application/json');
+  Logger.log('Lotus conectado: ' + url);
+}
+
+/** O Lotus envia { chave, numero, gerado_em, linhas } e recebe { ok, linhas, em } ou { erro }. */
+function doPost(e) {
+  const responder = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  let pedido;
+  try { pedido = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (x) { return responder({ erro: 'pedido inválido' }); }
+  const props = PropertiesService.getScriptProperties();
+  const chave = props.getProperty('LOTUS_CHAVE');
+  if (!chave || pedido.chave !== chave) return responder({ erro: 'chave inválida' });
+  const numero = String(pedido.numero || '').toUpperCase();
+  if (!/^(AS|CE)-\d{4}$/.test(numero)) return responder({ erro: 'número do contrato inválido' });
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(25000)) return responder({ erro: 'planilhas ocupadas, tente de novo' });
+  try {
+    const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
+    const casal = raiz && acharPastaCasal_(raiz, numero);
+    if (!casal) return responder({ erro: 'pasta do casal não encontrada no Drive' });
+    const pl = acharPlanilha_(casal, 0);
+    if (!pl) return responder({ erro: 'planilha do casal não encontrada' });
+    const sh = SpreadsheetApp.openById(pl.id).getSheetByName('FINANCEIRO');
+    if (!sh) return responder({ erro: 'planilha sem aba FINANCEIRO' });
+    const n = escreverAba_(sh, pedido.linhas || []);
+    SpreadsheetApp.flush();
+    if (pedido.gerado_em) props.setProperty(`fin:${numero}`, pedido.gerado_em); // o gatilho de 10 min não repete
+    return responder({ ok: true, linhas: n, planilha: pl.nome || '', em: new Date().toISOString() });
+  } catch (x) {
+    return responder({ erro: String(x && x.message || x) });
+  } finally {
+    trava.releaseLock();
+  }
 }
 
 function sincronizar() {
@@ -168,6 +231,12 @@ const SINONIMOS = {
 function escreverFinanceiro_(raiz, dados) {
   const pastaFin = pasta_(dados, 'financeiro-google');
   if (!pastaFin) return [];
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(60000)) return [];
+  try { return escreverFinanceiroTravado_(raiz, pastaFin); } finally { trava.releaseLock(); }
+}
+
+function escreverFinanceiroTravado_(raiz, pastaFin) {
   const props = PropertiesService.getScriptProperties();
   const res = [];
   const arquivos = pastaFin.getFiles();
@@ -244,12 +313,19 @@ function escreverAba_(sh, linhas) {
       if (campo.charAt(0) === '_') return;
       const c = coluna(campo);
       if (c < 0 || formulas[i][c]) return; // coluna que não existe neste modelo ou célula com fórmula
-      const v = linha[campo];
-      sh.getRange(i + 1, c + 1).setValue(v === null || v === undefined ? '' : v);
+      sh.getRange(i + 1, c + 1).setValue(valorCelula_(campo, linha[campo]));
     });
     escritas++;
   });
   return escritas;
+}
+
+/** "08/11/2026" numa coluna de data vira a data 8 de novembro (sem depender do idioma da planilha). */
+function valorCelula_(campo, v) {
+  if (v === null || v === undefined) return '';
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(v).trim());
+  if (m && /data/i.test(campo)) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return v;
 }
 
 function pasta_(pai, nome) {

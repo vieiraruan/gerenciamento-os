@@ -349,6 +349,16 @@ async function selecionar(arquivo) {
   catch (e) { $('#principal').innerHTML = `<div class="card"><div class="aviso erro">${esc(e.message)}</div></div>`; }
 }
 
+/** Situação da aba FINANCEIRO na planilha do Google (conexão direta, ou o gatilho de 10 min como reserva). */
+function situacaoGoogle() {
+  const g = D.planilha_google_escrita;
+  const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  if (g && g.ok) return `<br><b style="color:var(--ok)">✔ Planilha do Google atualizada em ${quando(g.em)}.</b>`;
+  if (g && g.erro) return `<br><b style="color:var(--erro)">A planilha do Google não foi atualizada na hora (${esc(g.erro)}).</b> O sistema tenta de novo sozinho em até 10 minutos, ou use "Atualizar a planilha".`;
+  return D.google_direto ? '<br>A planilha do Google é atualizada na hora a cada lançamento.'
+    : '<br>A aba FINANCEIRO da planilha do Google é atualizada em até 10 minutos depois de um lançamento.';
+}
+
 function render() {
   const t = D.totais;
   const atrasados = D.atrasados || [];
@@ -360,14 +370,14 @@ function render() {
           <dl><dt>Evento</dt><dd>${esc(D.data_evento || 'a definir')}</dd><dt>Pasta</dt><dd><a class="lnk" id="abrirPasta">${esc(D.pasta)}</a>${D.pasta_existe ? '' : ' (será criada)'}</dd></dl></div>
         <div class="acoes">
           <button class="btn primario" id="btnNovo">+ Fornecedor contratado</button>
-          <div class="salvo">${origem}${D.planilha_google ? ' A aba FINANCEIRO da planilha do Google é atualizada pelo sistema a cada 10 minutos depois de um lançamento.' : ''}
+          <div class="salvo">${origem}${D.planilha_google ? situacaoGoogle() : ''}
             ${D.planilha_escrita ? (D.planilha_escrita.erro
               ? `<br><b style="color:var(--erro)">Não consegui atualizar ${esc(D.planilha_escrita.arquivo)}: ${esc(D.planilha_escrita.erro)}</b>`
               : `<br>✔ Aba FINANCEIRO de ${esc(D.planilha_escrita.arquivo)} atualizada em ${new Date(D.planilha_escrita.em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`) : ''}</div>
           <div class="linha-acoes" style="margin-top:0">
             <button class="btn peq" id="btnColar" title="Copiar a aba FINANCEIRO da planilha e colar aqui">Importar da planilha (colar)</button>
             ${D.sem_dados ? '' : '<button class="btn peq" id="btnReimportar" title="Substitui pelo que está na cópia da planilha">Reimportar da cópia</button>'}
-            ${D.planilha_xlsx && !D.sem_dados ? '<button class="btn peq" id="btnEscrever" title="Escreve na aba FINANCEIRO da planilha .xlsx o que está no sistema">Atualizar a planilha</button>' : ''}
+            ${(D.planilha_xlsx || D.planilha_google) && !D.sem_dados ? '<button class="btn peq" id="btnEscrever" title="Escreve agora na aba FINANCEIRO da planilha do casal o que está no sistema">Atualizar a planilha</button>' : ''}
           </div>
         </div>
       </div>
@@ -416,8 +426,11 @@ function render() {
   $('#abrirPasta').onclick = () => abrir(D.pasta);
   if ($('#btnReimportar')) $('#btnReimportar').onclick = reimportar;
   if ($('#btnEscrever')) $('#btnEscrever').onclick = async () => {
-    if (!confirm(`Escrever na aba FINANCEIRO de "${D.planilha_xlsx}" o que está no sistema? Feche a planilha antes, se estiver aberta.`)) return;
-    try { await api('/api/financeiro/escrever-planilha', { arquivo: atual }); selecionar(atual); } catch (e) { alert(e.message); }
+    const qual = D.planilha_google ? 'da planilha do Google' : `de "${D.planilha_xlsx}"`;
+    if (!confirm(`Escrever na aba FINANCEIRO ${qual} o que está no sistema?${D.planilha_google ? '' : ' Feche a planilha antes, se estiver aberta.'}`)) return;
+    const b = $('#btnEscrever'); b.disabled = true; b.textContent = 'Atualizando a planilha…';
+    try { await api('/api/financeiro/escrever-planilha', { arquivo: atual }); } catch (e) { alert(e.message); }
+    selecionar(atual);
   };
   $('#btnColar').onclick = () => { $('#txtColar').value = ''; $('#colMsg').innerHTML = ''; $('#dlgColar').showModal(); $('#txtColar').focus(); };
   document.querySelectorAll('tr.linha').forEach((tr) => tr.onclick = (e) => {
@@ -649,6 +662,7 @@ async function salvarFornecedor() {
   };
   const arq = $('#dfArq').files[0];
   const b = $('#dfSalvar'); b.disabled = true;
+  const rotulo = b.textContent; b.textContent = 'Salvando…';
   try {
     let novoId = null;
     if (editando) {
@@ -662,7 +676,7 @@ async function salvarFornecedor() {
     $('#dlgForn').close();
     await selecionar(atual);
     if (novoId && $('#dfEntPaga').checked) abrirPagamento(novoId, 'entrada');
-  } catch (e) { msg.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
+  } catch (e) { msg.innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; b.textContent = rotulo; }
 }
 
 // ---- Diálogo de pagamento ----
@@ -691,11 +705,13 @@ async function salvarPagamento() {
   const arq = $('#dpArq').files[0];
   if (!arq) { $('#dpMsg').innerHTML = '<div class="aviso erro">Anexe o comprovante de pagamento.</div>'; return; }
   const b = $('#dpSalvar'); b.disabled = true;
+  const rotulo = b.textContent;
+  b.textContent = D.planilha_google && D.google_direto ? 'Salvando e atualizando a planilha…' : 'Salvando…';
   try {
     await enviar('pagamento', { id: pagItem.id, tipo: $('#dpTipo').value, numero: $('#dpNum').value, valor: $('#dpValor').value,
       data: $('#dpData').value, forma: $('#dpForma').value, obs: $('#dpObs').value }, arq);
     $('#dlgPag').close(); aberto.add(pagItem.id); selecionar(atual);
-  } catch (e) { $('#dpMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
+  } catch (e) { $('#dpMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; b.textContent = rotulo; }
 }
 
 document.querySelectorAll('[data-fechar]').forEach((b) => b.onclick = () => b.closest('dialog').close());

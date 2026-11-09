@@ -31,6 +31,7 @@ const gestao = require('./gestao');
 const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
 const { criarAuth } = require('./auth');
+const planilhaGoogle = require('./planilhaGoogle');
 
 const RAIZ = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -177,7 +178,7 @@ function lerCorpo(req) {
  *   op=item (novo fornecedor do casal + contrato), op=editar, op=pagamento (+ comprovante), op=remover-pagamento,
  *   op=contrato (anexar/substituir o contrato), op=remover (tirar a linha).
  */
-function enviarFinanceiro(q, arquivoEnviado) {
+async function enviarFinanceiro(q, arquivoEnviado) {
   const { arquivo, campos } = contratoDe(q.get('arquivo'));
   const dados = JSON.parse(q.get('dados') || '{}');
   const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
@@ -232,12 +233,22 @@ function enviarFinanceiro(q, arquivoEnviado) {
   } else {
     throw new Error('Operação desconhecida.');
   }
-  // planilha do Google: o Apps Script escreve a aba (a cada 10 min); planilha .xlsx na pasta: o sistema escreve já
+  // planilha do Google: enviada na hora pela conexão direta (reserva: gatilho de 10 min do Apps Script);
+  // planilha .xlsx na pasta: o sistema escreve já
   const temGoogle = fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`));
   fin.salvar(DADOS, arquivo, f, temGoogle ? campos.numero_os : undefined);
-  if (!temGoogle) escreverPlanilhaXlsx(arquivo, f, pasta);
+  if (temGoogle) await enviarPlanilhaGoogle(arquivo, f, campos.numero_os);
+  else escreverPlanilhaXlsx(arquivo, f, pasta);
   limparCacheFin();
-  return { ok: true, ...resposta, ...fin.resumo(f) };
+  return { ok: true, ...resposta, ...fin.resumo(f), planilha_google_escrita: f.planilha_google_escrita || null };
+}
+
+/** Envia o financeiro do casal para a planilha do Google agora e guarda o resultado (aparece na tela). */
+async function enviarPlanilhaGoogle(arquivo, f, numero) {
+  const r = await planilhaGoogle.enviarFinanceiro(DADOS, numero);
+  f.planilha_google_escrita = r;
+  fin.salvar(DADOS, arquivo, f); // sem número: não gera de novo o arquivo do gatilho
+  return r;
 }
 
 /**
@@ -339,10 +350,13 @@ const rotas = {
     CACHE_FIN.set(arquivo, { dados, t: Date.now() });
     return {
       ...fin.resumo(dados), importado, sem_dados: !dados, importado_de: dados?.importado_de || null,
-      planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet), pasta, pasta_existe: existe,
+      planilha_google: Boolean(ev.localizarPlanilha(pasta).gsheet) || fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`)),
+      pasta, pasta_existe: existe,
       fornecedores: fin.listarFornecedores(DADOS), formas: fin.FORMAS, casal: campos.evento_nomes, numero_os: campos.numero_os,
       data_evento: campos.evento_data || '', valor_assessoria: campos.valor_total || '',
       planilha_escrita: dados?.planilha_escrita || null,
+      planilha_google_escrita: dados?.planilha_google_escrita || null,
+      google_direto: Boolean(planilhaGoogle.configuracao(DADOS)),
       planilha_xlsx: (() => { const pl = existe ? ev.localizarPlanilha(pasta) : {}; return pl.arquivo && !pl.gsheet ? path.basename(pl.arquivo) : null; })(),
     };
   },
@@ -379,11 +393,18 @@ const rotas = {
   },
 
   // escreve agora a aba FINANCEIRO da planilha .xlsx do casal com o que está no sistema
-  'POST /api/financeiro/escrever-planilha': (q, corpo) => {
+  'POST /api/financeiro/escrever-planilha': async (q, corpo) => {
     const { arquivo, campos } = contratoDe(corpo.arquivo);
     const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const f = fin.carregar(DADOS, arquivo);
     if (!f) throw new Error('Este casal ainda não tem financeiro.');
+    if (fs.existsSync(path.join(DADOS, 'planilhas', `${String(campos.numero_os || '').trim()}.json`))) {
+      fin.salvar(DADOS, arquivo, f, campos.numero_os); // gera de novo o pacote (o gatilho de 10 min também reescreve)
+      const g = await enviarPlanilhaGoogle(arquivo, f, campos.numero_os);
+      limparCacheFin();
+      if (g.erro) throw new Error(`Não consegui atualizar a planilha do Google: ${g.erro}`);
+      return { ok: true, google: true, ...g };
+    }
     const r = escreverPlanilhaXlsx(arquivo, f, pasta);
     if (!r) throw new Error('Não há planilha .xlsx na pasta do casal.');
     if (r.erro) throw new Error(`Não consegui atualizar ${r.arquivo}: ${r.erro}`);
@@ -725,7 +746,7 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/financeiro/enviar') {
       const conteudo = await lerBinario(req);
       const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
-      return responder(res, 200, enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
+      return responder(res, 200, await enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
     }
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
