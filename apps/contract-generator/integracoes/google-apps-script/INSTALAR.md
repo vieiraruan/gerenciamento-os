@@ -38,7 +38,7 @@ Para parar: execute `desinstalar`.
    - *Qualquer pessoa* é necessário para o Lotus chamar sem login do Google; cada pedido precisa da chave secreta
      do Lotus, sem ela o script recusa.
 2. **Implantar** e autorize, se pedir. Copie o **URL do app da Web** (termina em `/exec`).
-3. No editor, escolha a função **`conectarLotus`** e clique em **Executar**. Ela cria a chave e grava
+3. Cole esse URL em `const ENDERECO_APP_WEB = '…';` (início do código) e salve. Escolha a função **`conectarLotus`** e clique em **Executar**. Ela cria a chave e grava
    `_DADOS DO SISTEMA/integracoes/google-planilhas.json` (endereço + chave), que os computadores com Lotus leem
    pelo Google Drive. Não compartilhe esse arquivo fora da empresa.
 4. Ao atualizar o código depois: **Implantar › Gerenciar implantações** › editar (lápis) › Versão: *Nova versão* ›

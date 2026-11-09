@@ -29,6 +29,10 @@ const HORA = 6; // por volta das 6h (fuso do projeto: America/Recife)
 
 const GATILHOS = ['sincronizar', 'escreverFinanceiro'];
 
+// Endereço do App da Web (Implantar › Gerenciar implantações › URL, termina em /exec). Usado por conectarLotus:
+// rodando pelo editor, o Google só informa o endereço de teste (/dev).
+const ENDERECO_APP_WEB = '';
+
 /**
  * Executar uma vez: cria os gatilhos e faz a primeira cópia.
  *  - sincronizar: todo dia por volta das 6h (cópia das planilhas + financeiro)
@@ -79,9 +83,9 @@ function conectarLotus(endereco) {
     chave = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
     props.setProperty('LOTUS_CHAVE', chave);
   }
-  const url = typeof endereco === 'string' && endereco ? endereco : ScriptApp.getService().getUrl();
+  const url = (typeof endereco === 'string' && endereco) || ENDERECO_APP_WEB || ScriptApp.getService().getUrl();
   if (!url || !/\/exec$/.test(url)) {
-    throw new Error('Publique o script como App da Web antes (Implantar › Nova implantação) e rode de novo. Endereço: ' + url);
+    throw new Error('Copie o URL do App da Web (Implantar › Gerenciar implantações, termina em /exec) para ENDERECO_APP_WEB, no início do código, e rode de novo. Endereço atual: ' + url);
   }
   const raiz = pasta_(DriveApp.getRootFolder(), RAIZ);
   if (!raiz) throw new Error(`Pasta "${RAIZ}" não encontrada no Meu Drive.`);
@@ -320,11 +324,14 @@ function escreverAba_(sh, linhas) {
   return escritas;
 }
 
-/** "08/11/2026" numa coluna de data vira a data 8 de novembro (sem depender do idioma da planilha). */
+/**
+ * "08/11/2026" numa coluna de data vira a data 8 de novembro (sem depender do idioma da planilha). Ao meio-dia:
+ * meia-noite mudava de dia quando o fuso da planilha é diferente do fuso do script.
+ */
 function valorCelula_(campo, v) {
   if (v === null || v === undefined) return '';
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(v).trim());
-  if (m && /data/i.test(campo)) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (m && /data/i.test(campo)) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0);
   return v;
 }
 
