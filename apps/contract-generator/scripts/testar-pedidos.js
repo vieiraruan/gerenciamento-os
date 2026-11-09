@@ -81,7 +81,7 @@ async function principal() {
 
   const p = await pedir('POST', '/api/publico/orcamento', FORM);
   assert.strictEqual(p.status, 200, JSON.stringify(p.j));
-  assert.ok(p.j.id && p.j.token && p.j.whatsapp.startsWith('https://wa.me/5581997801345?text='));
+  assert.ok(p.j.id && p.j.token && p.j.whatsapp.startsWith('https://wa.me/5581996760320?text='));
   assert.ok(!/R\$|total|preco|14\.2/.test(JSON.stringify(p.j)), 'resposta ao site sem valores');
   ok('pedido recebido: resposta ao site sem valores, com link do WhatsApp da Tayná');
 

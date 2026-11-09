@@ -191,7 +191,7 @@ function gerarPdf(pedido, empresa = {}) {
 
     doc.font('Helvetica').fontSize(9).fillColor(SUAVE).text(
       [empresa.razao_social || 'Tayná Alves Assessoria e Produção', empresa.cnpj ? `CNPJ ${empresa.cnpj}` : '',
-        'WhatsApp (81) 99780-1345', empresa.email || 'contatotaynaassessoria@gmail.com', '@taynaalvesassessoria'].filter(Boolean).join('  ·  '),
+        'WhatsApp (81) 99676-0320', empresa.email || 'contatotaynaassessoria@gmail.com', '@taynaalvesassessoria'].filter(Boolean).join('  ·  '),
       56, doc.page.height - 80, { width: largura, align: 'center' });
     doc.end();
   });
@@ -201,7 +201,7 @@ function gerarPdf(pedido, empresa = {}) {
 // E-mails
 // ---------------------------------------------------------------------------------------------------------------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const WHATSAPP_TAYNA = '5581997801345';
+const WHATSAPP_TAYNA = '5581996760320';
 const linkWhatsTayna = (pedido) => `https://wa.me/${WHATSAPP_TAYNA}?text=${encodeURIComponent(`Olá, Tayná! Sou ${pedido.nome}, pedi um orçamento pelo site${pedido.data ? ` (casamento em ${dataBr(pedido.data)})` : ''} e gostaria de conversar.`)}`;
 const linkWhatsCasal = (pedido) => `https://wa.me/${pedido.whatsapp.length <= 11 ? `55${pedido.whatsapp}` : pedido.whatsapp}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -210,7 +210,7 @@ function moldura(conteudo) {
   return `<div style="font-family:Arial,Helvetica,sans-serif;color:${TINTA};max-width:560px;margin:0 auto">
 <div style="background:${TERRA};color:#fff;padding:22px 26px;font-size:20px;font-family:Georgia,serif">Tayná Alves Assessoria e Produção</div>
 <div style="padding:24px 26px;line-height:1.6;font-size:15px;background:#FBF6F1">${conteudo}</div>
-<div style="padding:12px 26px;font-size:12px;color:${SUAVE}">WhatsApp (81) 99780-1345 · @taynaalvesassessoria</div></div>`;
+<div style="padding:12px 26px;font-size:12px;color:${SUAVE}">WhatsApp (81) 99676-0320 · @taynaalvesassessoria</div></div>`;
 }
 
 function emailCasal(pedido) {
