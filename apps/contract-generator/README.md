@@ -8,12 +8,14 @@ Lê um `.txt` com os dados do negócio fechado e gera, numa pasta `<numero> - <N
 
 ## Instalação (uma vez por máquina, Windows)
 
-1. Instale o [Google Drive para computador](https://www.google.com/drive/download/) e entre com a conta da
-   assessoria. A pasta `Meu Drive\CONTRATOS` precisa aparecer no Explorer.
-2. Instale o Node.js: `winget install OpenJS.NodeJS.LTS`.
-3. Baixe o projeto (`git clone https://github.com/vieiraruan/gerenciamento-os.git` ou ZIP do GitHub).
-4. Em `apps\contract-generator`, dê dois cliques em **`instalar.cmd`**.
-5. Para usar: **`abrir-aplicativo.cmd`**. Dica: crie um atalho dele na Área de Trabalho.
+Use o **`instalar-sistema.cmd`** (raiz do repositório): instala o Node.js se faltar, baixa o projeto, as dependências
+e cria o atalho **Lotus** na Área de Trabalho. Rodar de novo = atualizar.
+
+## Atualização
+
+O atalho **Lotus** (`abrir-aplicativo.vbs`) busca a versão nova no GitHub toda vez que é aberto — também com o Lotus
+já rodando em segundo plano: se houver novidade, encerra, atualiza (`scripts/atualizar.js`: `git pull`, e `npm ci` se as
+dependências mudaram) e abre de novo. Sem internet, ou com arquivos alterados na cópia, abre a versão atual.
 
 ## Onde ficam os arquivos (Google Drive)
 
