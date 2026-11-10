@@ -3,6 +3,7 @@
 '  sem janela preta. E o alvo do atalho da Area de Trabalho.
 '  Mensagens ficam em %LOCALAPPDATA%\TaynaAlves\aplicativo.log
 '  Para encerrar: botao "Encerrar" na tela inicial do aplicativo.
+'  Atualizacao: ao abrir pelo atalho, busca a versao nova no GitHub (mesmo com o Lotus ja aberto).
 ' ============================================================
 Option Explicit
 Dim sh, fso, pasta, logDir, logArq, rc
@@ -11,10 +12,11 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 
 pasta = fso.GetParentFolderName(WScript.ScriptFullName)
 
-' Ja esta aberto? Se for a mesma versao do disco, so abre o navegador; se o codigo foi
-' atualizado depois que ele abriu (versao antiga rodando), encerra para abrir a nova.
+' Ja esta aberto? Se esta na versao do disco e nao ha versao nova no GitHub, so abre o navegador.
+' Senao (codigo atualizado depois que ele abriu, ou novidade no GitHub), encerra e abre de novo:
+' o abrir-aplicativo.cmd baixa a atualizacao antes de iniciar.
 If JaAberto() Then
-  If VersaoRodando() = "" Or VersaoRodando() = VersaoDisco() Then
+  If (VersaoRodando() = "" Or VersaoRodando() = VersaoDisco()) And Not HaAtualizacao() Then
     sh.Run "http://localhost:3210/", 1, False
     WScript.Quit 0
   End If
@@ -33,6 +35,29 @@ If rc <> 0 Then
     sh.Run "notepad.exe """ & logArq & """", 1, False
   End If
 End If
+
+' Ha versao nova no GitHub? (git fetch rapido; sem internet ou com arquivos alterados: nao)
+Function HaAtualizacao()
+  On Error Resume Next
+  Dim raiz, tmp, rc, f, up, sujo
+  HaAtualizacao = False
+  raiz = fso.GetParentFolderName(fso.GetParentFolderName(pasta))
+  tmp = sh.ExpandEnvironmentStrings("%TEMP%") & "\lotus-atualizacao.txt"
+  If fso.FileExists(tmp) Then fso.DeleteFile tmp
+  sh.Environment("PROCESS")("GIT_TERMINAL_PROMPT") = "0"
+  sh.Environment("PROCESS")("GCM_INTERACTIVE") = "never"
+  rc = sh.Run("cmd /c git -C """ & raiz & """ -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=8 fetch -q && git -C """ & raiz & _
+              """ rev-parse @{u} > """ & tmp & """ && git -C """ & raiz & """ status --porcelain --untracked-files=no >> """ & tmp & """", 0, True)
+  If rc <> 0 Or Not fso.FileExists(tmp) Then Exit Function
+  Set f = fso.OpenTextFile(tmp, 1)
+  up = Trim(f.ReadLine)
+  sujo = Not f.AtEndOfStream
+  f.Close
+  fso.DeleteFile tmp
+  If sujo Then Exit Function
+  HaAtualizacao = (Len(up) = 40 And up <> VersaoDisco())
+  Err.Clear
+End Function
 
 Function VersaoRodando()
   On Error Resume Next
