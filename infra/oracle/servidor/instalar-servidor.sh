@@ -30,3 +30,9 @@ docker compose build --pull
 docker compose up -d
 sleep 5
 docker compose ps
+
+# Vigia: reinicia o Drive/Lotus se pararem de responder
+sudo install -m 644 "$AQUI/lotus-vigia.service" /etc/systemd/system/lotus-vigia.service
+sudo install -m 644 "$AQUI/lotus-vigia.timer" /etc/systemd/system/lotus-vigia.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now lotus-vigia.timer

@@ -1,0 +1,8 @@
+[Unit]
+Description=Lotus - vigia (Drive e aplicativo respondendo)
+After=lotus-drive.service docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/lotus/gerenciamento-os/infra/oracle/servidor/vigia.sh
+TimeoutStartSec=300
