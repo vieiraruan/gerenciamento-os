@@ -927,7 +927,7 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: '/meu-evento' }); return res.end();
     }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html', '/privacidade': 'privacidade.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);

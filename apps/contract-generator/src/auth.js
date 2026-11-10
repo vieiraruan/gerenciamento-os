@@ -194,7 +194,7 @@ function conferirIdToken(idToken, { clientId, nonce, agora = Math.floor(Date.now
 // ---------------------------------------------------------------------------
 // Permissões por perfil
 // ---------------------------------------------------------------------------
-const PUBLICO = [/^GET \/(entrar|sair)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/saude$/,
+const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/saude$/,
   // formulário do site (taynaalvesassessoria.com.br): pedido de orçamento e de horário com a Tayná
   /^GET \/api\/publico\/(servicos|horarios)$/, /^POST \/api\/publico\/(orcamento|agenda)$/];
 const EQUIPE = [
@@ -333,7 +333,7 @@ function paginaEntrar(erro) {
 <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Lotus</h1><div class="sub">sistema de gestão</div>
 ${erro ? `<div class="erro">${esc(erro)}</div>` : ''}
 <a class="google" href="/auth/google">${G} Entrar com Google</a>
-<div class="nota">Acesso só para e-mails liberados pela Tayná Alves Assessoria.</div></div></body></html>`;
+<div class="nota">Acesso só para e-mails liberados pela Tayná Alves Assessoria. · <a href="/privacidade" style="color:inherit">Privacidade</a></div></div></body></html>`;
 }
 function paginaSemAcesso(u) {
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
