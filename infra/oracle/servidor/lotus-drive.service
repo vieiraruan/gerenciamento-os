@@ -25,6 +25,7 @@ ExecStartPost=/bin/sh -c 'for i in $(seq 1 90); do mountpoint -q /srv/drive/CONT
 ExecStartPost=/bin/sh -c '/opt/lotus/gerenciamento-os/infra/oracle/servidor/aquecer-drive.sh >/dev/null 2>&1 &'
 ExecStop=/bin/fusermount3 -uz /srv/drive/CONTRATOS
 Restart=on-failure
+TimeoutStartSec=180
 RestartSec=10
 
 [Install]

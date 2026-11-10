@@ -5,6 +5,6 @@
 RAIZ=/srv/drive/CONTRATOS
 DADOS="$RAIZ/CONTRATOS GERADOS/_DADOS DO SISTEMA"
 INICIO=$(date +%s)
-find "$RAIZ" -type d >/dev/null 2>&1
+find "$RAIZ" -maxdepth 4 -type d >/dev/null 2>&1   # casal/pasta do fornecedor/arquivos: o que o Lotus percorre
 find "$DADOS" -type f -size -5M -exec cat {} + >/dev/null 2>&1
 logger -t lotus-drive "Drive carregado em $(( $(date +%s) - INICIO ))s"
