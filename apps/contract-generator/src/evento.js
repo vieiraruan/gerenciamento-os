@@ -180,7 +180,7 @@ function localizarPlanilha(pastaCasal) {
       if (d.isDirectory() && nivel < 1) varrer(p, nivel + 1);
       else if (/planilha/i.test(d.name) && !d.name.startsWith('~$')) {
         if (/\.xlsx$/i.test(d.name)) candidatos.push(p);
-        else if (/\.gsheet$/i.test(d.name) && !res.gsheet) res.gsheet = p;
+        else if (/\.(gsheet|link\.html)$/i.test(d.name) && !res.gsheet) res.gsheet = p; // .link.html: Planilha Google no servidor (rclone)
       }
     }
   };

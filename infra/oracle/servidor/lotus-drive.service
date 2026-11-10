@@ -1,5 +1,8 @@
 # Monta a pasta CONTRATOS do Google Drive da empresa em /srv/drive/CONTRATOS (rclone).
 # A credencial do Drive fica em /etc/lotus/rclone.conf (remote "drive"), só no servidor.
+# Cada pasta não lida é uma chamada ao Google (~1 s): as pastas ficam em memória (dir-cache 1000h) e o
+# poll de 15 s traz as mudanças feitas no Drive. Planilhas/Apresentações do Google aparecem como
+# "<nome>.link.html" (não como .xlsx exportado, que o Lotus confundiria com planilha de verdade).
 [Unit]
 Description=Lotus - Google Drive (rclone)
 Wants=network-online.target
@@ -14,10 +17,13 @@ ExecStart=/usr/bin/rclone mount drive:CONTRATOS /srv/drive/CONTRATOS \
   --config /etc/lotus/rclone.conf \
   --allow-other --uid 1000 --gid 1000 --umask 002 \
   --vfs-cache-mode full --vfs-cache-max-size 5G --cache-dir /var/cache/lotus-rclone \
-  --dir-cache-time 30s --poll-interval 15s --vfs-write-back 2s \
-  --drive-export-formats docx,xlsx,pdf --log-level INFO
+  --dir-cache-time 1000h --poll-interval 15s --vfs-write-back 2s \
+  --drive-export-formats docx,link.html --log-level INFO \
+  --rc --rc-addr 127.0.0.1:5572 --rc-no-auth
 # o rclone do Ubuntu não avisa o systemd (notify): espera a pasta aparecer montada
 ExecStartPost=/bin/sh -c 'for i in $(seq 1 90); do mountpoint -q /srv/drive/CONTRATOS && exit 0; sleep 1; done; exit 1'
+# carrega a árvore de pastas na memória (em segundo plano); depois as mudanças chegam pelo poll do Drive
+ExecStartPost=/usr/bin/rclone rc vfs/refresh recursive=true _async=true --url http://127.0.0.1:5572
 ExecStop=/bin/fusermount3 -uz /srv/drive/CONTRATOS
 Restart=on-failure
 RestartSec=10
