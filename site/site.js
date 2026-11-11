@@ -47,9 +47,10 @@
     const f = form.elements; let primeiro = null;
     const marca = (campo, ok) => { campo.setAttribute('aria-invalid', ok ? 'false' : 'true'); if (!ok && !primeiro) primeiro = campo; };
     marca(f.nome, f.nome.value.trim().length >= 3);
-    marca(f.whatsapp, f.whatsapp.value.replace(/\D/g, '').length >= 10);
+    const dig = f.whatsapp.value.replace(/\D/g, '');
+    marca(f.whatsapp, dig.length === 0 || dig.length >= 8);
     marca(f.email, /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.value.trim()));
-    if (primeiro) { primeiro.focus(); return 'Confira os campos marcados: nome do casal, WhatsApp com DDD e e-mail.'; }
+    if (primeiro) { primeiro.focus(); return 'Confira os campos marcados: nome do casal e e-mail (o orçamento vai por e-mail).'; }
     if (!f.consentimento.checked) { f.consentimento.focus(); return 'Para receber o orçamento por e-mail, marque a autorização.'; }
     return '';
   }

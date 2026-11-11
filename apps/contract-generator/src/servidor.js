@@ -463,7 +463,7 @@ const rotas = {
     } else if (corpo.acao === 'confirmar') {
       if (!p.agenda) throw new Error('O casal ainda não pediu horário.');
       const descricao = [`Conversa de fechamento — pedido do site (${p.orcamento.servico ? p.orcamento.servico.nome : 'serviço a definir'}).`,
-        `WhatsApp: ${p.whatsapp}`, p.data ? `Casamento: ${pedidos.dataBr(p.data)}${p.cidade ? `, ${p.cidade}` : ''}` : '',
+        `WhatsApp: ${p.whatsapp || 'não informado'}`, p.data ? `Casamento: ${pedidos.dataBr(p.data)}${p.cidade ? `, ${p.cidade}` : ''}` : '',
         `Lotus: ${URL_LOTUS}/pedidos?id=${p.id}`].filter(Boolean).join('\n');
       const r = await planilhaGoogle.chamar(DADOS, 'agendar', { inicio: p.agenda.inicio, minutos: 30,
         titulo: `Conversa com ${p.nome} (Tayná Alves Assessoria)`, descricao, convidado: p.email });

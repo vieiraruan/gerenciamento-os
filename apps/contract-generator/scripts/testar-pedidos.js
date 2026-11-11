@@ -74,6 +74,14 @@ async function principal() {
   assert.strictEqual(semOk.status, 400);
   ok('formulário inválido ou sem autorização é recusado');
 
+  const { normalizarWhats, validar } = require('../src/pedidos');
+  assert.strictEqual(normalizarWhats('99676-0320'), '81996760320');
+  assert.strictEqual(normalizarWhats('+55 (81) 99676-0320'), '81996760320');
+  assert.strictEqual(normalizarWhats('081 3333-4444'), '8133334444');
+  assert.strictEqual(normalizarWhats('123'), '');
+  assert.strictEqual(validar({ ...FORM, whatsapp: '', consentimento: true }).whatsapp, '');
+  ok('WhatsApp não bloqueia o pedido (sem DDD assume 81; vazio é aceito, o orçamento vai por e-mail)');
+
   const robo = await pedir('POST', '/api/publico/orcamento', { ...FORM, site: 'http://spam' });
   assert.strictEqual(robo.status, 200);
   assert.ok(!fs.existsSync(path.join(dados, 'pedidos')), 'robô não grava pedido');

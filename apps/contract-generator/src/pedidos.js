@@ -52,11 +52,22 @@ function calcular(servicoId, convidados, fora) {
 
 const texto = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, max);
 
+/**
+ * WhatsApp do casal só com dígitos, com DDD. Não bloqueia o pedido (o orçamento vai por e-mail):
+ * sem DDD (8–9 dígitos) assume 81 (Recife); "0" de discagem sai; curto demais vira vazio.
+ */
+function normalizarWhats(valor) {
+  let n = String(valor || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (n.length >= 12 && n.startsWith('55')) n = n.slice(2);
+  if (n.length === 8 || n.length === 9) n = `81${n}`;
+  return n.length === 10 || n.length === 11 ? n : '';
+}
+
 /** Confere e limpa o que veio do formulário. Lança Error com mensagem para o casal. */
 function validar(d) {
   const nome = texto(d.nome, 120);
   const email = texto(d.email, 160).toLowerCase();
-  const whatsapp = String(d.whatsapp || '').replace(/\D/g, '').slice(0, 13);
+  const whatsapp = normalizarWhats(d.whatsapp);
   const data = texto(d.data, 10);
   const convidados = Math.max(0, Math.min(5000, parseInt(d.convidados, 10) || 0));
   const cidade = texto(d.cidade, 120);
@@ -64,7 +75,6 @@ function validar(d) {
   const mensagem = texto(d.mensagem, 2000);
   if (nome.length < 3) throw new Error('Informe o nome do casal.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Informe um e-mail válido.');
-  if (whatsapp.length < 10) throw new Error('Informe o WhatsApp com DDD.');
   if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) throw new Error('Data do casamento inválida.');
   if (!servicosDoSite().some((s) => s.id === servico)) throw new Error('Escolha um serviço da lista.');
   if (!d.consentimento) throw new Error('Para enviar o orçamento por e-mail, marque a autorização.');
@@ -203,7 +213,7 @@ function gerarPdf(pedido, empresa = {}) {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const WHATSAPP_TAYNA = '5581996760320';
 const linkWhatsTayna = (pedido) => `https://wa.me/${WHATSAPP_TAYNA}?text=${encodeURIComponent(`Olá, Tayná! Sou ${pedido.nome}, pedi um orçamento pelo site${pedido.data ? ` (casamento em ${dataBr(pedido.data)})` : ''} e gostaria de conversar.`)}`;
-const linkWhatsCasal = (pedido) => `https://wa.me/${pedido.whatsapp.length <= 11 ? `55${pedido.whatsapp}` : pedido.whatsapp}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
+const linkWhatsCasal = (pedido) => !pedido.whatsapp ? '' : `https://wa.me/${pedido.whatsapp.length <= 11 ? `55${pedido.whatsapp}` : pedido.whatsapp}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 function moldura(conteudo) {
@@ -236,7 +246,7 @@ ${linha('Horário pedido', agenda ? `<b>${esc(agenda)}</b>` : '')}
 ${linha('Casamento', [dataBr(pedido.data), esc(pedido.cidade), pedido.convidados ? `${pedido.convidados} convidados` : ''].filter(Boolean).join(' · '))}
 ${linha('Serviço', esc(o.servico ? o.servico.nome : 'Ainda não sei'))}
 ${linha('Orçamento prévio', o.total ? moeda(o.total) : '')}
-${linha('WhatsApp', `<a href="${linkWhatsCasal(pedido)}">${esc(pedido.whatsapp)}</a>`)}
+${linha('WhatsApp', pedido.whatsapp ? `<a href="${linkWhatsCasal(pedido)}">${esc(pedido.whatsapp)}</a>` : 'não informado')}
 ${linha('E-mail', esc(pedido.email))}
 ${linha('Mensagem', pedido.mensagem ? `"${esc(pedido.mensagem)}"` : '')}
 </table>
@@ -250,5 +260,5 @@ const rotuloHorario = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone:
 
 module.exports = {
   ESTADOS, NAO_SEI, catalogo, servicosDoSite, calcular, validar, criar, carregar, salvar, listar, publico,
-  gerarPdf, emailCasal, emailAlerta, linkWhatsTayna, linkWhatsCasal, rotuloHorario, dataBr, moeda,
+  gerarPdf, emailCasal, emailAlerta, linkWhatsTayna, linkWhatsCasal, normalizarWhats, rotuloHorario, dataBr, moeda,
 };

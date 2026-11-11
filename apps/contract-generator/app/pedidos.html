@@ -132,7 +132,7 @@ function detalhe() {
       <dt>Local</dt><dd>${esc(p.cidade || '—')}${p.fora ? ' (fora da RMR)' : ''}</dd>
       <dt>Convidados</dt><dd>${p.convidados || '—'}</dd>
       <dt>Serviço</dt><dd>${esc(p.servico)}</dd>
-      <dt>WhatsApp</dt><dd>${esc(p.whatsapp)}</dd>
+      <dt>WhatsApp</dt><dd>${p.whatsapp ? esc(p.whatsapp) : '<span style="color:var(--suave)">não informado</span>'}</dd>
       <dt>E-mail</dt><dd>${esc(p.email)}</dd>
       <dt>Orçamento prévio</dt><dd>${p.total ? `<b>${brl(p.total)}</b>` : 'tabela de referência'} · <a href="/api/pedidos/pdf?id=${p.id}" target="_blank">ver PDF</a><br>${situacaoEmail(p.emails && p.emails.casal)}</dd>
       ${ag ? `<dt>Conversa</dt><dd><b>${esc(ag.rotulo)}</b> · <span class="badge b-${ag.estado}">${AGENDA[ag.estado]}</span></dd>` : ''}
@@ -140,7 +140,7 @@ function detalhe() {
     ${p.mensagem ? `<div class="msgc">“${esc(p.mensagem)}”</div>` : ''}
     <div class="acoes">
       ${ag && ag.estado === 'aguardando' ? `<button class="verde" id="aConfirmar">Confirmar conversa de ${esc(ag.rotulo)}</button><button id="aRecusar">Não posso neste horário</button>` : ''}
-      <a class="${ag && ag.estado === 'aguardando' ? '' : 'verde'}" href="${esc(p.whatsapp_link)}" target="_blank" rel="noopener">Responder no WhatsApp</a>
+      ${p.whatsapp_link ? `<a class="${ag && ag.estado === 'aguardando' ? '' : 'verde'}" href="${esc(p.whatsapp_link)}" target="_blank" rel="noopener">Responder no WhatsApp</a>` : ''}
       <div class="linha2">
         <select id="aEstado">${Object.entries(NOMES).map(([k, v]) => `<option value="${k}" ${k === p.estado ? 'selected' : ''}>${v}</option>`).join('')}</select>
         <button id="aReenviar">Reenviar orçamento</button>
