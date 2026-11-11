@@ -931,9 +931,17 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
+      const versaoMovel = (ext) => Math.round(fs.statSync(path.join(RAIZ, 'app', `movel.${ext}`)).mtimeMs);
       const html = fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8')
-        .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`);
+        .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`)
+        .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
+    }
+    // ajustes de celular comuns a todas as telas
+    const movel = /^\/movel\.(css|js)$/.exec(url.pathname);
+    if (req.method === 'GET' && movel) {
+      res.writeHead(200, { 'Content-Type': movel[1] === 'css' ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
+      return res.end(fs.readFileSync(path.join(RAIZ, 'app', `movel.${movel[1]}`)));
     }
     const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
     if (req.method === 'GET' && marca) {

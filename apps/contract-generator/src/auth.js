@@ -194,7 +194,7 @@ function conferirIdToken(idToken, { clientId, nonce, agora = Math.floor(Date.now
 // ---------------------------------------------------------------------------
 // Permissões por perfil
 // ---------------------------------------------------------------------------
-const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/saude$/,
+const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/movel\.(css|js)$/, /^GET \/saude$/,
   // formulário do site (taynaalvesassessoria.com.br): pedido de orçamento e de horário com a Tayná
   /^GET \/api\/publico\/(servicos|horarios)$/, /^POST \/api\/publico\/(orcamento|agenda)$/];
 const EQUIPE = [
