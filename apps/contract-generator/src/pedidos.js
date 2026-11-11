@@ -53,14 +53,31 @@ function calcular(servicoId, convidados, fora) {
 const texto = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, max);
 
 /**
- * WhatsApp do casal só com dígitos, com DDD. Não bloqueia o pedido (o orçamento vai por e-mail):
- * sem DDD (8–9 dígitos) assume 81 (Recife); "0" de discagem sai; curto demais vira vazio.
+ * WhatsApp do casal no formato internacional "+<país><número>" (ex.: +5581996760320). Não bloqueia o pedido (o
+ * orçamento vai por e-mail): sem "+" é Brasil; sem DDD (8–9 dígitos) assume 81 (Recife); curto demais vira vazio.
  */
 function normalizarWhats(valor) {
-  let n = String(valor || '').replace(/\D/g, '').replace(/^0+/, '');
-  if (n.length >= 12 && n.startsWith('55')) n = n.slice(2);
-  if (n.length === 8 || n.length === 9) n = `81${n}`;
-  return n.length === 10 || n.length === 11 ? n : '';
+  const t = String(valor || '').trim();
+  let d = t.replace(/\D/g, '');
+  if (!d) return '';
+  if (t.startsWith('+') && !d.startsWith('55')) return d.length >= 8 && d.length <= 15 ? `+${d}` : '';
+  d = d.replace(/^0+/, '');
+  if (d.length >= 12 && d.startsWith('55')) d = d.slice(2);
+  if (d.length === 8 || d.length === 9) d = `81${d}`;
+  return d.length === 10 || d.length === 11 ? `+55${d}` : '';
+}
+
+/** "+55 81 99676-0320" para mostrar (aceita também o formato antigo, só com DDD). */
+function formatarTelefone(w) {
+  w = String(w || '');
+  let d = w.replace(/\D/g, '');
+  if (!d) return '';
+  if (!w.startsWith('+') || d.startsWith('55')) {
+    if (w.startsWith('+')) d = d.slice(2);
+    const dd = d.slice(0, 2); const r = d.slice(2); const corte = r.length === 8 ? 4 : 5;
+    return `+55 ${dd} ${r.slice(0, corte)}-${r.slice(corte)}`;
+  }
+  return `+${d}`;
 }
 
 /** Confere e limpa o que veio do formulário. Lança Error com mensagem para o casal. */
@@ -213,7 +230,7 @@ function gerarPdf(pedido, empresa = {}) {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const WHATSAPP_TAYNA = '5581996760320';
 const linkWhatsTayna = (pedido) => `https://wa.me/${WHATSAPP_TAYNA}?text=${encodeURIComponent(`Olá, Tayná! Sou ${pedido.nome}, pedi um orçamento pelo site${pedido.data ? ` (casamento em ${dataBr(pedido.data)})` : ''} e gostaria de conversar.`)}`;
-const linkWhatsCasal = (pedido) => !pedido.whatsapp ? '' : `https://wa.me/${pedido.whatsapp.length <= 11 ? `55${pedido.whatsapp}` : pedido.whatsapp}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
+const linkWhatsCasal = (pedido) => !pedido.whatsapp ? '' : `https://wa.me/${pedido.whatsapp.startsWith('+') ? pedido.whatsapp.slice(1) : `55${pedido.whatsapp}`}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 function moldura(conteudo) {
@@ -246,7 +263,7 @@ ${linha('Horário pedido', agenda ? `<b>${esc(agenda)}</b>` : '')}
 ${linha('Casamento', [dataBr(pedido.data), esc(pedido.cidade), pedido.convidados ? `${pedido.convidados} convidados` : ''].filter(Boolean).join(' · '))}
 ${linha('Serviço', esc(o.servico ? o.servico.nome : 'Ainda não sei'))}
 ${linha('Orçamento prévio', o.total ? moeda(o.total) : '')}
-${linha('WhatsApp', pedido.whatsapp ? `<a href="${linkWhatsCasal(pedido)}">${esc(pedido.whatsapp)}</a>` : 'não informado')}
+${linha('WhatsApp', pedido.whatsapp ? `<a href="${linkWhatsCasal(pedido)}">${esc(formatarTelefone(pedido.whatsapp))}</a>` : 'não informado')}
 ${linha('E-mail', esc(pedido.email))}
 ${linha('Mensagem', pedido.mensagem ? `"${esc(pedido.mensagem)}"` : '')}
 </table>
@@ -260,5 +277,5 @@ const rotuloHorario = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone:
 
 module.exports = {
   ESTADOS, NAO_SEI, catalogo, servicosDoSite, calcular, validar, criar, carregar, salvar, listar, publico,
-  gerarPdf, emailCasal, emailAlerta, linkWhatsTayna, linkWhatsCasal, normalizarWhats, rotuloHorario, dataBr, moeda,
+  gerarPdf, emailCasal, emailAlerta, linkWhatsTayna, linkWhatsCasal, normalizarWhats, formatarTelefone, rotuloHorario, dataBr, moeda,
 };

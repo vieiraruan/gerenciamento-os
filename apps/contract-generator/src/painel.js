@@ -18,7 +18,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 function telefoneLinks(tel) {
   const d = String(tel || '').replace(/\D/g, '');
   if (d.length < 10) return '';
-  const intl = d.length <= 11 ? `55${d}` : d;
+  // "+país …" (formato novo) já vem com o código do país; sem "+" é número do Brasil
+  const intl = String(tel || '').trim().startsWith('+') || d.length > 11 ? d : `55${d}`;
   return `<a class="bt" href="tel:+${intl}">Ligar</a><a class="bt wa" href="https://wa.me/${intl}">WhatsApp</a>`;
 }
 

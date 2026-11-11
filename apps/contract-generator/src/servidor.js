@@ -386,7 +386,7 @@ async function processarPedido(id, { alerta = true } = {}) {
 function resumoPedido(p, datasContratadas) {
   const dataBr = pedidos.dataBr(p.data);
   return {
-    id: p.id, estado: p.estado, criado_em: p.criado_em, nome: p.nome, email: p.email, whatsapp: p.whatsapp, data: p.data, data_br: dataBr,
+    id: p.id, estado: p.estado, criado_em: p.criado_em, nome: p.nome, email: p.email, whatsapp: pedidos.formatarTelefone(p.whatsapp), data: p.data, data_br: dataBr,
     cidade: p.cidade, convidados: p.convidados, fora: p.fora, mensagem: p.mensagem,
     servico: p.orcamento.servico ? p.orcamento.servico.nome : 'Ainda não sei', total: p.orcamento.total || null, itens: p.orcamento.itens || [],
     agenda: p.agenda ? { ...p.agenda, rotulo: pedidos.rotuloHorario(p.agenda.inicio) } : null,
@@ -463,7 +463,7 @@ const rotas = {
     } else if (corpo.acao === 'confirmar') {
       if (!p.agenda) throw new Error('O casal ainda não pediu horário.');
       const descricao = [`Conversa de fechamento — pedido do site (${p.orcamento.servico ? p.orcamento.servico.nome : 'serviço a definir'}).`,
-        `WhatsApp: ${p.whatsapp || 'não informado'}`, p.data ? `Casamento: ${pedidos.dataBr(p.data)}${p.cidade ? `, ${p.cidade}` : ''}` : '',
+        `WhatsApp: ${pedidos.formatarTelefone(p.whatsapp) || 'não informado'}`, p.data ? `Casamento: ${pedidos.dataBr(p.data)}${p.cidade ? `, ${p.cidade}` : ''}` : '',
         `Lotus: ${URL_LOTUS}/pedidos?id=${p.id}`].filter(Boolean).join('\n');
       const r = await planilhaGoogle.chamar(DADOS, 'agendar', { inicio: p.agenda.inicio, minutos: 30,
         titulo: `Conversa com ${p.nome} (Tayná Alves Assessoria)`, descricao, convidado: p.email });
@@ -932,16 +932,18 @@ const servidor = http.createServer(async (req, res) => {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
       const versaoMovel = (ext) => Math.round(fs.statSync(path.join(RAIZ, 'app', `movel.${ext}`)).mtimeMs);
+      const versaoCampos = Math.round(fs.statSync(path.join(RAIZ, 'app', 'campos.js')).mtimeMs);
       const html = fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8')
         .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`)
-        .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`);
+        .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`)
+        .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     // ajustes de celular comuns a todas as telas
-    const movel = /^\/movel\.(css|js)$/.exec(url.pathname);
-    if (req.method === 'GET' && movel) {
-      res.writeHead(200, { 'Content-Type': movel[1] === 'css' ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
-      return res.end(fs.readFileSync(path.join(RAIZ, 'app', `movel.${movel[1]}`)));
+    const comum = /^\/(movel\.css|movel\.js|campos\.js)$/.exec(url.pathname);
+    if (req.method === 'GET' && comum) {
+      res.writeHead(200, { 'Content-Type': comum[1].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
+      return res.end(fs.readFileSync(path.join(RAIZ, 'app', comum[1])));
     }
     const marca = /^\/marca\/(logo|icone)\.png$/.exec(url.pathname);
     if (req.method === 'GET' && marca) {

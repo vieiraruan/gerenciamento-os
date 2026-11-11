@@ -227,7 +227,7 @@
       <!-- 1. formulário -->
       <form id="formOrc" class="form" novalidate>
         <label class="largo">Nome do casal<input name="nome" type="text" autocomplete="name" placeholder="Ex.: Ana e Pedro" required minlength="3"></label>
-        <label>WhatsApp com DDD<input name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="(81) 9 0000-0000"></label>
+        <label>WhatsApp<input name="whatsapp" data-formato="tel" type="tel" autocomplete="tel" inputmode="tel" placeholder="(81) 9 0000-0000"></label>
         <label>E-mail (o orçamento vai para cá)<input name="email" type="email" autocomplete="email" placeholder="voces@email.com" required></label>
         <label>Data do casamento<input name="data" type="date"></label>
         <label>Convidados (aprox.)<input name="convidados" type="number" min="0" max="5000" step="10" value="150" inputmode="numeric"></label>
@@ -283,6 +283,7 @@
 
 <a class="whats-flutuante" href="https://wa.me/5581996760320" target="_blank" rel="noopener" aria-label="Conversar com a Tayná no WhatsApp"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-4A8 8 0 1 1 20 12z"></path></svg></a>
 
+<script src="/campos.js?v=2" defer></script>
 <script src="/site.js?v=2" defer></script>
 </body>
 </html>

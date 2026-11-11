@@ -26,7 +26,7 @@
 	}
 	handle {
 		root * /srv/site
-		@estatico path /img/* /estilo.css /site.js
+		@estatico path /img/* /estilo.css /site.js /campos.js
 		header @estatico Cache-Control "public, max-age=604800"
 		file_server
 	}

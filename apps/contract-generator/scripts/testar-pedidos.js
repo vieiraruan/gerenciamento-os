@@ -74,11 +74,17 @@ async function principal() {
   assert.strictEqual(semOk.status, 400);
   ok('formulário inválido ou sem autorização é recusado');
 
-  const { normalizarWhats, validar } = require('../src/pedidos');
-  assert.strictEqual(normalizarWhats('99676-0320'), '81996760320');
-  assert.strictEqual(normalizarWhats('+55 (81) 99676-0320'), '81996760320');
-  assert.strictEqual(normalizarWhats('081 3333-4444'), '8133334444');
+  const { normalizarWhats, validar, formatarTelefone, linkWhatsCasal } = require('../src/pedidos');
+  assert.strictEqual(normalizarWhats('99676-0320'), '+5581996760320');
+  assert.strictEqual(normalizarWhats('+55 81 99676-0320'), '+5581996760320');
+  assert.strictEqual(normalizarWhats('081 3333-4444'), '+558133334444');
+  assert.strictEqual(normalizarWhats('+351 912 345 678'), '+351912345678');
+  assert.strictEqual(normalizarWhats('+1 415 555 0123'), '+14155550123');
   assert.strictEqual(normalizarWhats('123'), '');
+  assert.strictEqual(formatarTelefone('+5581996760320'), '+55 81 99676-0320');
+  assert.strictEqual(formatarTelefone('8133334444'), '+55 81 3333-4444');
+  assert.ok(linkWhatsCasal({ whatsapp: '+14155550123', nome: 'Ann e Bob' }).startsWith('https://wa.me/14155550123?'));
+  assert.ok(linkWhatsCasal({ whatsapp: '81996760320', nome: 'Ana e Bia' }).startsWith('https://wa.me/5581996760320?'));
   assert.strictEqual(validar({ ...FORM, whatsapp: '', consentimento: true }).whatsapp, '');
   ok('WhatsApp não bloqueia o pedido (sem DDD assume 81; vazio é aceito, o orçamento vai por e-mail)');
 
