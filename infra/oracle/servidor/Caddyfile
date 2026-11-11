@@ -1,5 +1,5 @@
-{$LOTUS_DOMINIO} {
-	encode zstd gzip
+# Lotus (sistema) e site público. O Caddy cuida do HTTPS (Let's Encrypt) sozinho.
+(seguranca) {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
@@ -7,5 +7,31 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
+}
+
+{$LOTUS_DOMINIO} {
+	encode zstd gzip
+	import seguranca
 	reverse_proxy lotus:3210
+}
+
+# Site: páginas estáticas (pasta site/ do repositório); o formulário de orçamento e a
+# política de privacidade vêm do Lotus pelo mesmo endereço (sem CORS).
+{$SITE_DOMINIO} {
+	encode zstd gzip
+	import seguranca
+	@lotus path /api/publico/* /privacidade /marca/* /movel.css /movel.js
+	handle @lotus {
+		reverse_proxy lotus:3210
+	}
+	handle {
+		root * /srv/site
+		@estatico path /img/* /estilo.css /site.js
+		header @estatico Cache-Control "public, max-age=604800"
+		file_server
+	}
+}
+
+www.{$SITE_DOMINIO} {
+	redir https://{$SITE_DOMINIO}{uri} permanent
 }
