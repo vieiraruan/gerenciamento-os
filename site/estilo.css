@@ -218,3 +218,24 @@ h2.estreito, .cabeca { max-width: 680px; }
   .rodape-in { flex-direction: column; align-items: flex-start; }
   .whats-flutuante { right: 14px; bottom: 14px; width: 52px; height: 52px; }
 }
+
+/* ---------- Black Friday (body.bf) ---------- */
+.bf-faixa, .bf-tag, .bf-nota { display: none; }
+.bf { --preto: #141110; --ouro: #D9B77E; }
+.bf .bf-faixa { display: block; background: var(--preto); color: #EFE4D8; font-size: 14px; }
+.bf-faixa-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 16px; padding-top: 10px; padding-bottom: 10px; text-align: center; }
+.bf-selo { font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ouro); font-size: 12.5px; }
+.bf-faixa a { color: var(--ouro); font-weight: 600; text-underline-offset: 3px; }
+.bf-faixa a:hover { color: #F0D6A6; }
+.bf .abertura, .bf .contato { background: var(--preto); }
+.bf .abertura h1 em { color: var(--ouro); }
+.bf .abertura .lead, .bf .contato .texto { color: #E3D8CC; }
+.bf .sobretitulo.claro { color: #E8CFC2; }
+.bf .btn-creme { background: var(--ouro); color: var(--preto); } .bf .btn-creme:hover { background: #E6C792; color: var(--preto); }
+.bf .bf-tag { display: inline-block; margin: 0 0 18px; padding: 6px 14px; border: 1px solid var(--ouro); border-radius: 999px; color: var(--ouro);
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+.bf .bf-nota { display: block; margin-top: 20px; padding: 14px 16px; border: 1px solid rgba(217, 183, 126, 0.55); border-radius: 14px; color: #EFE4D8; font-size: 15px; }
+.bf .bf-nota span { display: block; color: var(--ouro); font-weight: 700; font-size: 12.5px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 2px; }
+.bf .etapas li span:first-child { color: var(--ouro); }
+.bf .contato .sobretitulo.claro { color: var(--ouro); }
+@media (max-width: 600px) { .bf-faixa-in p { flex-basis: 100%; order: 2; } .bf-faixa-in a { order: 3; } }

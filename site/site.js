@@ -3,6 +3,10 @@
   const $ = (s) => document.querySelector(s);
   const WHATS = 'https://wa.me/5581996760320';
 
+  // Black Friday: o tema sai sozinho depois da data em data-bf-ate
+  const fimBf = Date.parse(document.body.dataset.bfAte || '');
+  if (fimBf && Date.now() > fimBf) document.body.classList.remove('bf');
+
   // ---- menu (celular/tablet) ----
   const botao = $('.menu-btn'); const menu = $('#menu');
   const fechar = () => { menu.classList.remove('aberto'); botao.setAttribute('aria-expanded', 'false'); botao.setAttribute('aria-label', 'Abrir menu'); };
