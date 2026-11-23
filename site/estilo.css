@@ -79,15 +79,20 @@ h2.estreito, .cabeca { max-width: 680px; }
 
 /* serviços */
 .servicos { background: var(--areia); }
-.cartoes { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.cartoes { margin-top: 48px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .cartao { background: var(--creme); border-radius: 20px; padding: 32px; display: flex; flex-direction: column; gap: 12px; }
 .cartao p { font-weight: 300; }
 .cartao .rotulo, .rotulo { font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terracota); }
 .cartao h3 { margin: 0; font-family: var(--serifa); font-weight: 600; font-size: 32px; line-height: 1.1; }
 .cartao.escuro { background: var(--terracota); color: var(--creme); }
 .cartao.escuro .rotulo { color: var(--rosa); } .cartao.escuro p { color: #F7E8DF; }
-.adicionais { margin-top: 28px; padding: 22px 28px; border: 1px dashed var(--borda); border-radius: 16px; display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; }
-.adicionais p { font-weight: 300; } .adicionais .forte { color: var(--terracota); font-weight: 600; }
+.adicionais { margin-top: 28px; padding: 28px; border: 1px dashed var(--borda); border-radius: 20px; display: grid; grid-template-columns: 0.8fr 2fr; gap: 20px 36px; align-items: start; }
+.adicionais-cab h3 { margin: 6px 0 8px; font-family: var(--serifa); font-weight: 600; font-size: 28px; line-height: 1.1; }
+.adicionais-cab > p:last-child { font-weight: 300; font-size: 15px; }
+.adicionais-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; }
+.adicionais-lista li { display: flex; flex-direction: column; gap: 2px; padding-top: 12px; border-top: 1px solid var(--linha); }
+.adicionais-lista strong { font-family: var(--serifa); font-size: 22px; font-weight: 600; color: var(--terracota); line-height: 1.2; }
+.adicionais-lista span { font-weight: 300; font-size: 15px; }
 
 /* como funciona */
 .passos { list-style: none; margin: 48px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
@@ -178,6 +183,7 @@ h2.estreito, .cabeca { max-width: 680px; }
   .topo-in { position: relative; }
   h1 { font-size: 54px; }
   .cartoes { grid-template-columns: repeat(2, 1fr); }
+  .adicionais { grid-template-columns: 1fr; }
   .passos { grid-template-columns: repeat(2, 1fr); }
   .galeria { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .portal-in, .contato-in, .sobre-in { grid-template-columns: 1fr; gap: 48px; }
@@ -199,7 +205,8 @@ h2.estreito, .cabeca { max-width: 680px; }
   .contato h2 { font-size: 38px; }
   .destaques-in { grid-template-columns: 1fr; gap: 14px; }
   .destaques .num { font-size: 30px; }
-  .cartoes, .passos { grid-template-columns: 1fr; }
+  .cartoes, .passos, .adicionais-lista { grid-template-columns: 1fr; }
+  .adicionais { padding: 22px 18px; }
   .cartoes { margin-top: 32px; } .passos { margin-top: 32px; }
   .cartao { padding: 24px; } .cartao h3 { font-size: 28px; }
   .galeria { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 28px; }

@@ -27,7 +27,7 @@
   // ---- serviços (lista do Lotus; se falhar, fica a lista fixa) ----
   const SERVICOS_PADRAO = [
     ['so_vou_pra_casar', 'Só Vou Pra Casar'], ['essencial', 'O Essencial'], ['dia_d', 'Dia D Completo'], ['empurraozinho', 'O Empurrãozinho'],
-    ['necessario', 'O Necessário'], ['te_deixa_tranquila', 'Te Deixa Tranquila'], ['sai_na_vassoura', 'Sai na Vassoura'], ['nao_sei', 'Ainda não sei'],
+    ['necessario', 'O Necessário'], ['nao_sei', 'Ainda não sei'],
   ];
   const sel = $('#servico');
   function preencherServicos(lista) {

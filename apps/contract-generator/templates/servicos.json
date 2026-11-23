@@ -1,9 +1,10 @@
 {
-  "_comentario": "Catálogo de serviços. 'secoes' = seções do contrato incluídas; 'linha' define a numeração (AS = assessoria, CE = cerimonial). Preços = tabela sugerida 2027 (ver docs/tabela-precos.md).",
+  "_comentario": "Catálogo de serviços. 'secoes' = seções do contrato incluídas; 'linha' define a numeração (AS = assessoria, CE = cerimonial). Preços = tabela sugerida 2027 (ver docs/tabela-precos.md). 'adicional' = serviço extra, negociado na conversa (pode entrar como cortesia): não aparece no formulário de orçamento do site.",
 
   "te_deixa_tranquila": {
     "nome": "Te Deixa Tranquila",
     "descricao": "supervisão da montagem",
+    "adicional": true,
     "linha": "CE",
     "preco": 900,
     "secoes": ["supervisao"]
@@ -18,6 +19,7 @@
   "sai_na_vassoura": {
     "nome": "Sai na Vassoura",
     "descricao": "finalização do evento",
+    "adicional": true,
     "linha": "CE",
     "preco": 800,
     "secoes": ["finalizacao"]

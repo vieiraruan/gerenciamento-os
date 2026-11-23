@@ -27,12 +27,13 @@ const arquivoPedido = (dirDados, id) => {
 
 function catalogo() {
   const s = JSON.parse(fs.readFileSync(path.join(RAIZ, 'templates', 'servicos.json'), 'utf8'));
-  return Object.entries(s).filter(([k]) => !k.startsWith('_')).map(([id, v]) => ({ id, nome: v.nome, descricao: v.descricao, preco: v.preco }));
+  return Object.entries(s).filter(([k]) => !k.startsWith('_')).map(([id, v]) => ({ id, nome: v.nome, descricao: v.descricao, preco: v.preco, adicional: Boolean(v.adicional) }));
 }
 
-/** Serviços que o site oferece no formulário (sem preço). */
+/** Serviços que o site oferece no formulário (sem preço). Os adicionais (Te Deixa Tranquila, Sai na Vassoura)
+ * ficam de fora: são negociados na conversa com a Tayná. */
 function servicosDoSite() {
-  return [...catalogo().map(({ id, nome }) => ({ id, nome })), { id: NAO_SEI, nome: 'Ainda não sei' }];
+  return [...catalogo().filter((s) => !s.adicional).map(({ id, nome }) => ({ id, nome })), { id: NAO_SEI, nome: 'Ainda não sei' }];
 }
 
 const r2 = (v) => Math.round(v * 100) / 100;

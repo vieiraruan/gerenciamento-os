@@ -62,7 +62,8 @@ async function principal() {
 
   const sv = await pedir('GET', '/api/publico/servicos');
   assert.ok(sv.j.servicos.some((s) => s.id === 'nao_sei') && !JSON.stringify(sv.j).includes('preco'));
-  ok('site lista os serviços, sem preços');
+  assert.ok(!sv.j.servicos.some((s) => ['te_deixa_tranquila', 'sai_na_vassoura'].includes(s.id)), 'adicionais não vão para o formulário');
+  ok('site lista os serviços, sem preços e sem os adicionais (negociados na conversa)');
 
   const h = await pedir('GET', '/api/publico/horarios');
   assert.strictEqual(h.j.horarios.length, 2); assert.ok(h.j.horarios[0].rotulo.includes('19:00'));
