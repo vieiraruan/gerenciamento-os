@@ -413,7 +413,25 @@ function versaoNoDisco() {
 const VERSAO = versaoNoDisco();
 
 // Login (Lotus online): desligado no computador; LOTUS_LOGIN=1 no servidor
-const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json') });
+/** Casal do contrato para o acesso com e-mail e senha (e-mail do cliente no contrato; 1º acesso com o CPF/CNPJ). */
+function dadosAcessoCasal(arquivo) {
+  try {
+    const { campos, cliente } = contratoDe(arquivo);
+    return { arquivo: nomeArquivo(arquivo), nome: campos.evento_nomes || '', cpf: cliente.cpf_cnpj || campos.cpf_cnpj || '', email: cliente.email || campos.email || '' };
+  } catch { return null; }
+}
+function casalPorEmail(email) {
+  const alvo = String(email || '').trim().toLowerCase();
+  if (!alvo) return null;
+  const hoje = Date.now();
+  const achados = listarTxt(DADOS).filter((c) => c.campos.numero_os).map((c) => dadosAcessoCasal(c.arquivo))
+    .filter((d) => d && String(d.email).trim().toLowerCase() === alvo)
+    .map((d) => { let quando = 0; try { quando = parseData(contratoDe(d.arquivo).campos.evento_data).getTime(); } catch { /* sem data */ } return { ...d, quando }; });
+  // mais de um contrato com o mesmo e-mail: o próximo casamento (senão o mais recente)
+  achados.sort((a, b) => ((a.quando >= hoje) === (b.quando >= hoje) ? (a.quando >= hoje ? a.quando - b.quando : b.quando - a.quando) : (a.quando >= hoje ? -1 : 1)));
+  return achados[0] || null;
+}
+const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json'), casalPorEmail, casalPorArquivo: dadosAcessoCasal });
 
 // ---------------------------------------------------------------------------
 // Cronograma (marcar tarefa) e área do casal
@@ -693,7 +711,7 @@ const rotas = {
   // usuários do Lotus online (só admin)
   'GET /api/usuarios': () => ({
     login: AUTH.ativo,
-    usuarios: AUTH.usuarios.listar(),
+    usuarios: AUTH.usuarios.listar().map((u) => ({ ...u, tem_senha: u.papel === 'casal' && AUTH.senhas.tem(u.email) })),
     casais: listarTxt(DADOS).filter((c) => c.campos.numero_os).map((c) => ({ arquivo: c.arquivo, numero_os: c.campos.numero_os, casal: c.campos.evento_nomes || c.arquivo })),
   }),
   'POST /api/usuarios': (q, corpo, u) => {
@@ -701,11 +719,12 @@ const rotas = {
       if (corpo.email && u && corpo.email.toLowerCase() === u.email) throw new Error('Você não pode remover o próprio acesso.');
       AUTH.usuarios.remover(corpo.email);
     } else if (corpo.acao === 'encerrar') AUTH.usuarios.encerrarSessoes(corpo.email);
+    else if (corpo.acao === 'zerar-senha') { AUTH.senhas.zerar(corpo.email); try { AUTH.usuarios.encerrarSessoes(corpo.email); } catch { /* sem sessão */ } }
     else {
       if (u && !u.local && corpo.email && corpo.email.toLowerCase() === u.email && corpo.papel !== 'admin') throw new Error('Você não pode tirar o próprio perfil de admin.');
       AUTH.usuarios.salvar(corpo, u?.email);
     }
-    return { ok: true, usuarios: AUTH.usuarios.listar() };
+    return { ok: true, usuarios: AUTH.usuarios.listar().map((u) => ({ ...u, tem_senha: u.papel === 'casal' && AUTH.senhas.tem(u.email) })) };
   },
 
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),

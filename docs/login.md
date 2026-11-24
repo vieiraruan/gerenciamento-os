@@ -7,7 +7,7 @@ o login ligado: **"Entrar com Google"**, aceito apenas para e-mails cadastrados 
 |---|---|
 | **Admin** | Tudo (contratos, checklist, financeiro, painel de gestão, usuários) |
 | **Equipe** | Tela inicial, checklist e dados do dia do evento — sem financeiro, gestão, gerador de contratos e valores |
-| **Casal** | Só o próprio evento (`/meu-evento`): atualiza a situação e a observação das atividades dos preparativos; acompanha fornecedores (valores, vencimentos, contato, dados para pagamento) e **envia pagamentos com comprovante** — depois de enviado, só a Tayná corrige ou retira. Na tela da Tayná aparecem marcados como "casal". |
+| **Casal** | Entra em "Área do casal" com o **e-mail do cliente no contrato**; no 1º acesso a senha é o **CPF/CNPJ do contrato** (só números) e o casal cria uma senha própria (mín. 8 caracteres, diferente do CPF) — depois só ela vale. 5 senhas erradas bloqueiam 15 min; "Zerar senha" em Usuários volta ao CPF. Senhas: só hash scrypt em `_DADOS DO SISTEMA/acessos-casais.json`. Vê só o próprio evento (`/meu-evento`): atualiza a situação e a observação das atividades dos preparativos; acompanha fornecedores (valores, vencimentos, contato, dados para pagamento) e **envia pagamentos com comprovante** — depois de enviado, só a Tayná corrige ou retira. Na tela da Tayná aparecem marcados como "casal". |
 
 Os usuários ficam em `CONTRATOS GERADOS/_DADOS DO SISTEMA/usuarios.json` (depois, no PostgreSQL). Trocar o perfil,
 bloquear ou "Encerrar sessões" desconecta a pessoa na hora. Os e-mails de `LOTUS_ADMINS` são sempre admin (primeiro acesso).

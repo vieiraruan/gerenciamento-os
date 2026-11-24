@@ -47,7 +47,10 @@
   <div class="card">
     <h2>Liberar acesso</h2>
     <p class="ajuda">A pessoa entra com a conta Google deste e-mail. <b>Admin</b>: tudo. <b>Equipe</b>: tela inicial, eventos e checklist
-      (sem financeiro, gestão, contratos e valores). <b>Casal</b>: só o próprio evento, cronograma e fornecedores, sem alterar nada.</p>
+      (sem financeiro, gestão, contratos e valores). <b>Casal</b>: só o próprio evento — atualiza os preparativos e envia pagamentos.</p>
+    <p class="ajuda"><b>Casais não precisam ser cadastrados aqui:</b> entram em "Área do casal" com o <b>e-mail do cliente no contrato</b>;
+      no primeiro acesso a senha é o <b>CPF do contrato</b> e eles criam uma senha própria. Depois disso aparecem nesta lista.
+      Esqueceram a senha? Use "Zerar senha" — o próximo acesso volta a ser com o CPF.</p>
     <form class="novo" id="formNovo">
       <div><label>E-mail (conta Google)</label><input id="nEmail" type="email" required placeholder="nome@gmail.com"></div>
       <div><label>Nome</label><input id="nNome" placeholder="opcional"></div>
@@ -81,9 +84,10 @@ function render() {
     <td>${esc(u.email)}${u.fixo ? ' <span class="s">(admin fixo do servidor)</span>' : ''}</td>
     <td>${esc(u.nome)}</td>
     <td>${u.fixo ? `<span class="badge b-admin">Admin</span>` : `<select data-papel="${esc(u.email)}" style="width:auto">${['admin', 'equipe', 'casal'].map((p) => `<option value="${p}" ${u.papel === p ? 'selected' : ''}>${NOME[p]}</option>`).join('')}</select>`}
-      ${u.papel === 'casal' ? `<div class="s">${esc(casal(u.casal))}</div>` : ''}${u.bloqueado ? ' <span class="badge b-bloq">bloqueado</span>' : ''}</td>
+      ${u.papel === 'casal' ? `<div class="s">${esc(casal(u.casal))}${u.tem_senha ? ' · senha criada' : ''}</div>` : ''}${u.bloqueado ? ' <span class="badge b-bloq">bloqueado</span>' : ''}</td>
     <td style="text-align:right">${u.fixo ? '' : `<button data-acao="${u.bloqueado ? 'desbloquear' : 'bloquear'}" data-email="${esc(u.email)}">${u.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>
       <button data-acao="encerrar" data-email="${esc(u.email)}">Encerrar sessões</button>
+      ${u.tem_senha ? `<button data-acao="zerar-senha" data-email="${esc(u.email)}" title="O próximo acesso volta a ser com o CPF do contrato">Zerar senha</button>` : ''}
       <button class="perigo" data-acao="remover" data-email="${esc(u.email)}">Remover</button>`}</td></tr>`).join('') || '<tr><td colspan="4" class="s">Nenhum usuário ainda.</td></tr>');
   document.querySelectorAll('[data-papel]').forEach((sel) => sel.onchange = async () => {
     const u = D.usuarios.find((x) => x.email === sel.dataset.papel);
@@ -95,6 +99,7 @@ function render() {
     const u = D.usuarios.find((x) => x.email === b.dataset.email);
     if (b.dataset.acao === 'remover') { if (!confirm(`Remover o acesso de ${u.email}?`)) return; await acao({ acao: 'remover', email: u.email }); }
     else if (b.dataset.acao === 'encerrar') await acao({ acao: 'encerrar', email: u.email }, 'Sessões encerradas.');
+    else if (b.dataset.acao === 'zerar-senha') { if (!confirm(`Zerar a senha de ${u.email}? O próximo acesso será com o CPF do contrato.`)) return; await acao({ acao: 'zerar-senha', email: u.email }, 'Senha zerada: o próximo acesso é com o CPF do contrato.'); }
     else await acao({ ...u, bloqueado: b.dataset.acao === 'bloquear' });
   });
 }

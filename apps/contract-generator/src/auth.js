@@ -130,6 +130,36 @@ function criarUsuarios(arquivo, admins = []) {
 }
 
 // ---------------------------------------------------------------------------
+// Senhas dos casais (arquivo separado; só o hash scrypt com sal, nunca a senha)
+// ---------------------------------------------------------------------------
+function criarSenhas(arquivo) {
+  const ler = () => { try { return JSON.parse(fs.readFileSync(arquivo, 'utf8')); } catch { return { senhas: {} }; } };
+  const gravar = (d) => {
+    fs.mkdirSync(path.dirname(arquivo), { recursive: true });
+    const tmp = `${arquivo}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(d, null, 2));
+    fs.renameSync(tmp, arquivo);
+  };
+  const hash = (senha, sal) => crypto.scryptSync(String(senha), sal, 64).toString('base64');
+  return {
+    tem(email) { return Boolean(ler().senhas[normEmail(email)]); },
+    conferir(email, senha) {
+      const r = ler().senhas[normEmail(email)];
+      if (!r) return false;
+      const a = Buffer.from(hash(senha, r.sal), 'base64'); const b = Buffer.from(r.hash, 'base64');
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    },
+    definir(email, senha) {
+      const d = ler(); const sal = aleatorio(16);
+      d.senhas[normEmail(email)] = { sal, hash: hash(senha, sal), definida_em: new Date().toISOString() };
+      gravar(d);
+    },
+    zerar(email) { const d = ler(); delete d.senhas[normEmail(email)]; gravar(d); },
+    lista() { return Object.keys(ler().senhas); },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Cookies assinados
 // ---------------------------------------------------------------------------
 function assinar(segredo, obj) {
@@ -220,12 +250,31 @@ function permitido(papel, chave) {
 // Middleware
 // ---------------------------------------------------------------------------
 /**
- * @param {{ arquivoUsuarios: string, env?: object }} op
- * @returns {{ ativo, usuarios, tratar(req, res, url): Promise<{fim?: true, usuario?: object}> }}
+ * @param {{ arquivoUsuarios: string, arquivoSenhas?: string, env?: object,
+ *   casalPorEmail?: (email) => ({arquivo, nome, cpf}|null), casalPorArquivo?: (arquivo) => ({arquivo, nome, cpf}|null) }} op
+ *   Casais também entram com e-mail e senha: o e-mail do cliente no contrato e, no primeiro acesso, o CPF/CNPJ do
+ *   contrato; na hora criam uma senha própria (o CPF deixa de valer).
+ * @returns {{ ativo, usuarios, senhas, tratar(req, res, url): Promise<{fim?: true, usuario?: object}> }}
  */
-function criarAuth({ arquivoUsuarios, env = process.env }) {
+function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPorEmail = () => null, casalPorArquivo = () => null }) {
   const c = configuracao(env);
   const usuarios = criarUsuarios(arquivoUsuarios, c.admins);
+  const senhas = criarSenhas(arquivoSenhas || path.join(path.dirname(arquivoUsuarios), 'acessos-casais.json'));
+  const COOKIE_NOVA = 'lotus_nova_senha';
+  // tentativas erradas de senha: por endereço e por e-mail (5 em 15 min bloqueia por 15 min)
+  const erros = new Map();
+  const bloqueado = (k) => { const t = (erros.get(k) || []).filter((x) => x > Date.now() - 15 * 60e3); erros.set(k, t); return t.length >= 5; };
+  const errou = (k) => erros.set(k, [...(erros.get(k) || []), Date.now()]);
+  const digitos = (v) => String(v || '').replace(/\D/g, '');
+  const lerForm = (req) => new Promise((ok) => {
+    let b = ''; req.on('data', (x) => { b += x; if (b.length > 1e4) req.destroy(); });
+    req.on('end', () => { try { ok(req.headers['content-type']?.includes('json') ? JSON.parse(b || '{}') : Object.fromEntries(new URLSearchParams(b))); } catch { ok({}); } });
+  });
+  const origemOk = (req) => { const o = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : ''); return !o || o === new URL(c.url).origin; };
+  const abrirSessao = (res, u, destino, extra = []) => {
+    const sessao = assinar(c.segredo, { email: u.email, nome: u.nome || '', foto: '', v: u.versao || 1, exp: Math.floor(Date.now() / 1000) + DURACAO_SESSAO });
+    redirecionar(res, destino, [...extra, cookie(COOKIE_SESSAO, sessao, { maxAge: DURACAO_SESSAO, seguro })]);
+  };
   const seguro = c.url.startsWith('https://');
   const retorno = `${c.url}/auth/google/retorno`;
   const LOCAL = { email: 'local', nome: 'Este computador', papel: 'admin', local: true };
@@ -247,7 +296,7 @@ function criarAuth({ arquivoUsuarios, env = process.env }) {
     const chave = `${req.method} ${url.pathname}`;
 
     // ---- rotas do próprio login ----
-    if (chave === 'GET /entrar') return html(res, 200, paginaEntrar(url.searchParams.get('erro'))), { fim: true };
+    if (chave === 'GET /entrar') return html(res, 200, paginaEntrar(url.searchParams.get('erro'), url.searchParams.get('email'), destinoSeguro(url.searchParams.get('voltar')))), { fim: true };
     if (chave === 'GET /auth/google') {
       const estado = { s: aleatorio(), n: aleatorio(), v: aleatorio(48), r: destinoSeguro(url.searchParams.get('voltar')), exp: Math.floor(Date.now() / 1000) + 600 };
       const desafio = b64url(crypto.createHash('sha256').update(estado.v).digest());
@@ -280,6 +329,51 @@ function criarAuth({ arquivoUsuarios, env = process.env }) {
       redirecionar(res, destino, [limpar, cookie(COOKIE_SESSAO, sessao, { maxAge: DURACAO_SESSAO, seguro })]);
       return { fim: true };
     }
+    // ---- casais: e-mail + senha (primeiro acesso com o CPF/CNPJ do contrato) ----
+    if (chave === 'POST /auth/senha') {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || '';
+      const f = await lerForm(req);
+      const email = normEmail(f.email); const senha = String(f.senha || '');
+      const falha = (m = 'E-mail ou senha incorretos.') => { errou(`ip:${ip}`); errou(`email:${email}`); redirecionar(res, `/entrar?erro=${encodeURIComponent(m)}&email=${encodeURIComponent(email)}#casal`); return { fim: true }; };
+      if (!origemOk(req)) return falha('Origem não permitida.');
+      if (bloqueado(`ip:${ip}`) || bloqueado(`email:${email}`)) { redirecionar(res, `/entrar?erro=${encodeURIComponent('Muitas tentativas. Espere 15 minutos e tente de novo.')}#casal`); return { fim: true }; }
+      if (!email || !senha) return falha('Informe o e-mail e a senha.');
+      const bruto = usuarios.listar().find((u) => u.email === email);
+      if (bruto && (bruto.bloqueado || bruto.papel !== 'casal')) return falha(bruto.papel !== 'casal' && !bruto.bloqueado ? 'Equipe da Tayná: use "Entrar com Google".' : undefined);
+      if (senhas.tem(email)) {
+        if (!senhas.conferir(email, senha)) return falha();
+        const u = usuarios.obter(email);
+        if (!u || u.papel !== 'casal') return falha();
+        erros.delete(`email:${email}`);
+        abrirSessao(res, u, '/meu-evento');
+        return { fim: true };
+      }
+      // primeiro acesso: e-mail do cliente no contrato + CPF/CNPJ do contrato
+      const casal = bruto ? casalPorArquivo(bruto.casal) : casalPorEmail(email);
+      const doc = digitos(casal && casal.cpf);
+      if (!casal || !(doc.length === 11 || doc.length === 14) || digitos(senha) !== doc) return falha();
+      erros.delete(`email:${email}`);
+      const nova = assinar(c.segredo, { email, arquivo: casal.arquivo, nome: casal.nome || '', exp: Math.floor(Date.now() / 1000) + 900 });
+      redirecionar(res, '/auth/nova-senha', [cookie(COOKIE_NOVA, nova, { maxAge: 900, seguro })]);
+      return { fim: true };
+    }
+    if (chave === 'GET /auth/nova-senha' || chave === 'POST /auth/nova-senha') {
+      const pend = conferir(c.segredo, lerCookies(req)[COOKIE_NOVA]);
+      if (!pend) { redirecionar(res, `/entrar?erro=${encodeURIComponent('O primeiro acesso expirou. Entre de novo com o CPF.')}#casal`); return { fim: true }; }
+      if (req.method === 'GET') return html(res, 200, paginaNovaSenha(pend, url.searchParams.get('erro'))), { fim: true };
+      const f = await lerForm(req);
+      const s1 = String(f.senha || ''); const s2 = String(f.confirmar || '');
+      const casal = casalPorArquivo(pend.arquivo);
+      const erroSenha = !origemOk(req) ? 'Origem não permitida.' : s1.length < 8 ? 'A senha precisa ter pelo menos 8 caracteres.' : s1 !== s2 ? 'As duas senhas não são iguais.'
+        : (casal && digitos(s1) === digitos(casal.cpf)) ? 'A senha nova não pode ser o CPF.' : '';
+      if (erroSenha) { redirecionar(res, `/auth/nova-senha?erro=${encodeURIComponent(erroSenha)}`); return { fim: true }; }
+      let u = usuarios.listar().find((x) => x.email === pend.email);
+      if (!u) u = usuarios.salvar({ email: pend.email, nome: pend.nome || '', papel: 'casal', casal: pend.arquivo }, 'primeiro acesso do casal');
+      if (u.bloqueado || u.papel !== 'casal') { redirecionar(res, '/entrar?erro=' + encodeURIComponent('Acesso não liberado.')); return { fim: true }; }
+      senhas.definir(pend.email, s1);
+      abrirSessao(res, u, '/meu-evento', [cookie(COOKIE_NOVA, '', { maxAge: 0, seguro })]);
+      return { fim: true };
+    }
     if (chave === 'POST /sair' || chave === 'GET /sair') {
       redirecionar(res, '/entrar', [cookie(COOKIE_SESSAO, '', { maxAge: 0, seguro })]);
       return { fim: true };
@@ -291,7 +385,7 @@ function criarAuth({ arquivoUsuarios, env = process.env }) {
     const ehApi = url.pathname.startsWith('/api/');
     if (!usuario) {
       if (ehApi) { res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ erro: 'Sessão expirada. Entre de novo.' })); }
-      else redirecionar(res, `/auth/google?voltar=${encodeURIComponent(url.pathname + url.search)}`);
+      else redirecionar(res, `/entrar?voltar=${encodeURIComponent(url.pathname + url.search)}`);
       return { fim: true };
     }
     // POST só da própria origem (além do SameSite=Lax)
@@ -310,7 +404,7 @@ function criarAuth({ arquivoUsuarios, env = process.env }) {
     return { usuario };
   }
 
-  return { ativo: c.ativo, usuarios, tratar, permitido };
+  return { ativo: c.ativo, usuarios, senhas, tratar, permitido };
 }
 
 // ---------------------------------------------------------------------------
@@ -319,22 +413,53 @@ function criarAuth({ arquivoUsuarios, env = process.env }) {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const ESTILO = `<style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f8f3ef; font: 15px/1.5 "Segoe UI", system-ui, sans-serif; color: #2b2220; }
-  .caixa { background: #fff; border: 1px solid #eadcd4; border-radius: 16px; padding: 34px 38px; width: min(400px, 92vw); text-align: center; box-shadow: 0 10px 30px rgba(130,70,52,.08); }
+  .caixa { box-sizing: border-box; background: #fff; border: 1px solid #eadcd4; border-radius: 16px; padding: 34px 38px; width: min(420px, 94vw); text-align: center; box-shadow: 0 10px 30px rgba(130,70,52,.08); margin: 16px 0; }
+  @media (max-width: 480px) { .caixa { padding: 26px 20px; } img { height: 76px; } }
   img { height: 92px; } h1 { font-size: 26px; color: #824634; margin: 10px 0 0; letter-spacing: .5px; font-weight: 600; }
   .sub { color: #7b6f6a; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 22px; }
   a.google { display: inline-flex; align-items: center; gap: 10px; justify-content: center; width: 100%; box-sizing: border-box; padding: 11px 14px;
     border: 1px solid #dadce0; border-radius: 8px; color: #3c4043; font-weight: 600; text-decoration: none; background: #fff; }
   a.google:hover { background: #f8f9fa; } .erro { color: #b3261e; background: #fbeceb; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin-bottom: 14px; }
   .nota { color: #7b6f6a; font-size: 12.5px; margin-top: 18px; } a.lk { color: #824634; }
+  form.casal { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+  form.casal .tit { font-weight: 700; color: #824634; text-align: center; }
+  form.casal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: #5c4f4a; }
+  form.casal input { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid #d9c9c0; border-radius: 8px; }
+  form.casal button { margin-top: 4px; padding: 12px; border: 0; border-radius: 8px; background: #824634; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  form.casal .dica { font-size: 12.5px; color: #7b6f6a; text-align: center; }
+  .ou { display: flex; align-items: center; gap: 10px; color: #9a8d88; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin: 20px 0 12px; }
+  .ou::before, .ou::after { content: ""; flex: 1; border-top: 1px solid #eadcd4; }
 </style>`;
 const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.8 6.1C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.8-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>';
-function paginaEntrar(erro) {
+function paginaEntrar(erro, email, voltar = '/') {
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Entrar · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
 <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Lotus</h1><div class="sub">sistema de gestão</div>
-${erro ? `<div class="erro">${esc(erro)}</div>` : ''}
-<a class="google" href="/auth/google">${G} Entrar com Google</a>
-<div class="nota">Acesso só para e-mails liberados pela Tayná Alves Assessoria. · <a href="/privacidade" style="color:inherit">Privacidade</a></div></div></body></html>`;
+${erro ? `<div class="erro" role="alert">${esc(erro)}</div>` : ''}
+<form class="casal" id="casal" method="post" action="/auth/senha">
+  <div class="tit">Área do casal</div>
+  <label>E-mail do contrato<input name="email" type="email" autocomplete="username" required value="${esc(email || '')}"></label>
+  <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Entrar</button>
+  <div class="dica">Primeiro acesso: a senha é o <b>CPF do contrato</b> (só números). Em seguida vocês criam uma senha própria.</div>
+</form>
+<div class="ou"><span>equipe da Tayná</span></div>
+<a class="google" href="/auth/google${voltar && voltar !== '/' ? `?voltar=${encodeURIComponent(voltar)}` : ''}">${G} Entrar com Google</a>
+<div class="nota">Esqueceu a senha? Fale com a Tayná. · <a href="/privacidade" style="color:inherit">Privacidade</a></div></div></body></html>`;
+}
+function paginaNovaSenha(pend, erro) {
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criar senha · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
+<img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Bem-vindos!</h1>
+<div class="sub">${esc(pend.nome || 'área do casal')}</div>
+${erro ? `<div class="erro" role="alert">${esc(erro)}</div>` : ''}
+<form class="casal" method="post" action="/auth/nova-senha">
+  <div class="dica" style="margin:0 0 4px">Criem uma senha para os próximos acessos (mínimo 8 caracteres). O CPF deixa de valer como senha.</div>
+  <input type="email" name="email" value="${esc(pend.email)}" autocomplete="username" hidden>
+  <label>Nova senha<input name="senha" type="password" autocomplete="new-password" minlength="8" required></label>
+  <label>Repita a senha<input name="confirmar" type="password" autocomplete="new-password" minlength="8" required></label>
+  <button type="submit">Salvar e entrar</button>
+</form></div></body></html>`;
 }
 function paginaSemAcesso(u) {
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

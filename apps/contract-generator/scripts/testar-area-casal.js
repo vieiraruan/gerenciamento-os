@@ -15,7 +15,9 @@ const { assinar } = require('../src/auth');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lotus-casal-'));
 const dados = path.join(tmp, 'dados'); fs.mkdirSync(dados, { recursive: true });
 const ano = new Date().getFullYear() + 1;
-fs.writeFileSync(path.join(dados, 'ana-e-bia.txt'), `evento_nomes: Ana e Bia\nevento_data: 10/10/${ano}\nnumero_os: AS-0999\nvalor_total: 5000\n`);
+fs.writeFileSync(path.join(dados, 'ana-e-bia.txt'), `evento_nomes: Ana e Bia\nevento_data: 10/10/${ano}\nnumero_os: AS-0999\nvalor_total: 5000\ncliente: ana-cliente.txt\n`);
+fs.mkdirSync(path.join(dados, 'clientes'), { recursive: true });
+fs.writeFileSync(path.join(dados, 'clientes', 'ana-cliente.txt'), 'nome: Ana Souza\nemail: Ana@Hotmail.com\ncpf_cnpj: 123.456.789-09\n');
 fs.writeFileSync(path.join(dados, 'caio-e-davi.txt'), `evento_nomes: Caio e Davi\nevento_data: 12/12/${ano}\nnumero_os: AS-0998\nvalor_total: 5000\n`);
 fs.writeFileSync(path.join(dados, 'usuarios.json'), JSON.stringify({ usuarios: [
   { email: 'casal@exemplo.com', nome: 'Ana', papel: 'casal', casal: 'ana-e-bia.txt', versao: 1 },
@@ -30,14 +32,15 @@ let log = ''; app.stdout.on('data', (d) => { log += d; }); app.stderr.on('data',
 const sessao = (email) => `lotus_sessao=${encodeURIComponent(assinar(SEGREDO, { email, nome: 'Teste', foto: '', v: 1, exp: Math.floor(Date.now() / 1000) + 600 }))}`;
 const ADMIN = sessao('tayna@exemplo.com'); const CASAL = sessao('casal@exemplo.com');
 
-function pedir(metodo, caminho, { cookie, corpo, binario, nome } = {}) {
+function pedir(metodo, caminho, { cookie, corpo, binario, nome, form } = {}) {
   return new Promise((ok, erro) => {
     const headers = { Cookie: cookie || '' };
     let envio = '';
-    if (binario) { envio = binario; headers['X-Nome-Arquivo'] = encodeURIComponent(nome || ''); headers['Content-Length'] = binario.length; }
+    if (form) { envio = new URLSearchParams(form).toString(); headers['Content-Type'] = 'application/x-www-form-urlencoded'; headers['Content-Length'] = Buffer.byteLength(envio); }
+    else if (binario) { envio = binario; headers['X-Nome-Arquivo'] = encodeURIComponent(nome || ''); headers['Content-Length'] = binario.length; }
     else if (corpo) { envio = JSON.stringify(corpo); headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(envio); }
     const r = http.request({ host: '127.0.0.1', port: PORTA, path: caminho, method: metodo, headers }, (res) => {
-      let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => { try { ok({ status: res.statusCode, j: JSON.parse(s) }); } catch { ok({ status: res.statusCode, j: s }); } });
+      let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => { const h = res.headers; try { ok({ status: res.statusCode, j: JSON.parse(s), h }); } catch { ok({ status: res.statusCode, j: s, h }); } });
     });
     r.on('error', erro); r.end(envio);
   });
@@ -102,6 +105,44 @@ async function principal() {
     assert.strictEqual(x.status, 403, `${m} ${p}`);
   }
   ok('casal não edita nem apaga pagamentos e não acessa o financeiro da Tayná');
+
+  // ---- acesso do casal com e-mail do contrato + senha (1º acesso com o CPF) ----
+  const ck = (r) => (r.h['set-cookie'] || []).map((c) => c.split(';')[0]).filter((c) => !/=$/.test(c)).join('; ');
+  const loc = (r) => r.h.location || '';
+  r = await pedir('GET', '/meu-evento');
+  assert.match(loc(r), /^\/entrar\?voltar=/, 'sem sessão: vai para a tela de entrar (com a área do casal)');
+  r = await pedir('GET', '/entrar'); assert.match(r.j, /Área do casal/); assert.match(r.j, /Entrar com Google/);
+  r = await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: '00000000000' } });
+  assert.match(loc(r), /^\/entrar\?erro=/, 'CPF errado');
+  r = await pedir('POST', '/auth/senha', { form: { email: 'ANA@hotmail.com', senha: '12345678909' } });
+  assert.strictEqual(loc(r), '/auth/nova-senha', 'primeiro acesso com o CPF (só números)');
+  const nova = ck(r);
+  assert.match((await pedir('GET', '/auth/nova-senha', { cookie: nova })).j, /Criem uma senha/);
+  assert.match(loc(await pedir('POST', '/auth/nova-senha', { cookie: nova, form: { senha: 'curta', confirmar: 'curta' } })), /erro=/);
+  assert.match(loc(await pedir('POST', '/auth/nova-senha', { cookie: nova, form: { senha: '12345678909', confirmar: '12345678909' } })), /erro=/, 'senha nova não pode ser o CPF');
+  r = await pedir('POST', '/auth/nova-senha', { cookie: nova, form: { senha: 'nosso-casamento', confirmar: 'nosso-casamento' } });
+  assert.strictEqual(loc(r), '/meu-evento');
+  const sessaoAna = ck(r);
+  me = (await pedir('GET', '/api/meu-evento', { cookie: sessaoAna })).j;
+  assert.match(me.evento.nomes, /Ana e Bia/);
+  ok('1º acesso: e-mail do contrato + CPF → cria senha própria (mín. 8, diferente do CPF) e entra na área do casal');
+
+  assert.match(loc(await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: '123.456.789-09' } })), /erro=/, 'CPF deixa de valer');
+  r = await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: 'nosso-casamento' } });
+  assert.strictEqual(loc(r), '/meu-evento');
+  assert.match(loc(await pedir('POST', '/auth/senha', { form: { email: 'tayna@exemplo.com', senha: 'qualquer-coisa' } })), /erro=/, 'equipe só com Google');
+  const us = (await pedir('GET', '/api/usuarios', { cookie: ADMIN })).j.usuarios.find((u) => u.email === 'ana@hotmail.com');
+  assert.ok(us && us.papel === 'casal' && us.casal === 'ana-e-bia.txt' && us.tem_senha, 'casal aparece nos Usuários com senha criada');
+  ok('depois disso só a senha nova vale; equipe não entra por senha; casal aparece em Usuários');
+
+  for (let i = 0; i < 5; i++) await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: `errada${i}` } });
+  assert.match(decodeURIComponent(loc(await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: 'nosso-casamento' } }))), /Muitas tentativas/);
+  ok('5 senhas erradas bloqueiam por 15 minutos');
+
+  r = await pedir('POST', '/api/usuarios', { cookie: ADMIN, corpo: { acao: 'zerar-senha', email: 'ana@hotmail.com' } });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual((await pedir('GET', '/api/meu-evento', { cookie: sessaoAna })).status, 401, 'zerar a senha encerra a sessão');
+  ok('Tayná zera a senha (o próximo acesso volta a ser com o CPF) e a sessão aberta cai');
 
   console.log(`\n✓ área do casal: ${n} verificações passaram`);
 }
