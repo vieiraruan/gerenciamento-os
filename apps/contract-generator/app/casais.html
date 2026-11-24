@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casais · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root {
+    --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #6f625d;
+    --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400; --raio: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
+  header a.voltar:hover { background: #f3ece7; }
+  main { max-width: 1280px; margin: 0 auto; padding: 18px 24px 48px; }
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px 18px; }
+  .card h2 { font-size: 15px; color: var(--marca); margin: 0 0 12px; }
+  .s { font-size: 12.5px; color: var(--suave); }
+  .lk { color: var(--marca); font-weight: 600; text-decoration: none; } .lk:hover { text-decoration: underline; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 16px; }
+  .kpi .r { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .v { font-size: 22px; font-weight: 700; color: var(--marca); font-variant-numeric: tabular-nums; }
+  .kpi.ruim .v { color: var(--erro); }
+  .barra { height: 7px; background: #f1e7e1; border-radius: 99px; overflow: hidden; margin-top: 4px; } .barra i { display: block; height: 100%; background: var(--marca-2); border-radius: 99px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .b-ok { background: #e6f2ea; color: var(--ok); } .b-p { background: #efe9e5; color: var(--suave); } .b-atr { background: #fde8e6; color: var(--erro); } .b-av { background: #fff4dc; color: var(--aviso); }
+
+  /* lista */
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .filtros button { border: 1px solid var(--borda); background: #fff; border-radius: 99px; padding: 6px 13px; font: inherit; font-size: 13.5px; cursor: pointer; min-height: 36px; color: var(--texto); }
+  .filtros button[aria-pressed="true"] { background: #f3e6df; border-color: var(--marca-2); color: var(--marca); font-weight: 600; }
+  .filtros input { flex: 1; min-width: 180px; max-width: 320px; font: inherit; border: 1px solid var(--borda); border-radius: 10px; padding: 7px 12px; min-height: 36px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  a.casal { display: flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; color: inherit; text-decoration: none; transition: box-shadow .15s, border-color .15s; }
+  a.casal:hover, a.casal:focus-visible { border-color: var(--marca-2); box-shadow: 0 6px 18px rgba(130,70,52,.1); outline: none; }
+  a.casal .topo { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  a.casal .nomes { font-size: 16.5px; font-weight: 700; color: var(--marca); line-height: 1.25; }
+  a.casal .quando { font-size: 13px; color: var(--suave); }
+  a.casal .dias { font-size: 12px; font-weight: 700; color: var(--marca); background: #f6ece6; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+  a.casal .met { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 11.5px; color: var(--suave); }
+  a.casal .met b { display: block; font-size: 13.5px; color: var(--texto); font-variant-numeric: tabular-nums; }
+  a.casal .alert { font-size: 12.5px; color: var(--erro); font-weight: 600; } a.casal .alert.av { color: var(--aviso); } a.casal .alert.ok { color: var(--ok); font-weight: 500; }
+  a.casal.passado { opacity: .75; }
+
+  /* painel do casal */
+  .capa { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px; }
+  .capa .tit { flex: 1; min-width: 240px; }
+  .capa h2 { font-size: 26px; color: var(--marca); margin: 0; font-weight: 600; line-height: 1.2; }
+  .capa .info { color: var(--suave); margin-top: 4px; font-size: 14px; }
+  .capa .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--borda); background: #fff; color: var(--marca); border-radius: 10px; padding: 8px 13px; font: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; min-height: 40px; }
+  .btn:hover { background: #fbf6f3; }
+  nav.abas { display: flex; gap: 4px; border-bottom: 1px solid var(--borda); margin-bottom: 16px; overflow-x: auto; }
+  nav.abas button { padding: 10px 16px; font: inherit; font-weight: 600; color: var(--suave); background: none; border: 0; border-bottom: 3px solid transparent; white-space: nowrap; cursor: pointer; }
+  nav.abas button[aria-selected="true"] { color: var(--marca); border-bottom-color: var(--marca); }
+  nav.abas .n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 99px; font-size: 11px; background: #fbeceb; color: var(--erro); text-align: center; }
+  .dois { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; }
+  .pilha { display: flex; flex-direction: column; gap: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--suave); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid #f3ebe6; vertical-align: top; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tabela { overflow-x: auto; }
+  dl.dados { display: grid; grid-template-columns: 180px 1fr; gap: 8px 14px; margin: 0; font-size: 14px; }
+  dl.dados dt { color: var(--suave); font-weight: 600; } dl.dados dd { margin: 0; }
+  .venc { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 7px 0; border-top: 1px solid #f3ebe6; font-size: 14px; } .venc:first-child { border-top: 0; } .venc > .badge { flex: none; }
+  .erro { color: var(--erro); }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #2b2220; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dois { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    main { padding: 12px; } header { padding: 8px 12px; gap: 10px; } header img.logo { height: 40px; } header .sub { display: none; }
+    .capa h2 { font-size: 22px; } dl.dados { grid-template-columns: 1fr; gap: 2px 0; } dl.dados dd { margin-bottom: 8px; }
+    .grade { grid-template-columns: 1fr; }
+  }
+</style>
+<link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script>
+<script src="/acompanhamento.js"></script>
+</head>
+<body>
+<header>
+  <img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <div class="sep"></div>
+  <div><h1>Casais</h1><div class="sub">Contrato, atividades, fornecedores e alertas de cada casal</div></div>
+  <div class="esp"></div>
+  <a class="voltar" id="voltar" href="/">← Início</a>
+</header>
+<main id="conteudo"><p class="s" style="text-align:center;padding:40px">Carregando…</p></main>
+
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const moeda = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: Number(n) % 1 ? 2 : 0 }));
+const dBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const dCurta = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${+m[3]} ${MESES[+m[2] - 1]} ${m[1]}` : ''; };
+const conteudo = document.getElementById('conteudo');
+const toast = (msg) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); };
+async function api(url, corpo) {
+  const r = await fetch(url, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || 'Erro ao carregar.');
+  return d;
+}
+const contagem = (dias) => dias === null ? '' : dias > 1 ? `faltam ${dias} dias` : dias === 1 ? 'amanhã' : dias === 0 ? 'hoje' : 'realizado';
+
+// ======================= LISTA =======================
+let LISTA = null; const F = { quando: 'proximos', linha: '', alertas: false, busca: '' };
+async function lista() {
+  document.getElementById('voltar').href = '/'; document.getElementById('voltar').textContent = '← Início';
+  if (!LISTA) LISTA = await api('/api/casais');
+  const todos = LISTA.casais.filter((c) => !c.erro);
+  const ativos = todos.filter((c) => !c.realizado);
+  const q = F.busca.trim().toLowerCase();
+  const vis = todos.filter((c) => (F.quando === 'todos' || (F.quando === 'proximos' ? !c.realizado : c.realizado))
+    && (!F.linha || c.linha === F.linha) && (!F.alertas || c.alertas.criticos)
+    && (!q || `${c.nomes} ${c.numero_os} ${c.local || ''}`.toLowerCase().includes(q)));
+  if (F.quando === 'realizados') vis.reverse();
+  const k = {
+    ativos: ativos.length, criticos: ativos.filter((c) => c.alertas.criticos).length,
+    em30: ativos.filter((c) => c.dias !== null && c.dias >= 0 && c.dias <= 30).length,
+    semAcesso: ativos.filter((c) => !c.acesso_casal).length,
+  };
+  const chip = (grupo, valor, rotulo) => `<button data-f="${grupo}" data-v="${valor}" aria-pressed="${String(F[grupo]) === String(valor)}">${rotulo}</button>`;
+  conteudo.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="r">Casais com casamento a fazer</div><div class="v">${k.ativos}</div></div>
+      <div class="kpi"><div class="r">Casamentos em 30 dias</div><div class="v">${k.em30}</div></div>
+      <div class="kpi ${k.criticos ? 'ruim' : ''}"><div class="r">Com algo atrasado</div><div class="v">${k.criticos}</div></div>
+      <div class="kpi"><div class="r">Sem e-mail/CPF p/ área do casal</div><div class="v">${k.semAcesso}</div></div>
+    </div>
+    <div class="filtros" role="group" aria-label="Filtros">
+      ${chip('quando', 'proximos', 'Próximos')}${chip('quando', 'realizados', 'Realizados')}${chip('quando', 'todos', 'Todos')}
+      <span style="width:6px"></span>${chip('linha', '', 'AS e CE')}${chip('linha', 'Assessoria', 'Assessoria')}${chip('linha', 'Cerimonial', 'Cerimonial')}
+      <span style="width:6px"></span>${chip('alertas', true, '⚠ Com atrasos')}
+      <input type="search" id="busca" placeholder="Buscar casal, número ou local" value="${esc(F.busca)}">
+    </div>
+    <div class="grade">${vis.map(cartao).join('') || '<p class="s">Nenhum casal com esses filtros.</p>'}</div>
+    ${LISTA.casais.some((c) => c.erro) ? `<p class="s" style="margin-top:14px">Não consegui abrir: ${LISTA.casais.filter((c) => c.erro).map((c) => esc(c.nomes)).join(', ')}</p>` : ''}`;
+  const b = document.getElementById('busca');
+  b.oninput = () => { F.busca = b.value; clearTimeout(lista.t); lista.t = setTimeout(() => { lista(); const n = document.getElementById('busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 200); };
+}
+function cartao(c) {
+  const a = c.atividades, f = c.fornecedores, s = c.assessoria;
+  const alerta = c.alertas.criticos ? `<div class="alert">⚠ ${c.alertas.criticos} atraso(s)${c.alertas.principal ? ` · ${esc(c.alertas.principal)}` : ''}</div>`
+    : c.alertas.avisos ? `<div class="alert av">⏱ ${esc(c.alertas.principal || 'vencimento próximo')}</div>`
+    : c.realizado ? '' : '<div class="alert ok">✔ Nada atrasado</div>';
+  return `<a class="casal ${c.realizado ? 'passado' : ''}" href="?arquivo=${encodeURIComponent(c.arquivo)}">
+    <div class="topo"><div><div class="nomes">${esc(c.nomes)}</div>
+      <div class="quando">${c.data ? dCurta(c.data) : esc(c.periodo || 'data a definir')}${c.local ? ` · ${esc(c.local).slice(0, 40)}` : ''}</div></div>
+      ${c.dias !== null ? `<span class="dias">${contagem(c.dias)}</span>` : ''}</div>
+    <div class="s">${esc(c.numero_os)} · ${esc(c.linha)}${c.servicos && c.servicos.length ? ` · ${esc(c.servicos.join(' + '))}` : ''}${c.acesso_casal ? '' : ' · <span title="Falta e-mail ou CPF no cadastro do cliente">sem acesso do casal</span>'}</div>
+    <div class="met">
+      <div>Atividades<b>${a ? `${a.concluidas}/${a.total}` : '—'}</b>${a ? `<div class="barra"><i style="width:${a.percentual}%"></i></div>` : ''}</div>
+      <div>Fornecedores<b>${f && f.quantidade ? `${f.percentual}% pago` : '—'}</b>${f && f.quantidade ? `<div class="barra"><i style="width:${f.percentual}%"></i></div>` : ''}</div>
+      <div>Assessoria<b>${s && s.total ? `${s.percentual ?? 0}%` : '—'}</b>${s && s.total ? `<div class="barra"><i style="width:${Math.min(100, s.percentual || 0)}%"></i></div>` : ''}</div>
+    </div>
+    ${alerta}
+  </a>`;
+}
+
+// ======================= PAINEL DO CASAL =======================
+let P = null; let aba = 'geral';
+async function painel(arquivo) {
+  const v = document.getElementById('voltar'); v.href = '/casais'; v.textContent = '← Casais';
+  P = await api(`/api/casais/painel?arquivo=${encodeURIComponent(arquivo)}`);
+  document.title = `${P.evento.nomes} · Casais · Lotus`;
+  desenharPainel();
+}
+function desenharPainel() {
+  const ev = P.evento, ct = P.contrato, c = P.cronograma;
+  const [dd, mm, aa] = String(ev.data || '').split('/');
+  const dias = aa ? Math.round((new Date(+aa, +mm - 1, +dd) - new Date(new Date().toDateString())) / 864e5) : null;
+  const criticos = P.alertas.filter((a) => a.nivel === 'critico').length;
+  const enc = encodeURIComponent(P.arquivo);
+  conteudo.innerHTML = `
+    <div class="capa"><div class="tit"><h2>${esc(ev.nomes)}</h2>
+      <div class="info">${esc(ct.numero_os)} · ${esc(ct.linha)} · ${esc(ev.data_extenso || ev.data || ev.periodo || 'data a definir')}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
+      ${dias !== null ? `<div class="info"><b style="color:var(--marca)">${contagem(dias)}</b></div>` : ''}</div>
+      <div class="acoes">
+        <a class="btn" href="/meu-evento?arquivo=${enc}" target="_blank" rel="noopener">👁 Área do casal</a>
+        <a class="btn" href="/financeiro?casal=${enc}">Financeiro</a>
+        ${c ? `<a class="btn" href="/cronograma?casal=${enc}">Cronograma</a>` : ''}
+        <a class="btn" href="/checklist?contrato=${enc}">Checklist do dia</a>
+      </div></div>
+    <nav class="abas" role="tablist">
+      ${[['geral', 'Visão geral', criticos], ...(c ? [['quadro', 'Atividades', 0]] : []), ['forn', `Fornecedores (${P.fornecedores.length})`, 0], ['contrato', 'Contrato', 0]]
+        .map(([id, rot, n]) => `<button role="tab" data-aba="${id}" aria-selected="${aba === id}">${rot}${n ? `<span class="n">${n}</span>` : ''}</button>`).join('')}
+    </nav>
+    <div id="aba"></div>`;
+  const el = document.getElementById('aba');
+  if (aba === 'quadro' && c) abaQuadro(el);
+  else if (aba === 'forn') abaForn(el);
+  else if (aba === 'contrato') abaContrato(el);
+  else abaGeral(el);
+}
+function abaGeral(el) {
+  const c = P.cronograma, t = P.totais, r = P.recebimento;
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="r">Atividades concluídas</div><div class="v">${c ? `${c.ritmo.concluidas} de ${c.ritmo.total}` : '—'}</div>${c ? `<div class="barra"><i style="width:${c.ritmo.percentual}%"></i></div>` : '<div class="s">Cerimonial: sem cronograma</div>'}</div>
+      <div class="kpi"><div class="r">Fornecedores pagos</div><div class="v">${t && t.fornecedores ? moeda(t.pago) : '—'}</div>${t && t.fornecedores ? `<div class="s">de ${moeda(t.contratado)} · faltam ${moeda(t.saldo)}</div>` : ''}</div>
+      <div class="kpi"><div class="r">Assessoria recebida</div><div class="v">${r && r.total ? moeda(r.recebido) : '—'}</div>${r && r.total ? `<div class="s">de ${moeda(r.total)} · ${esc(r.status)}</div>` : ''}</div>
+      <div class="kpi ${P.alertas.some((a) => a.nivel === 'critico') ? 'ruim' : ''}"><div class="r">Alertas</div><div class="v">${P.alertas.filter((a) => a.nivel !== 'info').length}</div><div class="s">${P.alertas.filter((a) => a.nivel === 'critico').length} atrasado(s)</div></div>
+    </div>
+    <div class="dois">
+      <div class="pilha">
+        ${c ? '<div class="card"><h2>Burndown das atividades</h2><div id="bd"></div></div>' : ''}
+        <div class="card"><h2>Próximos vencimentos</h2>${P.proximos.length ? P.proximos.map((v) => `<div class="venc"><span>${dBr(v.vencimento)} · ${esc(v.fornecedor)} <span class="s">parcela ${v.numero}</span></span><b>${moeda(v.valor)}</b></div>`).join('') : '<p class="s" style="margin:0">Nenhum vencimento futuro lançado.</p>'}</div>
+      </div>
+      <div class="pilha">
+        <div class="card"><h2>Alertas</h2><div id="al"></div></div>
+        ${c ? `<div class="card"><h2>Etapa atual</h2>${etapaAtual(c)}</div>` : ''}
+      </div>
+    </div>`;
+  if (c) Acomp.burndown(document.getElementById('bd'), P.burndown);
+  Acomp.alertas(document.getElementById('al'), P.alertas);
+}
+function etapaAtual(c) {
+  const s = c.secoes.find((x) => x.situacao === 'atual') || c.secoes[0];
+  if (!s) return '<p class="s" style="margin:0">Todas as atividades concluídas ✔</p>';
+  const pend = s.itens.filter((i) => !i.concluida);
+  return `<div class="s" style="margin:-6px 0 8px">${esc(s.rotulo.charAt(0) + s.rotulo.slice(1).toLowerCase())}${s.inicio ? ` · ${esc(s.inicio)} a ${esc(s.fim)}` : ''}</div>
+    ${pend.slice(0, 8).map((i) => `<div class="venc"><span>${esc(i.texto)}${i.atrasada ? ' <span class="badge b-atr">atrasada</span>' : ''}</span><span class="badge ${i.status ? 'b-av' : 'b-p'}">${esc(Acomp.rotuloSt(i.status))}</span></div>`).join('')}
+    ${pend.length > 8 ? `<p class="s" style="margin:6px 0 0">+ ${pend.length - 8} atividade(s) · <a class="lk" href="#" data-ir="quadro">ver no quadro</a></p>` : ''}`;
+}
+function abaQuadro(el) {
+  el.innerHTML = '<div class="card" style="padding:12px"><div id="kb"></div></div><div class="card" style="margin-top:14px"><h2>Burndown</h2><div id="bd"></div></div>';
+  const desenhar = () => Acomp.quadro(document.getElementById('kb'), {
+    itens: Acomp.itensDoCronograma(P.cronograma), etapaAtual: Acomp.etapaAtual(P.cronograma), tagCasal: 'casal',
+    onMudar: async (chave, mud) => {
+      const it = Acomp.itensDoCronograma(P.cronograma).find((i) => i.chave === chave) || {};
+      await api('/api/cronograma/tarefa', { arquivo: P.arquivo, chave, status_atual: it.status || '', ...mud });
+      P = await api(`/api/casais/painel?arquivo=${encodeURIComponent(P.arquivo)}`);
+      desenhar(); Acomp.burndown(document.getElementById('bd'), P.burndown); toast('Salvo ✔');
+    },
+  });
+  desenhar(); Acomp.burndown(document.getElementById('bd'), P.burndown);
+}
+function abaForn(el) {
+  const t = P.totais;
+  if (!P.fornecedores.length) { el.innerHTML = `<div class="card"><p class="s" style="margin:0">Nenhum fornecedor lançado. <a class="lk" href="/financeiro?casal=${encodeURIComponent(P.arquivo)}">Abrir o Financeiro</a></p></div>`; return; }
+  const st = (f) => f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : f.atrasadas ? `<span class="badge b-atr">${f.atrasadas} vencida(s)</span>` : f.status === 'Sem valor' ? '<span class="badge b-p">sem valor</span>' : '<span class="badge b-p">em aberto</span>';
+  el.innerHTML = `<div class="card"><div class="tabela"><table>
+    <thead><tr><th>Fornecedor</th><th>Situação</th><th class="n">Contratado</th><th class="n">Pago</th><th class="n">A pagar</th><th>Próximo vencimento</th><th>Contato</th></tr></thead>
+    <tbody>${P.fornecedores.map((f) => `<tr>
+      <td><b>${esc(f.nome)}</b><div class="s">${esc(f.servico || f.descricao).slice(0, 70)}</div></td>
+      <td>${st(f)}${f.pagamentos.some((p) => p.pelo_casal) ? '<div class="s">pagamento enviado pelo casal</div>' : ''}</td>
+      <td class="n">${moeda(f.contratado)}</td><td class="n">${moeda(f.pago)}</td><td class="n"><b>${f.status === 'Pago' ? '—' : moeda(f.saldo)}</b></td>
+      <td>${f.proxima ? `${dBr(f.proxima.vencimento)} · ${moeda(f.proxima.valor)}` : '—'}</td>
+      <td class="s">${[f.contato.responsavel, f.contato.telefone].filter(Boolean).map(esc).join('<br>') || '—'}</td></tr>`).join('')}</tbody>
+    ${t ? `<tfoot><tr><td colspan="2"><b>Total</b></td><td class="n"><b>${moeda(t.contratado)}</b></td><td class="n"><b>${moeda(t.pago)}</b></td><td class="n"><b>${moeda(t.saldo)}</b></td><td colspan="2"></td></tr></tfoot>` : ''}
+  </table></div><p style="margin:12px 0 0"><a class="lk" href="/financeiro?casal=${encodeURIComponent(P.arquivo)}">Lançar pagamentos no Financeiro →</a></p></div>`;
+}
+function abaContrato(el) {
+  const ct = P.contrato, r = P.recebimento, ev = P.evento;
+  const linha = (rot, v) => (v ? `<dt>${rot}</dt><dd>${v}</dd>` : '');
+  el.innerHTML = `<div class="dois"><div class="card"><h2>Contrato</h2><dl class="dados">
+      ${linha('Número', esc(ct.numero_os))}${linha('Linha', esc(ct.linha))}${linha('Serviços', esc(ct.servicos.join(' + ')))}
+      ${linha('Contratante', esc(ct.cliente))}${linha('E-mail', ct.email ? `<a class="lk" href="mailto:${esc(ct.email)}">${esc(ct.email)}</a>` : '')}
+      ${linha('Telefone', esc(ct.telefone))}${linha('Assinatura', esc(ct.assinatura))}
+      ${linha('Casamento', esc(ev.data_extenso || ev.data || ev.periodo))}${linha('Horário', esc(ev.horario))}${linha('Local', esc(ct.local || ev.local))}
+      ${linha('Convidados', esc(ct.convidados))}${linha('Destination', ct.destination ? 'sim' : 'não')}
+      ${linha('Área do casal', ct.acesso_casal ? '<span class="badge b-ok">pronta</span> <span class="s">e-mail do contrato + CPF no 1º acesso</span>' : '<span class="badge b-atr">falta e-mail ou CPF</span> <span class="s">preencha no cadastro do cliente (Contratos)</span>')}
+    </dl></div>
+    <div class="card"><h2>Recebimentos da assessoria</h2>${r && r.total ? `
+      <div class="s" style="margin:-6px 0 10px">${moeda(r.recebido)} de ${moeda(r.total)} · <b>${esc(r.status)}</b></div>
+      <table><thead><tr><th>Etapa</th><th>Vencimento</th><th class="n">Valor</th><th>Situação</th></tr></thead><tbody>
+      ${r.etapas.map((e) => `<tr><td>${esc(e.descricao)}</td><td>${dBr(e.vencimento) || '—'}</td><td class="n">${moeda(e.valor)}</td><td>${e.quitada ? '<span class="badge b-ok">paga</span>' : e.atrasada ? '<span class="badge b-atr">atrasada</span>' : e.pago ? `<span class="badge b-av">${moeda(e.pago)} pago</span>` : '<span class="badge b-p">a receber</span>'}</td></tr>`).join('')}
+      </tbody></table>` : '<p class="s" style="margin:0">Valor do contrato não informado.</p>'}</div></div>`;
+}
+
+conteudo.addEventListener('click', (e) => {
+  const f = e.target.closest('[data-f]');
+  if (f) { const g = f.dataset.f; F[g] = g === 'alertas' ? !F.alertas : f.dataset.v; lista(); return; }
+  const a = e.target.closest('[data-aba]'); if (a) { aba = a.dataset.aba; desenharPainel(); return; }
+  const ir = e.target.closest('[data-ir]'); if (ir) { e.preventDefault(); aba = ir.dataset.ir; desenharPainel(); }
+});
+let largura = innerWidth;
+addEventListener('resize', () => { if (Math.abs(innerWidth - largura) < 60 || !P || !document.getElementById('bd')) return; largura = innerWidth; Acomp.burndown(document.getElementById('bd'), P.burndown); });
+
+(async () => {
+  try {
+    const arq = new URLSearchParams(location.search).get('arquivo');
+    if (arq) await painel(arq); else await lista();
+  } catch (e) { conteudo.innerHTML = `<div class="card erro">${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

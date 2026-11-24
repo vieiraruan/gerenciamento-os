@@ -43,6 +43,21 @@
   .msg { font-size: 13px; margin-top: 8px; } .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
   .hist { margin-top: 16px; font-size: 12.5px; color: var(--suave); } .hist li { margin-bottom: 4px; }
   .itens { width: 100%; font-size: 13.5px; min-width: 0; margin-top: 4px; } .itens td { padding: 4px 0; border: 0; } .itens td:last-child { text-align: right; white-space: nowrap; }
+  header button.cel { font: inherit; font-weight: 600; color: var(--marca); background: #fff; border: 1px solid var(--borda); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+  header button.cel .pt { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #c9bdb6; margin-right: 6px; vertical-align: 1px; } header button.cel .pt.on { background: var(--ok); }
+  dialog.cel { border: 0; border-radius: 16px; padding: 0; width: min(560px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog.cel::backdrop { background: rgba(43,34,32,.45); }
+  dialog.cel .in { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  dialog.cel h3 { margin: 0; color: var(--marca); } dialog.cel h4 { margin: 0 0 6px; font-size: 15px; }
+  dialog.cel .bloco { border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; }
+  dialog.cel ol { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; } dialog.cel li { margin: 3px 0; }
+  dialog.cel label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; margin-top: 8px; }
+  dialog.cel label.chk { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; }
+  dialog.cel input[type=text], dialog.cel input[type=password] { font: inherit; border: 1px solid var(--borda); border-radius: 9px; padding: 8px 10px; }
+  dialog.cel code { background: #f8f3ef; border-radius: 6px; padding: 2px 6px; font-size: 12.5px; word-break: break-all; }
+  dialog.cel .bt { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  dialog.cel .bt button { font: inherit; font-weight: 600; border-radius: 10px; padding: 9px 14px; border: 1px solid var(--marca); background: #fff; color: var(--marca); cursor: pointer; }
+  dialog.cel .bt .pri { background: var(--marca); color: #fff; }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
 </head>
@@ -50,8 +65,27 @@
 <header>
   <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="sep"></div>
   <div><h1>Pedidos do site</h1><div class="sub">Pedidos de orçamento e de conversa que chegam de taynaalvesassessoria.com.br</div></div>
-  <div class="esp"></div><a href="/">← Início</a>
+  <div class="esp"></div><button class="cel" id="btnCel" type="button"><span class="pt" id="ptCel"></span>📱 Avisos no celular</button><a href="/">← Início</a>
 </header>
+<dialog class="cel" id="dlgCel" aria-labelledby="celTit"><form method="dialog" class="in" id="formCel">
+  <h3 id="celTit">Avisos no celular</h3>
+  <p class="s" style="margin:-6px 0 0">Além do e-mail, o Lotus avisa no celular da Tayná quando chega um pedido de orçamento ou de conversa pelo site. A mensagem leva só o primeiro nome, a data e o serviço, com o link do pedido.</p>
+  <div class="bloco"><h4>🔔 Notificação no celular (recomendado)</h4>
+    <ol><li>Instale o app gratuito <b>ntfy</b> (Play Store ou App Store).</li>
+      <li>Ative abaixo e salve: o Lotus cria um canal só da Tayná.</li>
+      <li>No app, toque em <b>+</b> e digite o canal: <code id="celTopico">(salve para gerar)</code><br><span class="s">Ou, com o Lotus aberto no celular: <a id="celLink" href="#" target="_blank" rel="noopener">abrir o canal</a> e tocar em “Inscrever”.</span></li></ol>
+    <label class="chk"><input type="checkbox" name="n_ativo"> Avisar por notificação</label></div>
+  <div class="bloco"><h4>💬 WhatsApp (CallMeBot)</h4>
+    <ol><li>No site <b>callmebot.com</b> (WhatsApp › Free API) pegue o número do bot e salve nos contatos do celular da Tayná.</li>
+      <li>Mande para ele: <code>I allow callmebot to send me messages</code></li>
+      <li>O bot responde com a chave (apikey). Cole abaixo.</li></ol>
+    <p class="s" style="margin:6px 0 0">Serviço gratuito de terceiros, para uso pessoal; às vezes o bot fica lotado e a chave demora. A notificação acima não depende dele.</p>
+    <label class="chk"><input type="checkbox" name="w_ativo"> Avisar no WhatsApp</label>
+    <label>WhatsApp da Tayná<input type="text" name="w_tel" placeholder="+55 81 99999-9999" inputmode="tel"></label>
+    <label>Chave (apikey) do CallMeBot<input type="password" name="w_key" placeholder="cole a chave aqui" autocomplete="off"></label></div>
+  <div class="msg" id="celMsg"></div>
+  <div class="bt"><button type="button" id="celFechar">Fechar</button><button type="button" id="celTeste">Enviar teste</button><button type="submit" class="pri">Salvar</button></div>
+</form></dialog>
 <main>
   <section class="lista">
     <div id="avisos"></div>
@@ -135,6 +169,7 @@ function detalhe() {
       <dt>WhatsApp</dt><dd>${p.whatsapp ? esc(p.whatsapp) : '<span style="color:var(--suave)">não informado</span>'}</dd>
       <dt>E-mail</dt><dd>${esc(p.email)}</dd>
       <dt>Orçamento prévio</dt><dd>${p.total ? `<b>${brl(p.total)}</b>` : 'tabela de referência'} · <a href="/api/pedidos/pdf?id=${p.id}" target="_blank">ver PDF</a><br>${situacaoEmail(p.emails && p.emails.casal)}</dd>
+      ${p.avisos && p.avisos.novo ? `<dt>Aviso no celular</dt><dd>${[p.avisos.novo.notificacao && (p.avisos.novo.notificacao.ok ? '<span style="color:var(--ok)">notificação ✔</span>' : `<span style="color:var(--erro)">notificação: ${esc(p.avisos.novo.notificacao.erro)}</span>`), p.avisos.novo.whatsapp && (p.avisos.novo.whatsapp.ok ? '<span style="color:var(--ok)">WhatsApp ✔</span>' : `<span style="color:var(--erro)">WhatsApp: ${esc(p.avisos.novo.whatsapp.erro)}</span>`)].filter(Boolean).join(' · ') || '<span class="s">nenhum canal ativo</span>'}</dd>` : ''}
       ${ag ? `<dt>Conversa</dt><dd><b>${esc(ag.rotulo)}</b> · <span class="badge b-${ag.estado}">${AGENDA[ag.estado]}</span></dd>` : ''}
     </dl>
     ${p.mensagem ? `<div class="msgc">“${esc(p.mensagem)}”</div>` : ''}
@@ -159,6 +194,38 @@ function detalhe() {
   $('#aEstado').onchange = (e) => acao({ acao: 'estado', estado: e.target.value });
   $('#aReenviar').onclick = (e) => { if (confirm(`Enviar de novo o orçamento prévio para ${p.email}?`)) acao({ acao: 'reenviar' }, e.target, 'Enviando…'); };
 }
+
+// ---------- avisos no celular ----------
+let CEL = null;
+function mostrarCel() {
+  const f = $('#formCel'); const c = CEL;
+  f.n_ativo.checked = c.notificacao.ativo; $('#celTopico').textContent = c.notificacao.topico || '(salve para gerar)';
+  $('#celLink').href = c.notificacao.link || '#';
+  f.w_ativo.checked = c.whatsapp.ativo; f.w_tel.value = c.whatsapp.telefone || ''; f.w_key.value = '';
+  f.w_key.placeholder = c.whatsapp.tem_chave ? 'chave salva (cole outra para trocar)' : 'cole a chave aqui';
+  $('#ptCel').classList.toggle('on', c.notificacao.ativo || c.whatsapp.ativo);
+}
+async function carregarCel() { try { CEL = await api('/api/avisos'); mostrarCel(); } catch {} }
+$('#btnCel').onclick = async () => { await carregarCel(); $('#celMsg').textContent = ''; $('#dlgCel').showModal(); };
+$('#celFechar').onclick = () => $('#dlgCel').close();
+$('#formCel').onsubmit = async (e) => {
+  e.preventDefault(); const f = e.target; const msg = $('#celMsg');
+  try {
+    CEL = await api('/api/avisos', { notificacao: { ativo: f.n_ativo.checked }, whatsapp: { ativo: f.w_ativo.checked, telefone: f.w_tel.value, apikey: f.w_key.value } });
+    mostrarCel(); msg.className = 'msg ok'; msg.textContent = 'Salvo. Use "Enviar teste" para conferir no celular.';
+  } catch (err) { msg.className = 'msg erro'; msg.textContent = err.message; }
+};
+$('#celTeste').onclick = async (e) => {
+  const msg = $('#celMsg'); msg.className = 'msg'; msg.textContent = 'Enviando…'; e.target.disabled = true;
+  try {
+    const r = await api('/api/avisos/teste', {});
+    const linhas = [r.notificacao && `Notificação: ${r.notificacao.ok ? 'enviada ✔' : r.notificacao.erro}`, r.whatsapp && `WhatsApp: ${r.whatsapp.ok ? 'enviado ✔' : r.whatsapp.erro}`].filter(Boolean);
+    const erro = (r.notificacao && r.notificacao.erro) || (r.whatsapp && r.whatsapp.erro);
+    msg.className = `msg ${erro ? 'erro' : 'ok'}`; msg.textContent = linhas.join(' · ');
+  } catch (err) { msg.className = 'msg erro'; msg.textContent = err.message; }
+  finally { e.target.disabled = false; }
+};
+carregarCel();
 
 carregar();
 setInterval(() => { if (document.visibilityState === 'visible') carregar(); }, 60000);

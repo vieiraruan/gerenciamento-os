@@ -28,6 +28,8 @@ const planilhaCasal = require('./planilha');
 const evPadrao = require('./eventoPadrao');
 const fin = require('./financeiro');
 const gestao = require('./gestao');
+const acomp = require('./acompanhamento');
+const avisos = require('./avisos');
 const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
 const { criarAuth } = require('./auth');
@@ -366,6 +368,19 @@ async function horariosLivres(forcar = false) {
   return horarios;
 }
 
+/** Aviso no celular da Tayná (notificação e/ou WhatsApp): só o primeiro nome, a data, o serviço e o link. */
+async function avisarTayna(p, tipo) {
+  const primeiro = String(p.nome || '').trim().split(/\s+/)[0] || 'Um casal';
+  const msg = tipo === 'agenda'
+    ? { titulo: 'Pedido de conversa pelo site', texto: `${primeiro} pediu conversa em ${pedidos.rotuloHorario(p.agenda && p.agenda.inicio)}. Confirme no Lotus.` }
+    : { titulo: 'Novo pedido de orçamento', texto: [primeiro, p.data ? `casamento em ${pedidos.dataBr(p.data)}` : 'data a definir', p.cidade || '',
+      p.orcamento && p.orcamento.servico ? p.orcamento.servico.nome : 'serviço a definir'].filter(Boolean).join(' · ') };
+  const r = await avisos.enviar(DADOS, { ...msg, link: `${URL_LOTUS}/pedidos?id=${p.id}` });
+  const atual = pedidos.carregar(DADOS, p.id);
+  if (atual) { atual.avisos = { ...(atual.avisos || {}), [tipo]: r }; pedidos.salvar(DADOS, atual); }
+  return r;
+}
+
 /** Depois de salvo o pedido: PDF + e-mail para o casal e alerta para a Tayná (resultado fica no pedido). */
 async function processarPedido(id, { alerta = true } = {}) {
   const p = pedidos.carregar(DADOS, id);
@@ -381,6 +396,7 @@ async function processarPedido(id, { alerta = true } = {}) {
     p.emails.alerta = await planilhaGoogle.chamar(DADOS, 'email', { ...a, para: emailAlertas(), nome_remetente: 'Lotus' });
   }
   pedidos.salvar(DADOS, { ...pedidos.carregar(DADOS, id), emails: p.emails });
+  if (alerta) await avisarTayna(p, 'novo').catch(() => {});
 }
 
 function resumoPedido(p, datasContratadas) {
@@ -390,7 +406,7 @@ function resumoPedido(p, datasContratadas) {
     cidade: p.cidade, convidados: p.convidados, fora: p.fora, mensagem: p.mensagem,
     servico: p.orcamento.servico ? p.orcamento.servico.nome : 'Ainda não sei', total: p.orcamento.total || null, itens: p.orcamento.itens || [],
     agenda: p.agenda ? { ...p.agenda, rotulo: pedidos.rotuloHorario(p.agenda.inicio) } : null,
-    emails: p.emails, historico: p.historico,
+    emails: p.emails, historico: p.historico, avisos: p.avisos || null,
     data_ocupada: Boolean(dataBr && datasContratadas.has(dataBr)),
     whatsapp_link: pedidos.linkWhatsCasal(p),
   };
@@ -468,25 +484,32 @@ function casalDe(usuario, arquivoPedido) {
 }
 
 /** Tudo o que o casal vê na área do casal: preparativos (editáveis) e fornecedores/pagamentos (só leitura). */
-function meuEvento(pedidoArquivo) {
+function meuEvento(pedidoArquivo, { carregarFin = null, admin = false } = {}) {
   const { arquivo, campos, cliente } = contratoDe(pedidoArquivo);
   const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
   const vertente = evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
   const ck = /^AS/i.test(campos.numero_os || '') ? montarChecklist(campos, vertente, undefined, evento) : null;
-  const f = fin.carregar(DADOS, arquivo);
-  const r = f ? fin.resumo(f) : null;
-  const tarefa = (i) => ({ chave: i.chave, texto: i.texto, concluida: i.concluida, status: i.status || '', obs: i.obs || '',
-    atrasada: Boolean(i.atrasada), fornecedor: i.fornecedor || '', pelo_casal: i.editado_por === 'casal' });
+  const f = carregarFin ? carregarFin(arquivo) : fin.carregar(DADOS, arquivo);
+  // no painel da Tayná a assessoria aparece à parte (recebimento); o casal vê a linha dela com os fornecedores
+  const r = f ? fin.resumo(admin ? { ...f, itens: (f.itens || []).filter((i) => !gestao.ehTayna(i)) } : f) : null;
+  const rotuloEtapa = (m) => (m === 1 ? '1 MÊS ANTES' : `${m} MESES ANTES`);
+  const tarefa = (i, sec) => ({ chave: i.chave, texto: i.texto, concluida: i.concluida, status: i.status || '', obs: i.obs || '',
+    atrasada: Boolean(i.atrasada), fornecedor: i.fornecedor || '', pelo_casal: i.editado_por === 'casal',
+    etapa: sec ? sec.rotulo : rotuloEtapa(Number(i.mes_base) || 1), prazo: sec ? sec.fim || '' : '' });
   const cadastros = new Map(fin.listarFornecedores(DADOS).map((c) => [c.id, c]));
-  return {
+  const recebimento = admin ? gestao.recebimentoCasal(arquivo, campos, f) : null;
+  const dataEvento = fin.dataDe(campos.evento_data) || '';
+  const saida = {
     arquivo,
     evento: ck ? ck.evento : { numero_os: campos.numero_os || '', nomes: campos.evento_nomes || '', data: campos.evento_data || '', periodo: campos.evento_periodo || '', horario: campos.evento_horario || '', local: campos.evento_local || '' },
     status_tarefa: STATUS_TAREFA,
     cronograma: ck ? {
       ritmo: ck.ritmo,
-      secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao, itens: sec.itens.map(tarefa) })),
+      secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao, itens: sec.itens.map((i) => tarefa(i, sec)) })),
       concluidas: ck.concluidas.map((i) => ({ ...tarefa(i), concluida_em: i.concluida_em || '' })),
     } : null,
+    burndown: ck ? acomp.burndown(ck, evento) : null,
+    alertas: acomp.alertas({ ck, resumoFin: r, recebimento, dataEvento }),
     fornecedores: r ? r.itens.map((i) => {
       const cad = (i.fornecedor_id && cadastros.get(i.fornecedor_id)) || {};
       const c = i.calc;
@@ -507,6 +530,23 @@ function meuEvento(pedidoArquivo) {
     proximos: r ? r.proximos.slice(0, 6) : [],
     atrasados: r ? r.atrasados : [],
   };
+  if (admin) {
+    const cat = pedidos.catalogo();
+    const servicos = String(campos.servicos || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+      .map((id) => (cat.find((c) => c.id === id) || {}).nome || id);
+    saida.contrato = {
+      numero_os: campos.numero_os || '', linha: /^CE/i.test(campos.numero_os || '') ? 'Cerimonial' : 'Assessoria',
+      cliente: cliente.nome || campos.contratante_nome || '', email: cliente.email || campos.email || '',
+      telefone: cliente.telefone || cliente.whatsapp || campos.telefone || '', cidade: cliente.cidade || '',
+      servicos, local: campos.evento_local || '', convidados: campos.convidados || (evento.info && evento.info.convidados) || '',
+      assinatura: campos.data_assinatura || '', valor_total: fin.valorDe(campos.valor_total) || null,
+      destination: /^s/i.test(campos.destination || ''), vertente,
+      acesso_casal: Boolean((cliente.email || campos.email) && String(cliente.cpf_cnpj || campos.cpf_cnpj || '').replace(/\D/g, '').length >= 11),
+    };
+    saida.recebimento = recebimento ? { total: recebimento.total, recebido: recebimento.recebido, a_receber: recebimento.a_receber,
+      percentual: recebimento.percentual ?? null, status: recebimento.status, proxima: recebimento.proxima || null, etapas: recebimento.etapas || [] } : null;
+  }
+  return saida;
 }
 
 /** O casal envia um pagamento com comprovante. Depois de enviado, só a Tayná pode corrigir ou retirar. */
@@ -547,12 +587,23 @@ const rotas = {
     p.agenda = { inicio: corpo.inicio, pedido_em: new Date().toISOString(), estado: 'aguardando' };
     p.historico.push(`${new Date().toISOString()} - Casal pediu conversa em ${pedidos.rotuloHorario(corpo.inicio)}.`);
     pedidos.salvar(DADOS, p);
+    avisarTayna(p, 'agenda').catch(() => {});
     if (emailAlertas()) {
       const a = pedidos.emailAlerta(p, 'agenda', URL_LOTUS);
       planilhaGoogle.chamar(DADOS, 'email', { ...a, para: emailAlertas(), nome_remetente: 'Lotus' })
         .then((r) => { const atual = pedidos.carregar(DADOS, p.id); atual.emails.agenda = r; pedidos.salvar(DADOS, atual); }).catch(() => {});
     }
     return { ok: true, rotulo: pedidos.rotuloHorario(corpo.inicio) };
+  },
+
+  // ---- Avisos no celular da Tayná (pedidos do site) ----
+  'GET /api/avisos': () => avisos.publico(avisos.configuracao(DADOS)),
+  'POST /api/avisos': (q, corpo) => avisos.salvar(DADOS, corpo || {}),
+  'POST /api/avisos/teste': async () => {
+    const c = avisos.publico(avisos.configuracao(DADOS));
+    if (!c.notificacao.ativo && !c.whatsapp.ativo) throw new Error('Ative a notificação ou o WhatsApp primeiro.');
+    const r = await avisos.enviar(DADOS, { titulo: 'Teste do Lotus', texto: 'Os avisos de novos pedidos do site vão chegar assim.', link: `${URL_LOTUS}/pedidos` });
+    return r;
   },
 
   // ---- Pedidos do site (Tayná) ----
@@ -626,6 +677,37 @@ const rotas = {
   'GET /api/gestao/pagamentos': (q) => {
     const { contratos, carregarFin } = contratosComFinanceiro();
     return gestao.pagamentos(contratos, carregarFin, undefined, { dias: Number(q.get('dias')) || 30 });
+  },
+  // ---- Casais: lista com o essencial e painel de cada casal ----
+  'GET /api/casais': () => {
+    const { contratos, carregarFin } = contratosComFinanceiro();
+    const hoje = new Date().toISOString().slice(0, 10);
+    const lista = contratos.map(({ arquivo, campos }) => {
+      try {
+        const p = meuEvento(arquivo, { carregarFin, admin: true });
+        const dataIso = fin.dataDe(campos.evento_data) || '';
+        const b = p.burndown;
+        return {
+          arquivo, numero_os: p.contrato.numero_os, linha: p.contrato.linha, nomes: p.evento.nomes || campos.evento_nomes || arquivo,
+          data: dataIso, periodo: campos.evento_periodo || '', local: p.contrato.local, servicos: p.contrato.servicos,
+          dias: dataIso ? Math.round((new Date(`${dataIso}T12:00`) - new Date(`${hoje}T12:00`)) / 864e5) : null,
+          realizado: Boolean(dataIso && dataIso < hoje),
+          atividades: p.cronograma ? { concluidas: p.cronograma.ritmo.concluidas, total: p.cronograma.ritmo.total, percentual: p.cronograma.ritmo.percentual,
+            situacao: p.cronograma.ritmo.situacao, atrasadas: p.cronograma.ritmo.atrasadas } : null,
+          fornecedores: p.totais ? { quantidade: p.totais.fornecedores, contratado: p.totais.contratado, pago: p.totais.pago, saldo: p.totais.saldo, percentual: p.totais.percentual } : null,
+          assessoria: p.recebimento ? { total: p.recebimento.total, recebido: p.recebimento.recebido, status: p.recebimento.status, percentual: p.recebimento.percentual } : null,
+          alertas: { criticos: p.alertas.filter((a) => a.nivel === 'critico').length, avisos: p.alertas.filter((a) => a.nivel === 'aviso').length,
+            principal: (p.alertas.find((a) => a.nivel !== 'info') || {}).titulo || '' },
+          acesso_casal: p.contrato.acesso_casal,
+          tendencia: b ? b.diferenca : null,
+        };
+      } catch (e) { return { arquivo, nomes: campos.evento_nomes || arquivo, numero_os: campos.numero_os || '', erro: e.message }; }
+    });
+    return { hoje, casais: lista.sort((a, b) => (a.data || '9').localeCompare(b.data || '9')) };
+  },
+  'GET /api/casais/painel': (q) => {
+    const { carregarFin } = contratosComFinanceiro();
+    return meuEvento(q.get('arquivo'), { carregarFin, admin: true });
   },
   'GET /api/gestao/painel': () => {
     const { contratos, carregarFin } = contratosComFinanceiro();
@@ -1007,7 +1089,7 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: '/meu-evento' }); return res.end();
     }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html', '/privacidade': 'privacidade.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/casais': 'casais.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html', '/privacidade': 'privacidade.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
@@ -1016,11 +1098,12 @@ const servidor = http.createServer(async (req, res) => {
       const html = fs.readFileSync(path.join(RAIZ, 'app', paginas[url.pathname]), 'utf8')
         .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`)
         .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`)
-        .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`);
+        .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`)
+        .replace(/\/acompanhamento\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'acompanhamento.js')).mtimeMs)}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     // ajustes de celular comuns a todas as telas
-    const comum = /^\/(movel\.css|movel\.js|campos\.js)$/.exec(url.pathname);
+    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js)$/.exec(url.pathname);
     if (req.method === 'GET' && comum) {
       res.writeHead(200, { 'Content-Type': comum[1].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'app', comum[1])));

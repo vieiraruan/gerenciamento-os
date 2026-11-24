@@ -102,6 +102,7 @@
   }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
+<script src="/acompanhamento.js"></script>
 </head>
 <body>
 <header><img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="esp"></div><div class="quem" id="quem"></div></header>
@@ -133,7 +134,7 @@ const ROTULO_ST = { '': 'A fazer', 'EM ANDAMENTO': 'Em andamento', 'EM COTAÇÃO
 const classeSt = (st) => st === 'FINALIZADO' ? 'st-FINALIZADO' : st === 'EM ANDAMENTO' ? 'st-EM-ANDAMENTO' : st === 'EM COTAÇÃO' ? 'st-EM-COTACAO' : /^NÃO/.test(st) ? 'st-NAO' : '';
 const ARQ = new URLSearchParams(location.search).get('arquivo') || '';
 const comArq = (url) => ARQ ? `${url}${url.includes('?') ? '&' : '?'}arquivo=${encodeURIComponent(ARQ)}` : url;
-let D = null; let aba = 'prep'; let filtro = 'afazer'; const abertos = new Set();
+let D = null; let aba = 'prep'; let filtro = 'afazer'; let visao = (() => { try { return localStorage.getItem('lotus-visao') || 'lista'; } catch { return 'lista'; } })(); const abertos = new Set();
 
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 
@@ -162,7 +163,19 @@ function desenhar() {
       ${c ? `<button role="tab" aria-selected="${aba === 'prep'}" data-aba="prep">Preparativos<span class="n">(${pend})</span></button>` : ''}
       <button role="tab" aria-selected="${aba === 'forn'}" data-aba="forn">Fornecedores<span class="n">(${D.fornecedores.length})</span></button>
     </div>
+    ${(D.alertas || []).some((a) => a.nivel !== 'info') ? '<div class="card"><h2>Atenção</h2><div id="alertas"></div></div>' : ''}
     <div id="painel">${aba === 'prep' && c ? painelPrep(c) : painelForn()}</div>`;
+  const al = document.getElementById('alertas'); if (al) Acomp.alertas(al, D.alertas, { semInfo: true });
+  const bd = document.getElementById('bd'); if (bd) Acomp.burndown(bd, D.burndown);
+  const kb = document.getElementById('kb');
+  if (kb) Acomp.quadro(kb, { itens: Acomp.itensDoCronograma(c), etapaAtual: Acomp.etapaAtual(c), tagCasal: 'por vocês',
+    onMudar: async (chave, mud) => {
+      const it = Acomp.itensDoCronograma(D.cronograma).find((x) => x.chave === chave) || {};
+      const r = await fetch('/api/meu-evento/tarefa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arquivo: ARQ || undefined, chave, status_atual: it.status || '', ...mud }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível salvar.');
+      D = d; desenhar(); toast(mud.status === 'FINALIZADO' ? 'Atividade concluída ✔' : 'Salvo ✔');
+    } });
 }
 
 // ---------------- Preparativos ----------------
@@ -193,12 +206,19 @@ function painelPrep(c) {
       <div class="kpi"><div class="r">Ritmo</div><div class="v" style="font-size:16px">${r.situacao === 'atrasado' ? 'Precisamos acelerar' : r.situacao === 'adiantado' ? 'Adiantados' : 'Em dia'}</div></div>
     </div>
     <p class="s" style="margin:12px 0 0">Atualizem a situação de cada atividade e deixem uma observação para a Tayná. Tudo é salvo na hora.</p>
-    <div class="filtros" role="group" aria-label="Mostrar">
+    <div class="filtros" role="group" aria-label="Ver como">
+      <button data-visao="lista" aria-pressed="${visao === 'lista'}">☰ Lista</button>
+      <button data-visao="quadro" aria-pressed="${visao === 'quadro'}">▦ Quadro</button>
+      <button data-visao="grafico" aria-pressed="${visao === 'grafico'}">📉 Andamento</button>
+    </div>
+    ${visao === 'lista' ? `<div class="filtros" role="group" aria-label="Mostrar">
       <button data-filtro="afazer" aria-pressed="${filtro === 'afazer'}">A fazer</button>
       <button data-filtro="todas" aria-pressed="${filtro === 'todas'}">Abrir todas as etapas</button>
       <button data-filtro="feitas" aria-pressed="${filtro === 'feitas'}">Concluídas (${c.concluidas.length})</button>
-    </div></div>
-    <div class="card">${lista}</div>`;
+    </div>` : ''}</div>
+    ${visao === 'quadro' ? '<div class="card" style="padding:12px"><p class="s" style="margin:0 0 8px">Arrastem as atividades entre as colunas ou toquem numa atividade para mudar a situação.</p><div id="kb"></div></div>'
+      : visao === 'grafico' ? '<div class="card"><h2>Quantas atividades faltam até o casamento</h2><div id="bd"></div><p class="s" style="margin:10px 0 0">A linha tracejada é o planejado pela Tayná; a linha cheia, o que de fato falta. Se a linha cheia estiver acima da tracejada, é hora de acelerar.</p></div>'
+      : `<div class="card">${lista}</div>`}`;
 }
 
 async function salvarTarefa(li, mudanca) {
@@ -307,6 +327,7 @@ const conteudo = document.getElementById('conteudo');
 conteudo.addEventListener('click', (e) => {
   const b = e.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; abertos.clear(); desenhar(); return; }
   const fl = e.target.closest('[data-filtro]'); if (fl) { filtro = fl.dataset.filtro; desenhar(); return; }
+  const vs = e.target.closest('[data-visao]'); if (vs) { visao = vs.dataset.visao; try { localStorage.setItem('lotus-visao', visao); } catch {} desenhar(); return; }
   const pg = e.target.closest('[data-pagar]'); if (pg) { abrirPagamento(pg.dataset.pagar); return; }
   const ab = e.target.closest('[data-abrir]');
   if (ab && !e.target.closest('a')) { const id = ab.dataset.abrir; abertos.has(id) ? abertos.delete(id) : abertos.add(id); desenhar(); }
@@ -314,7 +335,7 @@ conteudo.addEventListener('click', (e) => {
 conteudo.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-abrir]')) { e.preventDefault(); e.target.click(); } });
 conteudo.addEventListener('toggle', (e) => { const d = e.target.closest('details[data-sec]'); if (d) { d.open ? abertos.add(d.dataset.sec) : abertos.delete(d.dataset.sec); } }, true);
 conteudo.addEventListener('change', (e) => {
-  const li = e.target.closest('.tarefa'); if (!li) return;
+  const li = e.target.closest && e.target.closest('.tarefa'); if (!li) return;
   if (e.target.matches('[data-st]')) salvarTarefa(li, { status: e.target.value });
   else if (e.target.matches('[data-obs]')) salvarTarefa(li, { obs: e.target.value });
 });
