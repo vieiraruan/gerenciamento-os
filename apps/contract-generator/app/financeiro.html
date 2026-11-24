@@ -523,7 +523,7 @@ function linhaItem(i) {
     html += `<tr class="detalhe"><td></td><td colspan="8"><div class="caixa">
       <div><h4>Pagamentos</h4>
         <table class="pags"><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Forma</th><th>Comprovante</th><th></th></tr>
-        ${(i.pagamentos || []).map((p) => `<tr><td>${dBr(p.data) || '—'}</td><td>${p.tipo === 'parcela' ? `Parcela ${p.numero || ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.importado ? ' <span class="salvo">(planilha)</span>' : ''}</td>
+        ${(i.pagamentos || []).map((p) => `<tr><td>${dBr(p.data) || '—'}</td><td>${p.tipo === 'parcela' ? `Parcela ${p.numero || ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.importado ? ' <span class="salvo">(planilha)</span>' : ''}${p.lancado_por ? ' <span class="salvo" title="Enviado pelo casal na área do casal">(casal)</span>' : ''}</td>
           <td>${brl(p.valor)}</td><td>${esc(p.forma || '')}</td>
           <td>${p.comprovante ? `<a class="lnk" data-abrir="${esc(p.comprovante)}">abrir</a>` : '<span class="salvo">—</span>'}</td>
           <td><button class="x" title="Remover lançamento" data-rmpag="${i.id}|${p.id}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="salvo">Nenhum pagamento lançado.</td></tr>'}

@@ -7,7 +7,7 @@ o login ligado: **"Entrar com Google"**, aceito apenas para e-mails cadastrados 
 |---|---|
 | **Admin** | Tudo (contratos, checklist, financeiro, painel de gestão, usuários) |
 | **Equipe** | Tela inicial, checklist e dados do dia do evento — sem financeiro, gestão, gerador de contratos e valores |
-| **Casal** | Só o próprio evento: preparativos (cronograma) e fornecedores/pagamentos, sem alterar nada (`/meu-evento`) |
+| **Casal** | Só o próprio evento (`/meu-evento`): atualiza a situação e a observação das atividades dos preparativos; acompanha fornecedores (valores, vencimentos, contato, dados para pagamento) e **envia pagamentos com comprovante** — depois de enviado, só a Tayná corrige ou retira. Na tela da Tayná aparecem marcados como "casal". |
 
 Os usuários ficam em `CONTRATOS GERADOS/_DADOS DO SISTEMA/usuarios.json` (depois, no PostgreSQL). Trocar o perfil,
 bloquear ou "Encerrar sessões" desconecta a pessoa na hora. Os e-mails de `LOTUS_ADMINS` são sempre admin (primeiro acesso).

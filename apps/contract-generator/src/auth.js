@@ -203,7 +203,8 @@ const EQUIPE = [
   /^GET \/api\/checklist\/(vertentes|previa)$/, /^GET \/api\/evento$/, /^POST \/api\/evento(\/importar)?$/, /^POST \/api\/checklist\/gerar$/,
   /^GET \/cronograma$/, /^GET \/api\/cronograma(\/casal)?$/, /^POST \/api\/cronograma\/tarefa$/,
 ];
-const CASAL = [/^GET \/(inicio)?$/, /^GET \/api\/eu$/, /^GET \/meu-evento$/, /^GET \/api\/meu-evento$/];
+const CASAL = [/^GET \/(inicio)?$/, /^GET \/api\/eu$/, /^GET \/meu-evento$/, /^GET \/api\/meu-evento$/,
+  /^POST \/api\/meu-evento\/(tarefa|pagamento)$/];
 // rotas que mexem no computador onde o servidor roda: nunca no Lotus online
 const SO_LOCAL = [/^POST \/api\/(encerrar|abrir)$/];
 

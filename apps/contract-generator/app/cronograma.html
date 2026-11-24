@@ -149,7 +149,8 @@ function linhaTarefa(i) {
   const tags = (i.atrasada ? '<span class="tag atr" title="O prazo desta tarefa no modelo já passou">atrasada</span>' : '')
     + (i.origem === 'planilha' ? '<span class="tag pl" title="Situação vinda da planilha do casal">planilha</span>' : '')
     + (i.origem === 'financeiro' ? '<span class="tag pl" title="Fornecedor já está no controle financeiro">financeiro</span>' : '')
-    + (i.origem === 'contrato' ? '<span class="tag pl" title="Data definida no contrato">contrato</span>' : '');
+    + (i.origem === 'contrato' ? '<span class="tag pl" title="Data definida no contrato">contrato</span>' : '')
+    + (i.editado_por === 'casal' ? '<span class="tag pl" title="Atualizada pelo casal na área do casal" style="background:#e8f1ea;color:#2f7a4f">casal</span>' : '');
   return `<li class="${i.concluida ? 'feita' : ''}"><span class="o">${i.ordem}</span>
     <span><span class="t">${esc(i.texto)}</span>${tags}${i.fornecedor ? ` <span style="font-size:12px;color:var(--suave)">· ${esc(i.fornecedor)}</span>` : ''}</span>
     <select data-t="${esc(i.chave)}" class="${classeStatus(i.status)}" aria-label="Situação da tarefa">${STATUS.map((st) => `<option value="${st}" ${st === i.status ? 'selected' : ''}>${st || '— a fazer —'}</option>`).join('')}</select>

@@ -211,7 +211,7 @@ function montarChecklist(contrato, vertente = 'destination', hoje = hojeSemHora(
     const st = sit[it.chave] || {};
     Object.assign(it, {
       status: st.status || '', obs: st.obs || '', fornecedor: st.fornecedor || '', concluida_em: st.concluida_em || '',
-      origem: st.origem || '', concluida: CONCLUIDO.has(st.status),
+      origem: st.origem || '', concluida: CONCLUIDO.has(st.status), editado_por: st.editado_por || '',
     });
   }
 

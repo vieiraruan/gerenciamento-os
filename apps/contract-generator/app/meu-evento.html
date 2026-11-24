@@ -6,85 +6,325 @@
 <title>Nosso casamento · Lotus</title>
 <link rel="icon" type="image/png" href="/marca/icone.png">
 <style>
-  :root { --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #7b6f6a; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400; }
+  :root { --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #6f625d; --ok: #2f7a4f; --erro: #b3261e; --aviso: #9a6400; --azul: #2f5f8a; }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); }
   header { background: #fffdfb; padding: 8px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--borda); }
   header img { height: 52px; } header .esp { flex: 1; } header .quem { font-size: 13px; color: var(--suave); text-align: right; }
   header a { color: var(--marca); font-weight: 600; text-decoration: none; font-size: 13px; }
-  main { max-width: 900px; margin: 0 auto; padding: 18px 16px 40px; }
-  .capa { text-align: center; padding: 18px 10px 8px; }
+  main { max-width: 980px; margin: 0 auto; padding: 14px 16px 48px; }
+  .capa { text-align: center; padding: 16px 10px 4px; }
   .capa h1 { font-size: 28px; color: var(--marca); margin: 0; font-weight: 600; }
   .capa .data { color: var(--suave); margin-top: 4px; }
-  .contagem { display: inline-block; margin-top: 12px; background: #fff; border: 1px solid var(--borda); border-radius: 99px; padding: 6px 16px; color: var(--marca); font-weight: 600; }
-  .card { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 16px 18px; margin-top: 16px; }
+  .contagem { display: inline-block; margin-top: 10px; background: #fff; border: 1px solid var(--borda); border-radius: 99px; padding: 6px 16px; color: var(--marca); font-weight: 600; }
+  .previa { background: #fff6e5; border: 1px solid #f0d9a8; color: var(--aviso); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-top: 10px; text-align: center; }
+
+  /* abas */
+  .abas { display: flex; gap: 6px; margin: 16px 0 4px; padding: 6px; background: var(--fundo); }
+  .abas button { flex: 1; border: 1px solid var(--borda); background: #fff; color: var(--texto); border-radius: 12px; padding: 10px 12px; font: inherit; font-weight: 600; cursor: pointer; min-height: 46px; }
+  .abas button[aria-selected="true"] { background: var(--marca); border-color: var(--marca); color: #fff; }
+  .abas .n { font-weight: 400; font-size: 12.5px; opacity: .85; margin-left: 4px; }
+
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 16px 18px; margin-top: 12px; }
   .card h2 { font-size: 15px; color: var(--marca); margin: 0 0 10px; }
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  @media (max-width: 600px) { .kpis { grid-template-columns: 1fr; } }
   .kpi { border: 1px solid #f0e6e0; border-radius: 10px; padding: 10px 12px; background: #fdfaf8; }
   .kpi .r { font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .3px; }
   .kpi .v { font-size: 20px; font-weight: 700; color: var(--marca); }
   .barra { height: 8px; background: #f1e7e1; border-radius: 99px; overflow: hidden; margin-top: 6px; } .barra i { display: block; height: 100%; background: var(--marca-2); }
-  details { border-top: 1px solid #f3ebe6; padding: 8px 0; } summary { cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
-  summary .s { font-weight: 400; } ul { list-style: none; margin: 8px 0 0; padding: 0; }
-  li { padding: 4px 0; display: flex; gap: 8px; font-size: 14px; } li .m { width: 20px; flex: none; text-align: center; }
-  li.ok { color: var(--suave); } li.ok .t { text-decoration: line-through; } li.atr .m { color: var(--erro); }
   .s { font-size: 12.5px; color: var(--suave); }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; } th { text-align: left; font-size: 11px; color: var(--suave); text-transform: uppercase; padding: 6px; border-bottom: 1px solid var(--borda); }
-  td { padding: 8px 6px; border-top: 1px solid #f3ebe6; } td.n, th.n { text-align: right; white-space: nowrap; }
-  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; } .b-ok { background: #e6f2ea; color: var(--ok); } .b-p { background: #efe9e5; color: var(--suave); }
+  .filtros { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0; }
+  .filtros button { border: 1px solid var(--borda); background: #fff; border-radius: 99px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+  .filtros button[aria-pressed="true"] { background: #f3e6df; border-color: var(--marca-2); color: var(--marca); font-weight: 600; }
+
+  /* preparativos */
+  details.etapa { border-top: 1px solid #f3ebe6; padding: 10px 0; } details.etapa:first-of-type { border-top: 0; }
+  details.etapa summary { cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; list-style: none; }
+  details.etapa summary::-webkit-details-marker { display: none; }
+  details.etapa summary::before { content: "▸"; color: var(--marca-2); margin-right: 6px; } details.etapa[open] summary::before { content: "▾"; }
+  details.etapa summary .tit { flex: 1; }
+  .ativs { list-style: none; margin: 8px 0 0; padding: 0; }
+  .tarefa { display: grid; grid-template-columns: minmax(0, 1fr) 170px minmax(0, 220px); gap: 8px; align-items: center; padding: 8px 0; border-top: 1px dashed #f1e7e1; }
+  .tarefa:first-child { border-top: 0; }
+  .tarefa .t { font-size: 14px; } .tarefa.feita .t { color: var(--suave); text-decoration: line-through; }
+  .tarefa .det { font-size: 12px; color: var(--suave); }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; margin-left: 6px; vertical-align: 1px; }
+  .tag.atr { background: #fde8e6; color: var(--erro); } .tag.voce { background: #e8f1ea; color: var(--ok); }
+  select, input, textarea { font: inherit; font-size: 15px; border: 1px solid var(--borda); border-radius: 9px; padding: 8px 10px; background: #fff; color: var(--texto); width: 100%; min-height: 40px; }
+  select.st-FINALIZADO { background: #e6f2ea; color: var(--ok); border-color: #bcdcc7; }
+  select.st-EM-ANDAMENTO, select.st-EM-COTACAO { background: #fff4dc; color: var(--aviso); border-color: #f0d9a8; }
+  select.st-NAO { background: #f1edea; color: var(--suave); }
+  .salvando { font-size: 11.5px; color: var(--suave); min-height: 1em; }
+
+  /* fornecedores */
+  .alerta { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 12px; }
+  .alerta.atr { background: #fde8e6; color: var(--erro); border: 1px solid #f5c2bd; }
+  .venc { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid #f3ebe6; font-size: 14px; } .venc:first-child { border-top: 0; }
+  .forn { background: #fff; border: 1px solid var(--borda); border-radius: 12px; margin-top: 12px; overflow: hidden; }
+  .forn-cab { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; cursor: pointer; }
+  .forn-cab .nome { font-weight: 700; font-size: 15.5px; } .forn-cab .esp { flex: 1; min-width: 0; }
+  .forn-cab .valores { text-align: right; white-space: nowrap; font-size: 13px; color: var(--suave); }
+  .forn-cab .valores b { display: block; font-size: 15px; color: var(--texto); }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .b-ok { background: #e6f2ea; color: var(--ok); } .b-p { background: #efe9e5; color: var(--suave); } .b-atr { background: #fde8e6; color: var(--erro); }
+  .forn-corpo { border-top: 1px solid #f3ebe6; padding: 12px 16px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+  .forn-corpo > * { min-width: 0; }
+  .forn-corpo h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; color: var(--suave); }
+  .linha { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 3px 0; }
+  .pag { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #f3ebe6; font-size: 13.5px; } .pag:first-child { border-top: 0; } .pag .n { text-align: right; white-space: nowrap; }
+  .pagar { background: #fdfaf8; border: 1px dashed var(--borda); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; word-break: break-word; }
+  .lk { color: var(--marca); font-weight: 600; text-decoration: none; } .lk:hover { text-decoration: underline; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--borda); background: #fff; color: var(--marca); border-radius: 10px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer; min-height: 42px; }
+  .btn.primario { background: var(--marca); border-color: var(--marca); color: #fff; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .acoes { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* janela de pagamento */
+  dialog { border: 0; border-radius: 16px; padding: 0; width: min(520px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(43, 34, 32, .45); }
+  dialog form { padding: 18px 18px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  dialog h3 { grid-column: 1 / -1; margin: 0; color: var(--marca); font-size: 18px; }
+  dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+  dialog .largo { grid-column: 1 / -1; }
+  dialog .aviso { grid-column: 1 / -1; background: #fff6e5; border: 1px solid #f0d9a8; color: #7a5200; border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+  dialog .erro { grid-column: 1 / -1; color: var(--erro); font-size: 13.5px; font-weight: 600; }
+  dialog .botoes { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #2b2220; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   footer { text-align: center; color: var(--suave); font-size: 12px; margin-top: 26px; }
+
+  @media (max-width: 700px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .tarefa { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .tarefa > div:first-child { grid-column: 1 / -1; }
+    .forn-corpo { grid-template-columns: 1fr; }
+    .capa h1 { font-size: 24px; }
+    dialog form { grid-template-columns: 1fr; }
+    header { padding: 6px 12px; } header img { height: 40px; }
+  }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
 </head>
 <body>
 <header><img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="esp"></div><div class="quem" id="quem"></div></header>
 <main id="conteudo"><div class="s" style="text-align:center;padding:40px">Carregando…</div></main>
-<footer>Lotus · Tayná Alves Assessoria e Produção · informações só para consulta</footer>
+<footer>Lotus · Tayná Alves Assessoria e Produção</footer>
+
+<dialog id="dlgPag" aria-labelledby="dlgTit">
+  <form method="dialog" id="formPag">
+    <h3 id="dlgTit">Enviar pagamento</h3>
+    <p class="s largo" id="dlgForn" style="margin:-6px 0 0"></p>
+    <label>O que foi pago<select name="tipo"><option value="entrada">Entrada</option><option value="parcela">Parcela</option><option value="avulso">Pagamento avulso</option></select></label>
+    <label>Valor (R$)<input name="valor" inputmode="decimal" placeholder="0,00" required></label>
+    <label>Data do pagamento<input name="data" type="date" required></label>
+    <label>Forma<select name="forma"><option>PIX</option><option>Transferência</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></label>
+    <label class="largo">Comprovante (foto ou PDF)<input name="comprovante" type="file" accept="image/*,application/pdf" required></label>
+    <label class="largo">Observação (opcional)<input name="obs" maxlength="300" placeholder="Ex.: parcela de dezembro"></label>
+    <p class="aviso">Depois de enviado, o pagamento <b>não pode ser alterado</b> por vocês. Se algo estiver errado, fale com a Tayná.</p>
+    <p class="erro" id="erroPag" role="alert" hidden></p>
+    <div class="botoes"><button type="button" class="btn" id="btnCancelar">Cancelar</button><button type="submit" class="btn primario" id="btnEnviarPag">Enviar pagamento</button></div>
+  </form>
+</dialog>
+
 <script>
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const moeda = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 const dBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const hojeIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const ROTULO_ST = { '': 'A fazer', 'EM ANDAMENTO': 'Em andamento', 'EM COTAÇÃO': 'Em cotação', 'FINALIZADO': 'Concluída', 'NÃO SE APLICA': 'Não se aplica', 'NÃO DESEJO': 'Não desejamos' };
+const classeSt = (st) => st === 'FINALIZADO' ? 'st-FINALIZADO' : st === 'EM ANDAMENTO' ? 'st-EM-ANDAMENTO' : st === 'EM COTAÇÃO' ? 'st-EM-COTACAO' : /^NÃO/.test(st) ? 'st-NAO' : '';
+const ARQ = new URLSearchParams(location.search).get('arquivo') || '';
+const comArq = (url) => ARQ ? `${url}${url.includes('?') ? '&' : '?'}arquivo=${encodeURIComponent(ARQ)}` : url;
+let D = null; let aba = 'prep'; let filtro = 'afazer'; const abertos = new Set();
+
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+
+async function carregar() {
+  const r = await fetch(comArq('/api/meu-evento'));
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.erro || 'Erro');
+  D = d; if (!D.cronograma && aba === 'prep') aba = 'forn';
+  desenhar();
+}
+
+function desenhar() {
+  const ev = D.evento;
+  const [dd, mm, aa] = String(ev.data || '').split('/');
+  const dataEv = aa ? new Date(+aa, +mm - 1, +dd) : null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const dias = dataEv ? Math.round((dataEv - hoje) / 864e5) : null;
+  const c = D.cronograma;
+  const pend = c ? c.secoes.reduce((n, s) => n + s.itens.filter((i) => !i.concluida).length, 0) : 0;
+  document.getElementById('conteudo').innerHTML = `
+    <div class="capa"><h1>${esc(ev.nomes)}</h1>
+      <div class="data">${esc(ev.data_extenso || ev.data || ev.periodo || 'data a definir')}${ev.horario ? ` · ${esc(ev.horario)}` : ''}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
+      ${dias !== null ? `<div class="contagem">${dias > 1 ? `Faltam ${dias} dias` : dias === 1 ? 'É amanhã!' : dias === 0 ? 'É hoje!' : 'Casamento realizado'}</div>` : ''}
+      ${ARQ ? '<div class="previa">Prévia da área do casal (você está vendo como o casal vê).</div>' : ''}</div>
+    <div class="abas" role="tablist">
+      ${c ? `<button role="tab" aria-selected="${aba === 'prep'}" data-aba="prep">Preparativos<span class="n">(${pend})</span></button>` : ''}
+      <button role="tab" aria-selected="${aba === 'forn'}" data-aba="forn">Fornecedores<span class="n">(${D.fornecedores.length})</span></button>
+    </div>
+    <div id="painel">${aba === 'prep' && c ? painelPrep(c) : painelForn()}</div>`;
+}
+
+// ---------------- Preparativos ----------------
+function linhaTarefa(i) {
+  return `<li class="tarefa ${i.concluida ? 'feita' : ''}" data-chave="${esc(i.chave)}">
+    <div><span class="t">${esc(i.texto)}</span>${i.atrasada && !i.concluida ? '<span class="tag atr">atrasada</span>' : ''}${i.pelo_casal ? '<span class="tag voce" title="Vocês atualizaram esta atividade">por vocês</span>' : ''}
+      ${i.fornecedor ? `<div class="det">${esc(i.fornecedor)}</div>` : ''}<div class="salvando" aria-live="polite"></div></div>
+    <select class="${classeSt(i.status)}" data-st aria-label="Situação: ${esc(i.texto)}">${D.status_tarefa.map((st) => `<option value="${esc(st)}" ${st === i.status ? 'selected' : ''}>${ROTULO_ST[st] || st}</option>`).join('')}</select>
+    <input data-obs value="${esc(i.obs)}" maxlength="500" placeholder="Observação" aria-label="Observação: ${esc(i.texto)}">
+  </li>`;
+}
+function painelPrep(c) {
+  const r = c.ritmo;
+  const secoes = c.secoes.filter((s) => s.itens.length);
+  const lista = filtro === 'feitas'
+    ? `<ul class="ativs">${c.concluidas.map(linhaTarefa).join('') || '<li class="s">Nenhuma atividade concluída ainda.</li>'}</ul>`
+    : secoes.map((s) => {
+      const atual = s.situacao === 'atual' || s.situacao === 'vencida';
+      const aberto = abertos.has(s.rotulo) || (abertos.size === 0 && atual) || filtro === 'todas';
+      return `<details class="etapa" data-sec="${esc(s.rotulo)}" ${aberto ? 'open' : ''}><summary><span class="tit">${esc(s.rotulo)}</span>
+        <span class="s">${s.itens.filter((i) => !i.concluida).length} a fazer${s.inicio ? ` · ${esc(s.inicio)} a ${esc(s.fim)}` : ''}</span></summary>
+        <ul class="ativs">${s.itens.filter((i) => filtro !== 'afazer' || !i.concluida).map(linhaTarefa).join('') || '<li class="s">Tudo feito nesta etapa ✔</li>'}</ul></details>`;
+    }).join('') || '<p class="s">Nenhuma atividade pendente por aqui.</p>';
+  return `<div class="card">
+    <div class="kpis">
+      <div class="kpi"><div class="r">Concluídas</div><div class="v">${r.concluidas} de ${r.total}</div><div class="barra"><i style="width:${r.percentual}%"></i></div></div>
+      <div class="kpi"><div class="r">Em andamento</div><div class="v">${r.em_andamento || 0}</div></div>
+      <div class="kpi"><div class="r">Ritmo</div><div class="v" style="font-size:16px">${r.situacao === 'atrasado' ? 'Precisamos acelerar' : r.situacao === 'adiantado' ? 'Adiantados' : 'Em dia'}</div></div>
+    </div>
+    <p class="s" style="margin:12px 0 0">Atualizem a situação de cada atividade e deixem uma observação para a Tayná. Tudo é salvo na hora.</p>
+    <div class="filtros" role="group" aria-label="Mostrar">
+      <button data-filtro="afazer" aria-pressed="${filtro === 'afazer'}">A fazer</button>
+      <button data-filtro="todas" aria-pressed="${filtro === 'todas'}">Abrir todas as etapas</button>
+      <button data-filtro="feitas" aria-pressed="${filtro === 'feitas'}">Concluídas (${c.concluidas.length})</button>
+    </div></div>
+    <div class="card">${lista}</div>`;
+}
+
+async function salvarTarefa(li, mudanca) {
+  const aviso = li.querySelector('.salvando'); aviso.textContent = 'Salvando…';
+  const chave = li.dataset.chave;
+  const it = [...D.cronograma.secoes.flatMap((s) => s.itens), ...D.cronograma.concluidas].find((x) => x.chave === chave) || {};
+  try {
+    const r = await fetch('/api/meu-evento/tarefa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arquivo: ARQ || undefined, chave, status_atual: it.status || '', ...mudanca }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível salvar.');
+    D = d;
+    if (mudanca.status !== undefined) { desenhar(); toast(mudanca.status === 'FINALIZADO' ? 'Atividade concluída ✔' : 'Situação salva ✔'); }
+    else aviso.textContent = 'Salvo ✔';
+  } catch (e) { aviso.textContent = ''; toast(e.message); }
+}
+
+// ---------------- Fornecedores ----------------
+function painelForn() {
+  const t = D.totais;
+  if (!D.fornecedores.length) return '<div class="card"><p class="s" style="margin:0">Ainda não há fornecedores cadastrados. Assim que a Tayná cadastrar, eles aparecem aqui com valores, vencimentos e pagamentos.</p></div>';
+  const atr = D.atrasados || [];
+  return `${t ? `<div class="card"><div class="kpis">
+      <div class="kpi"><div class="r">Contratado</div><div class="v">${moeda(t.contratado)}</div></div>
+      <div class="kpi"><div class="r">Pago</div><div class="v">${moeda(t.pago)}</div><div class="barra"><i style="width:${t.percentual}%"></i></div></div>
+      <div class="kpi"><div class="r">A pagar</div><div class="v">${moeda(t.saldo)}</div></div></div>
+      ${atr.length ? `<div class="alerta atr"><b>${atr.length} parcela(s) vencida(s):</b> ${atr.slice(0, 4).map((v) => `${esc(v.fornecedor)} (${dBr(v.vencimento)})`).join(', ')}${atr.length > 4 ? '…' : ''}</div>` : ''}
+      ${D.proximos.length ? `<h2 style="margin-top:14px">Próximos vencimentos</h2>${D.proximos.map((v) => `<div class="venc"><span>${dBr(v.vencimento)} · ${esc(v.fornecedor)}</span><b>${moeda(v.valor)}</b></div>`).join('')}` : ''}
+    </div>` : ''}
+    ${D.fornecedores.map(cartaoForn).join('')}`;
+}
+function cartaoForn(f) {
+  const aberto = abertos.has(f.id);
+  const st = f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : f.atrasadas ? '<span class="badge b-atr">vencida</span>' : f.status === 'Sem valor' ? '<span class="badge b-p">sem valor</span>' : '<span class="badge b-p">em aberto</span>';
+  const pct = f.contratado ? Math.min(100, Math.round((f.pago / f.contratado) * 100)) : 0;
+  const ct = f.contato || {};
+  const whats = String(ct.telefone || '').replace(/\D/g, '');
+  const contato = [ct.responsavel && esc(ct.responsavel),
+    ct.telefone && `<a class="lk" href="https://wa.me/${String(ct.telefone).trim().startsWith('+') || whats.length > 11 ? whats : `55${whats}`}" target="_blank" rel="noopener">${esc(ct.telefone)}</a>`,
+    ct.email && `<a class="lk" href="mailto:${esc(ct.email)}">${esc(ct.email)}</a>`,
+    ct.instagram && `<a class="lk" href="https://instagram.com/${esc(String(ct.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener">${esc(ct.instagram)}</a>`].filter(Boolean);
+  return `<div class="forn" data-id="${esc(f.id)}">
+    <div class="forn-cab" data-abrir="${esc(f.id)}" role="button" tabindex="0" aria-expanded="${aberto}">
+      <div class="esp"><div class="nome">${esc(f.nome)} ${st}</div><div class="s">${esc(f.servico || f.descricao).slice(0, 80)}</div>
+        <div class="barra" style="max-width:260px"><i style="width:${pct}%"></i></div></div>
+      <div class="valores">a pagar<b>${f.status === 'Pago' ? '—' : moeda(f.saldo)}</b>${f.proxima ? `próx. ${dBr(f.proxima.vencimento) || '—'}` : ''}</div>
+    </div>
+    ${aberto ? `<div class="forn-corpo">
+      <div><h4>Valores</h4>
+        <div class="linha"><span>Contratado</span><b>${moeda(f.contratado)}</b></div>
+        <div class="linha"><span>Pago</span><b>${moeda(f.pago)}</b></div>
+        <div class="linha"><span>A pagar</span><b>${moeda(f.saldo)}</b></div>
+        ${f.entrada.prevista ? `<div class="linha"><span>Entrada</span><span>${moeda(f.entrada.prevista)} · ${f.entrada.paga ? 'paga ✔' : 'a pagar'}</span></div>` : ''}
+        ${f.parcelas.total ? `<div class="linha"><span>Parcelas</span><span>${f.parcelas.pagas} de ${f.parcelas.total}${f.parcelas.valor ? ` × ${moeda(f.parcelas.valor)}` : ''}</span></div>` : ''}
+        ${f.vencimentos.length ? `<div class="s" style="margin-top:6px">${f.vencimentos.map((v) => `${v.numero}ª ${dBr(v.vencimento) || '—'} ${v.paga ? '✔' : v.vencimento && v.vencimento < hojeIso() ? '<b style="color:var(--erro)">vencida</b>' : ''}`).join(' · ')}</div>` : ''}
+      </div>
+      <div>${contato.length ? `<h4>Contato</h4><div style="display:flex;flex-direction:column;gap:2px;font-size:14px">${contato.join('')}</div>` : ''}
+        ${f.pagar_com ? `<h4 style="margin-top:${contato.length ? 12 : 0}px">Dados para pagamento</h4><div class="pagar">${esc(f.pagar_com)}</div>` : ''}
+        ${f.descricao && f.servico ? `<h4 style="margin-top:12px">O que está contratado</h4><div style="font-size:14px">${esc(f.descricao)}</div>` : ''}
+      </div>
+      <div class="largo" style="grid-column:1/-1"><h4>Pagamentos</h4>
+        ${f.pagamentos.length ? `<div class="pags">${f.pagamentos.map((p) => `<div class="pag"><div><b>${dBr(p.data) || '—'}</b> · ${p.tipo === 'parcela' ? `Parcela${p.numero ? ` ${p.numero}` : ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.forma ? ` · ${esc(p.forma)}` : ''}${p.pelo_casal ? ' <span class="tag voce">enviado por vocês</span>' : ''}</div>
+          <div class="n"><b>${moeda(p.valor)}</b>${p.comprovante ? '<div class="s">comprovante ✔</div>' : ''}</div></div>`).join('')}</div>` : '<p class="s" style="margin:0">Nenhum pagamento registrado.</p>'}
+      </div>
+      <div class="acoes">${f.status !== 'Pago' ? `<button class="btn primario" data-pagar="${esc(f.id)}">Enviar pagamento</button>` : ''}</div>
+    </div>` : ''}
+  </div>`;
+}
+
+// ---------------- janela "Enviar pagamento" ----------------
+const dlg = document.getElementById('dlgPag'); const formPag = document.getElementById('formPag'); const erroPag = document.getElementById('erroPag');
+let fornPag = null;
+function abrirPagamento(id) {
+  fornPag = D.fornecedores.find((f) => f.id === id); if (!fornPag) return;
+  formPag.reset(); erroPag.hidden = true;
+  document.getElementById('dlgForn').textContent = fornPag.nome;
+  const e = fornPag.entrada;
+  const tipo = e.prevista && !e.paga ? 'entrada' : fornPag.parcelas.total ? 'parcela' : 'avulso';
+  formPag.tipo.value = tipo;
+  const sugestao = tipo === 'entrada' ? e.prevista : fornPag.proxima ? fornPag.proxima.valor : null;
+  formPag.valor.value = sugestao ? Number(sugestao).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+  formPag.data.value = hojeIso();
+  dlg.showModal();
+}
+document.getElementById('btnCancelar').addEventListener('click', () => dlg.close());
+formPag.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const arq = formPag.comprovante.files[0];
+  const erro = (m) => { erroPag.textContent = m; erroPag.hidden = false; };
+  if (!formPag.valor.value.trim()) return erro('Informe o valor pago.');
+  if (!formPag.data.value) return erro('Informe a data do pagamento.');
+  if (!arq) return erro('Anexe o comprovante (foto ou PDF).');
+  if (arq.size > 15 * 1024 * 1024) return erro('O comprovante passa de 15 MB. Envie uma foto ou PDF menor.');
+  const dados = { id: fornPag.id, tipo: formPag.tipo.value, valor: formPag.valor.value, data: formPag.data.value, forma: formPag.forma.value, obs: formPag.obs.value };
+  const btn = document.getElementById('btnEnviarPag'); btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const url = comArq(`/api/meu-evento/pagamento?dados=${encodeURIComponent(JSON.stringify(dados))}`);
+    const r = await fetch(url, { method: 'POST', headers: { 'x-nome-arquivo': encodeURIComponent(arq.name) }, body: arq });
+    const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível enviar.');
+    D = d; abertos.add(fornPag.id); dlg.close(); desenhar(); toast('Pagamento enviado ✔ A Tayná já consegue ver.');
+  } catch (e) { erro(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Enviar pagamento'; }
+});
+
+// ---------------- eventos da página ----------------
+const conteudo = document.getElementById('conteudo');
+conteudo.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; abertos.clear(); desenhar(); return; }
+  const fl = e.target.closest('[data-filtro]'); if (fl) { filtro = fl.dataset.filtro; desenhar(); return; }
+  const pg = e.target.closest('[data-pagar]'); if (pg) { abrirPagamento(pg.dataset.pagar); return; }
+  const ab = e.target.closest('[data-abrir]');
+  if (ab && !e.target.closest('a')) { const id = ab.dataset.abrir; abertos.has(id) ? abertos.delete(id) : abertos.add(id); desenhar(); }
+});
+conteudo.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-abrir]')) { e.preventDefault(); e.target.click(); } });
+conteudo.addEventListener('toggle', (e) => { const d = e.target.closest('details[data-sec]'); if (d) { d.open ? abertos.add(d.dataset.sec) : abertos.delete(d.dataset.sec); } }, true);
+conteudo.addEventListener('change', (e) => {
+  const li = e.target.closest('.tarefa'); if (!li) return;
+  if (e.target.matches('[data-st]')) salvarTarefa(li, { status: e.target.value });
+  else if (e.target.matches('[data-obs]')) salvarTarefa(li, { obs: e.target.value });
+});
+
 (async () => {
   try {
     const eu = await (await fetch('/api/eu')).json();
     if (eu.login) document.getElementById('quem').innerHTML = `${esc(eu.nome || eu.email)}<br><a href="/sair">Sair</a>`;
-    const arq = new URLSearchParams(location.search).get('arquivo');
-    const r = await fetch('/api/meu-evento' + (arq ? `?arquivo=${encodeURIComponent(arq)}` : ''));
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.erro || 'Erro');
-    const ev = d.evento;
-    const [dd, mm, aa] = String(ev.data || '').split('/');
-    const dataEv = aa ? new Date(+aa, +mm - 1, +dd) : null;
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const dias = dataEv ? Math.round((dataEv - hoje) / 864e5) : null;
-    const c = d.cronograma; const t = d.totais;
-    document.getElementById('conteudo').innerHTML = `
-      <div class="capa"><h1>${esc(ev.nomes)}</h1>
-        <div class="data">${esc(ev.data_extenso || ev.data || ev.periodo || 'data a definir')}${ev.horario ? ` · ${esc(ev.horario)}` : ''}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
-        ${dias !== null ? `<div class="contagem">${dias > 1 ? `Faltam ${dias} dias` : dias === 1 ? 'É amanhã!' : dias === 0 ? 'É hoje!' : 'Casamento realizado'}</div>` : ''}</div>
-      ${c ? `<div class="card"><h2>Preparativos</h2>
-        <div class="kpis">
-          <div class="kpi"><div class="r">Concluídos</div><div class="v">${c.ritmo.concluidas} de ${c.ritmo.total}</div><div class="barra"><i style="width:${c.ritmo.percentual}%"></i></div></div>
-          <div class="kpi"><div class="r">Em andamento</div><div class="v">${c.ritmo.em_andamento || 0}</div></div>
-          <div class="kpi"><div class="r">Ritmo</div><div class="v" style="font-size:16px">${c.ritmo.situacao === 'atrasado' ? 'Precisamos acelerar' : c.ritmo.situacao === 'adiantado' ? 'Adiantados' : 'Em dia'}</div></div>
-        </div>
-        ${c.secoes.map((s) => {
-          const feitas = s.itens.filter((i) => i.concluida).length;
-          return `<details ${s.situacao === 'atual' ? 'open' : ''}><summary><span>${esc(s.rotulo)}</span><span class="s">${feitas}/${s.itens.length}${s.inicio ? ` · ${esc(s.inicio)} a ${esc(s.fim)}` : ''}</span></summary>
-            <ul>${s.itens.map((i) => `<li class="${i.concluida ? 'ok' : i.atrasada ? 'atr' : ''}"><span class="m">${i.concluida ? '✔' : i.atrasada ? '!' : '○'}</span><span class="t">${esc(i.texto)}</span></li>`).join('')}</ul></details>`;
-        }).join('')}
-        ${c.concluidas.length ? `<details><summary><span>Já concluídos</span><span class="s">${c.concluidas.length}</span></summary>
-          <ul>${c.concluidas.map((i) => `<li class="ok"><span class="m">✔</span><span class="t">${esc(i.texto)}</span></li>`).join('')}</ul></details>` : ''}</div>` : ''}
-      ${d.fornecedores.length ? `<div class="card"><h2>Fornecedores e pagamentos</h2>
-        ${t ? `<div class="kpis" style="margin-bottom:12px"><div class="kpi"><div class="r">Contratado</div><div class="v">${moeda(t.contratado)}</div></div>
-          <div class="kpi"><div class="r">Pago</div><div class="v">${moeda(t.pago)}</div><div class="barra"><i style="width:${t.percentual}%"></i></div></div>
-          <div class="kpi"><div class="r">A pagar</div><div class="v">${moeda(t.saldo)}</div></div></div>` : ''}
-        <div style="overflow-x:auto"><table><tr><th>Fornecedor</th><th class="n">Contratado</th><th class="n">Pago</th><th class="n">A pagar</th><th>Próximo</th></tr>
-        ${d.fornecedores.map((f) => `<tr><td><b>${esc(f.nome)}</b><div class="s">${esc(f.descricao).slice(0, 60)}</div></td><td class="n">${moeda(f.contratado)}</td><td class="n">${moeda(f.pago)}</td>
-          <td class="n">${f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : moeda(f.saldo)}</td>
-          <td class="s">${f.proxima ? `${moeda(f.proxima.valor)} · ${dBr(f.proxima.vencimento)}` : ''}</td></tr>`).join('')}</table></div></div>` : ''}`;
-  } catch (e) { document.getElementById('conteudo').innerHTML = `<div class="card" style="color:var(--erro)">${esc(e.message)}</div>`; }
+    await carregar();
+  } catch (e) { conteudo.innerHTML = `<div class="card" style="color:var(--erro)">${esc(e.message)}</div>`; }
 })();
 </script>
 </body>

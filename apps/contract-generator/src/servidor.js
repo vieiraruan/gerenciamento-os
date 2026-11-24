@@ -415,6 +415,98 @@ const VERSAO = versaoNoDisco();
 // Login (Lotus online): desligado no computador; LOTUS_LOGIN=1 no servidor
 const AUTH = criarAuth({ arquivoUsuarios: path.join(DADOS, 'usuarios.json') });
 
+// ---------------------------------------------------------------------------
+// Cronograma (marcar tarefa) e área do casal
+// ---------------------------------------------------------------------------
+const STATUS_TAREFA = ['', 'EM ANDAMENTO', 'EM COTAÇÃO', 'FINALIZADO', 'NÃO SE APLICA', 'NÃO DESEJO'];
+
+/** Marca uma tarefa (situação e/ou observação); a última edição vence a da planilha do casal. */
+function marcarTarefa(pedidoArquivo, corpo, usuario) {
+  const { arquivo, campos, cliente } = contratoDe(pedidoArquivo);
+  if (!/^AS-/i.test(campos.numero_os || '')) throw new Error('O cronograma é só para casais de assessoria (AS).');
+  const chaveT = String(corpo.chave || '').slice(0, 300);
+  if (!chaveT) throw new Error('Tarefa inválida.');
+  const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+  const tarefas = { ...(evento.tarefas || {}) };
+  const antes = tarefas[chaveT] || { status: corpo.status_atual || '', obs: '', fornecedor: corpo.fornecedor || '' };
+  const novo = { ...antes, editado_em: new Date().toISOString() };
+  if (typeof corpo.status === 'string') novo.status = corpo.status;
+  if (typeof corpo.obs === 'string') novo.obs = corpo.obs.slice(0, 500);
+  // quem mexeu por último: o casal (área do casal) ou a equipe
+  if (usuario && usuario.papel === 'casal') novo.editado_por = 'casal'; else delete novo.editado_por;
+  const feito = CONCLUIDO.has(novo.status);
+  novo.concluida_em = feito ? (antes.concluida_em || new Date().toISOString()) : '';
+  tarefas[chaveT] = novo;
+  ev.salvarEvento(DADOS, arquivo, { ...evento, tarefas });
+  const salvo = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+  return montarChecklist(campos, vertenteDe(salvo, campos), undefined, salvo);
+}
+
+/** Casal do acesso: o casal só vê o próprio evento; admin/equipe escolhem pelo endereço (prévia). */
+function casalDe(usuario, arquivoPedido) {
+  const arq = usuario && usuario.papel === 'casal' ? usuario.casal : arquivoPedido;
+  if (!arq) throw new Error('Nenhum casal ligado a este acesso.');
+  return arq;
+}
+
+/** Tudo o que o casal vê na área do casal: preparativos (editáveis) e fornecedores/pagamentos (só leitura). */
+function meuEvento(pedidoArquivo) {
+  const { arquivo, campos, cliente } = contratoDe(pedidoArquivo);
+  const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
+  const vertente = evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
+  const ck = /^AS/i.test(campos.numero_os || '') ? montarChecklist(campos, vertente, undefined, evento) : null;
+  const f = fin.carregar(DADOS, arquivo);
+  const r = f ? fin.resumo(f) : null;
+  const tarefa = (i) => ({ chave: i.chave, texto: i.texto, concluida: i.concluida, status: i.status || '', obs: i.obs || '',
+    atrasada: Boolean(i.atrasada), fornecedor: i.fornecedor || '', pelo_casal: i.editado_por === 'casal' });
+  const cadastros = new Map(fin.listarFornecedores(DADOS).map((c) => [c.id, c]));
+  return {
+    arquivo,
+    evento: ck ? ck.evento : { numero_os: campos.numero_os || '', nomes: campos.evento_nomes || '', data: campos.evento_data || '', periodo: campos.evento_periodo || '', horario: campos.evento_horario || '', local: campos.evento_local || '' },
+    status_tarefa: STATUS_TAREFA,
+    cronograma: ck ? {
+      ritmo: ck.ritmo,
+      secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao, itens: sec.itens.map(tarefa) })),
+      concluidas: ck.concluidas.map((i) => ({ ...tarefa(i), concluida_em: i.concluida_em || '' })),
+    } : null,
+    fornecedores: r ? r.itens.map((i) => {
+      const cad = (i.fornecedor_id && cadastros.get(i.fornecedor_id)) || {};
+      const c = i.calc;
+      return {
+        id: i.id, nome: i.nome, descricao: i.descricao || '', servico: cad.servico || '',
+        contato: { responsavel: cad.responsavel || '', telefone: cad.telefone || '', email: cad.email || '', instagram: cad.instagram || '' },
+        pagar_com: i.pix || fin.textoPagamento(cad.pagamento || {}),
+        contratado: c.contratado, pago: c.pago, saldo: c.saldo, status: c.status,
+        entrada: { prevista: c.entrada_prevista, paga: c.entrada_paga, vencimento: i.entrada?.data || '' },
+        parcelas: { total: c.parcelas_total, pagas: c.parcelas_pagas, valor: c.valor_parcela },
+        vencimentos: c.vencimentos, proxima: c.proxima || null, atrasadas: c.atrasadas.length,
+        pagamentos: (i.pagamentos || []).map((p) => ({ data: p.data, valor: p.valor, tipo: p.tipo, numero: p.numero || null, forma: p.forma || '',
+          comprovante: Boolean(p.comprovante), pelo_casal: Boolean(p.lancado_por) }))
+          .sort((a, b) => String(b.data).localeCompare(String(a.data))),
+      };
+    }) : [],
+    totais: r ? r.totais : null,
+    proximos: r ? r.proximos.slice(0, 6) : [],
+    atrasados: r ? r.atrasados : [],
+  };
+}
+
+/** O casal envia um pagamento com comprovante. Depois de enviado, só a Tayná pode corrigir ou retirar. */
+async function pagamentoDoCasal(usuario, q, comprovante) {
+  const arquivo = casalDe(usuario, q.get('arquivo'));
+  const d = JSON.parse(q.get('dados') || '{}');
+  if (!comprovante || !comprovante.conteudo || !comprovante.conteudo.length) throw new Error('Anexe o comprovante do pagamento.');
+  const { arquivo: arq } = contratoDe(arquivo);
+  const f = fin.carregar(DADOS, arq);
+  const item = f && f.itens.find((i) => i.id === d.id && !i.removido);
+  if (!item) throw new Error('Fornecedor não encontrado.');
+  const limpo = { id: item.id, tipo: ['entrada', 'parcela', 'avulso'].includes(d.tipo) ? d.tipo : 'parcela', valor: d.valor, data: d.data,
+    forma: String(d.forma || '').slice(0, 40), obs: String(d.obs || '').slice(0, 300), lancado_por: (usuario && usuario.email) || 'casal' };
+  await enviarFinanceiro(new URLSearchParams({ arquivo: arq, op: 'pagamento', dados: JSON.stringify(limpo) }), comprovante);
+  return meuEvento(arq);
+}
+
+
 const rotas = {
   // ---- Site: pedido de orçamento (público, sem login) ----
   'GET /api/publico/servicos': () => ({ servicos: pedidos.servicosDoSite() }),
@@ -589,27 +681,13 @@ const rotas = {
   'GET /api/eu': (q, corpo, u) => ({ login: AUTH.ativo, email: u?.email || '', nome: u?.nome || '', papel: u?.papel || 'admin', casal: u?.casal || '', foto: u?.foto || '' }),
 
   // portal do casal: o próprio evento, cronograma e fornecedores (só leitura). Admin pode ver qualquer um (?arquivo=)
-  'GET /api/meu-evento': (q, corpo, u) => {
-    const pedido = u && u.papel === 'casal' ? u.casal : q.get('arquivo');
-    if (!pedido) throw new Error('Nenhum casal ligado a este acesso.');
-    const { arquivo, campos, cliente } = contratoDe(pedido);
-    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
-    const vertente = evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
-    const ck = /^AS/i.test(campos.numero_os || '') ? montarChecklist(campos, vertente, undefined, evento) : null;
-    const f = fin.carregar(DADOS, arquivo);
-    const r = f ? fin.resumo(f) : null;
-    return {
-      evento: ck ? ck.evento : { numero_os: campos.numero_os || '', nomes: campos.evento_nomes || '', data: campos.evento_data || '', periodo: campos.evento_periodo || '', horario: campos.evento_horario || '', local: campos.evento_local || '' },
-      cronograma: ck ? {
-        ritmo: ck.ritmo,
-        secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao,
-          itens: sec.itens.map((i) => ({ texto: i.texto, concluida: i.concluida, status: i.status, atrasada: i.atrasada })) })),
-        concluidas: ck.concluidas.map((i) => ({ texto: i.texto, concluida_em: i.concluida_em || '' })),
-      } : null,
-      fornecedores: r ? r.itens.filter((i) => !i.removido).map((i) => ({ nome: i.nome, descricao: i.descricao || '', contratado: i.calc.contratado, pago: i.calc.pago,
-        saldo: i.calc.saldo, status: i.calc.status, proxima: i.calc.proxima || null })) : [],
-      totais: r ? r.totais : null,
-    };
+  'GET /api/meu-evento': (q, corpo, u) => meuEvento(casalDe(u, q.get('arquivo'))),
+  // o casal marca as atividades dos preparativos (situação e observação)
+  'POST /api/meu-evento/tarefa': (q, corpo, u) => {
+    const arquivo = casalDe(u, corpo.arquivo);
+    if (corpo.status !== undefined && !STATUS_TAREFA.includes(corpo.status)) throw new Error('Situação inválida.');
+    marcarTarefa(arquivo, { chave: corpo.chave, status: corpo.status, obs: corpo.obs, status_atual: corpo.status_atual }, u);
+    return meuEvento(arquivo);
   },
 
   // usuários do Lotus online (só admin)
@@ -799,24 +877,7 @@ const rotas = {
     return { ...ck, arquivo, pasta: destino.pasta, pasta_existe: destino.existe };
   },
   // marca uma tarefa (situação e/ou observação); a última edição vence a da planilha do casal
-  'POST /api/cronograma/tarefa': (q, corpo) => {
-    const { arquivo, campos, cliente } = contratoDe(corpo.arquivo);
-    if (!/^AS-/i.test(campos.numero_os || '')) throw new Error('O cronograma é só para casais de assessoria (AS).');
-    const chaveT = String(corpo.chave || '').slice(0, 300);
-    if (!chaveT) throw new Error('Tarefa inválida.');
-    const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
-    const tarefas = { ...(evento.tarefas || {}) };
-    const antes = tarefas[chaveT] || { status: corpo.status_atual || '', obs: '', fornecedor: corpo.fornecedor || '' };
-    const novo = { ...antes, editado_em: new Date().toISOString() };
-    if (typeof corpo.status === 'string') novo.status = corpo.status;
-    if (typeof corpo.obs === 'string') novo.obs = corpo.obs.slice(0, 500);
-    const feito = CONCLUIDO.has(novo.status);
-    novo.concluida_em = feito ? (antes.concluida_em || new Date().toISOString()) : '';
-    tarefas[chaveT] = novo;
-    ev.salvarEvento(DADOS, arquivo, { ...evento, tarefas });
-    const salvo = ev.carregarEvento(DADOS, arquivo, campos, cliente);
-    return montarChecklist(campos, vertenteDe(salvo, campos), undefined, salvo);
-  },
+  'POST /api/cronograma/tarefa': (q, corpo, u) => marcarTarefa(corpo.arquivo, corpo, u),
 
   // ---- Gerador de Checklist ----
   'GET /api/checklist/vertentes': () => listarVertentes(),
@@ -955,6 +1016,11 @@ const servidor = http.createServer(async (req, res) => {
       const conteudo = await lerBinario(req);
       const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
       return responder(res, 200, await enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/meu-evento/pagamento') {
+      const conteudo = await lerBinario(req, 15 * 1024 * 1024);
+      const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
+      return responder(res, 200, await pagamentoDoCasal(req.usuario, url.searchParams, { nome: nomeArq, conteudo }));
     }
     if (req.method === 'GET' && url.pathname === '/api/pedidos/pdf') {
       const p = pedidos.carregar(DADOS, url.searchParams.get('id'));

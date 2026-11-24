@@ -372,6 +372,7 @@ function registrarPagamento(fin, pastaCasal, id, dados, comprovante) {
   const rotulo = tipo === 'parcela' ? `PARCELA ${numero}${calc.parcelas_total ? ` DE ${calc.parcelas_total}` : ''}` : TIPOS_PAGAMENTO[tipo].toUpperCase();
   const pg = {
     id: novoId(), tipo, numero, valor, data, forma: dados.forma || '', obs: String(dados.obs || '').trim(), lancado_em: agora(),
+    ...(dados.lancado_por ? { lancado_por: String(dados.lancado_por) } : {}),
     comprovante: comprovante
       ? gravarArquivo(pastaCasal, item, `COMPROVANTE - ${rotulo} - ${dataBr(data).replace(/\//g, '-')}`, comprovante.nome, comprovante.conteudo, fin)
       : null,
@@ -379,7 +380,7 @@ function registrarPagamento(fin, pastaCasal, id, dados, comprovante) {
   item.pagamentos.push(pg);
   const depois = calcular(item);
   item.historico.push(`${dataBr(data)} - PG ${moeda(valor)} referente a ${tipo === 'parcela' ? `parcela ${numero}${calc.parcelas_total ? ` de ${calc.parcelas_total}` : ''}` : TIPOS_PAGAMENTO[tipo].toLowerCase()}`
-    + `${pg.forma ? ` (${pg.forma})` : ''}.${depois.saldo !== null ? ` Saldo: ${moeda(depois.saldo)}.` : ''}${pg.comprovante ? ' Comprovante na pasta do fornecedor.' : ''}${pg.obs ? ` ${pg.obs}` : ''}`);
+    + `${pg.forma ? ` (${pg.forma})` : ''}.${depois.saldo !== null ? ` Saldo: ${moeda(depois.saldo)}.` : ''}${pg.comprovante ? ' Comprovante na pasta do fornecedor.' : ''}${pg.lancado_por ? ' Lançado pelo casal na área do casal.' : ''}${pg.obs ? ` ${pg.obs}` : ''}`);
   return { item, pagamento: pg };
 }
 
