@@ -11,6 +11,15 @@
     ['IE', 'Irlanda', '353'], ['AU', 'Austrália', '61'],
   ];
   const CODIGOS = PAISES.map((p) => p[2]);
+  // idioma da página (site e área do casal): nomes dos países pelo navegador; textos do seletor traduzidos
+  const LANG = String(document.documentElement.lang || 'pt').slice(0, 2).toLowerCase();
+  const TXT = { pt: ['País do telefone', 'Outro país (digite +código)'], en: ['Phone country', 'Other country (type +code)'], es: ['País del teléfono', 'Otro país (escriba +código)'],
+    fr: ['Pays du téléphone', 'Autre pays (tapez +indicatif)'], de: ['Land der Telefonnummer', 'Anderes Land (+Vorwahl eingeben)'] }[LANG] || ['País do telefone', 'Outro país (digite +código)'];
+  let nomesPaises = null;
+  try { if (LANG !== 'pt' && Intl.DisplayNames) nomesPaises = new Intl.DisplayNames([document.documentElement.lang], { type: 'region' }); } catch { /* sem Intl */ }
+  const nomePais = (p) => (nomesPaises && p[0] !== 'US' ? nomesPaises.of(p[0]) : p[0] === 'US' && nomesPaises ? `${nomesPaises.of('US')} / ${nomesPaises.of('CA')}` : p[1]);
+  // país sugerido quando o campo está vazio: o do idioma (de → Alemanha…), senão Brasil
+  const PADRAO = { de: '49', fr: '33', es: '34' }[LANG] || '55';
   const SEL_DOC = '[data-formato="doc"], [data-cli="cpf_cnpj"], #dfDoc';
   const SEL_TEL = '[data-formato="tel"], [data-cli="telefone"], #dfTel, [data-c="telefone"]';
   const nativo = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
@@ -88,12 +97,12 @@
     if (!el.getAttribute('autocomplete')) el.setAttribute('autocomplete', 'tel');
     el.placeholder = '+55 81 90000-0000';
     const sel = document.createElement('select');
-    sel.setAttribute('aria-label', 'País do telefone');
-    sel.innerHTML = PAISES.map(([iso, nome, cc]) => `<option value="${cc}" title="${nome}">${iso}</option>`).join('') +
+    sel.setAttribute('aria-label', TXT[0]);
+    sel.innerHTML = PAISES.map((p) => `<option value="${p[2]}" title="${nomePais(p)}">${p[0]}</option>`).join('') +
       '<option value="">+…</option>';
     // fechado mostra só a sigla do país (o código já aparece no número); aberto, o nome e o código
     const rotulos = (longo) => [...sel.options].forEach((o, i) => {
-      const p = PAISES[i]; o.textContent = p ? (longo ? `${p[0]} · ${p[1]} (+${p[2]})` : p[0]) : (longo ? 'Outro país (digite +código)' : '+…');
+      const p = PAISES[i]; o.textContent = p ? (longo ? `${p[0]} · ${nomePais(p)} (+${p[2]})` : p[0]) : (longo ? TXT[1] : '+…');
     });
     sel.addEventListener('focus', () => rotulos(true)); sel.addEventListener('mousedown', () => rotulos(true));
     sel.addEventListener('blur', () => rotulos(false));
@@ -117,6 +126,7 @@
     });
     sel.value = '55';
     aplicar(nativo.get.call(el));
+    if (!nativo.get.call(el) && PADRAO !== '55') { sel.value = PADRAO; el.placeholder = `+${PADRAO} …`; }
   }
 
   function preparar(raiz) {

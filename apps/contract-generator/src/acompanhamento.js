@@ -81,45 +81,50 @@ function burndown(ck, evento = null, hoje = hojeIso()) {
  * Alertas do casal, do mais grave para o mais leve. nivel: 'critico' (atrasado), 'aviso' (vence logo), 'info'.
  * @param {object} o { ck, resumoFin (financeiro.resumo), recebimento (gestao.recebimentoCasal) | null, dataEvento ISO }
  */
-function alertas({ ck = null, resumoFin = null, recebimento = null, dataEvento = '' } = {}, hoje = hojeIso()) {
+function alertas({ ck = null, resumoFin = null, recebimento = null, dataEvento = '', traduzir = (x) => x } = {}, hoje = hojeIso()) {
   const out = [];
   const futuro = !dataEvento || dataEvento >= hoje;
   if (ck && futuro) {
     const atrasadas = ck.secoes.flatMap((s) => s.itens).filter((i) => i.atrasada && !i.concluida);
     if (atrasadas.length) {
-      out.push({ nivel: 'critico', tipo: 'atividade', titulo: `${atrasadas.length} atividade(s) atrasada(s)`,
-        texto: atrasadas.slice(0, 4).map((i) => i.texto.replace(/\s+/g, ' ').slice(0, 70)).join(' · ') + (atrasadas.length > 4 ? ' …' : '') });
+      const curto = (x) => (x.length > 72 ? `${x.slice(0, 70).replace(/\s+\S*$/, '')}…` : x);
+      const lista = atrasadas.slice(0, 4).map((i) => curto(traduzir(i.texto).replace(/\s+/g, ' '))).join(' · ') + (atrasadas.length > 4 ? ' …' : '');
+      out.push({ nivel: 'critico', tipo: 'atividade', codigo: 'atrasadas', p: { n: atrasadas.length, lista },
+        titulo: `${atrasadas.length} atividade(s) atrasada(s)`, texto: lista });
     } else if (ck.ritmo && ck.ritmo.situacao === 'atrasado') {
-      out.push({ nivel: 'aviso', tipo: 'atividade', titulo: 'Ritmo abaixo do previsto', texto: `${-ck.ritmo.saldo} atividade(s) atrás do cronograma.` });
+      out.push({ nivel: 'aviso', tipo: 'atividade', codigo: 'ritmo', p: { n: -ck.ritmo.saldo }, titulo: 'Ritmo abaixo do previsto', texto: `${-ck.ritmo.saldo} atividade(s) atrás do cronograma.` });
     }
     const atual = ck.secoes.find((s) => s.situacao === 'atual');
     const doMes = atual ? atual.itens.filter((i) => !i.concluida && !i.atrasada).length : 0;
-    if (atual && doMes) out.push({ nivel: 'info', tipo: 'atividade', titulo: `${doMes} atividade(s) para esta etapa`, texto: `${atual.rotulo.toLowerCase()} · até ${atual.fim}` });
+    if (atual && doMes) out.push({ nivel: 'info', tipo: 'atividade', codigo: 'etapa', p: { n: doMes, meses: atual.meses, fim: atual.fim },
+      titulo: `${doMes} atividade(s) para esta etapa`, texto: `${atual.rotulo.toLowerCase()} · até ${atual.fim}` });
   }
   if (resumoFin) {
     for (const v of resumoFin.atrasados || []) {
-      out.push({ nivel: 'critico', tipo: 'pagamento', titulo: `${v.fornecedor}: parcela ${v.numero} vencida`,
-        texto: `${moeda(v.valor)} · venceu em ${dBr(v.vencimento)} (${diasEntre(v.vencimento, hoje)} dia(s))` });
+      out.push({ nivel: 'critico', tipo: 'pagamento', codigo: 'vencida', p: { forn: v.fornecedor, num: v.numero, valor: v.valor, venc: v.vencimento, dias: diasEntre(v.vencimento, hoje) },
+        titulo: `${v.fornecedor}: parcela ${v.numero} vencida`, texto: `${moeda(v.valor)} · venceu em ${dBr(v.vencimento)} (${diasEntre(v.vencimento, hoje)} dia(s))` });
     }
     for (const e of resumoFin.entradas_pendentes || []) {
-      if (e.vencimento && e.vencimento < hoje) out.push({ nivel: 'critico', tipo: 'pagamento', titulo: `${e.fornecedor}: entrada em aberto`, texto: `${moeda(e.valor)} · prevista para ${dBr(e.vencimento)}` });
+      if (e.vencimento && e.vencimento < hoje) out.push({ nivel: 'critico', tipo: 'pagamento', codigo: 'entrada', p: { forn: e.fornecedor, valor: e.valor, venc: e.vencimento },
+        titulo: `${e.fornecedor}: entrada em aberto`, texto: `${moeda(e.valor)} · prevista para ${dBr(e.vencimento)}` });
     }
     const em7 = iso(somarDias(deIso(hoje), 7));
     for (const v of (resumoFin.proximos || []).filter((x) => x.vencimento <= em7)) {
-      out.push({ nivel: 'aviso', tipo: 'pagamento', titulo: `${v.fornecedor}: parcela ${v.numero} vence ${v.vencimento === hoje ? 'hoje' : `em ${dBr(v.vencimento)}`}`, texto: moeda(v.valor) });
+      out.push({ nivel: 'aviso', tipo: 'pagamento', codigo: 'vence', p: { forn: v.fornecedor, num: v.numero, valor: v.valor, venc: v.vencimento, hoje: v.vencimento === hoje },
+        titulo: `${v.fornecedor}: parcela ${v.numero} vence ${v.vencimento === hoje ? 'hoje' : `em ${dBr(v.vencimento)}`}`, texto: moeda(v.valor) });
     }
     // saldo sem parcelas a vencer: quitar antes do casamento (aviso nos 45 dias anteriores)
     if (dataEvento && dataEvento >= hoje && diasEntre(hoje, dataEvento) <= 45) {
       for (const i of resumoFin.itens || []) {
         const c = i.calc;
         if (c.saldo > 0.009 && !c.vencimentos.some((v) => !v.paga)) {
-          out.push({ nivel: 'aviso', tipo: 'pagamento', titulo: `${i.nome}: quitar antes do casamento`, texto: `${moeda(c.saldo)} em aberto` });
+          out.push({ nivel: 'aviso', tipo: 'pagamento', codigo: 'quitar', p: { forn: i.nome, valor: c.saldo }, titulo: `${i.nome}: quitar antes do casamento`, texto: `${moeda(c.saldo)} em aberto` });
         }
       }
     }
   }
   if (recebimento && recebimento.status === 'Atrasado') {
-    out.push({ nivel: 'critico', tipo: 'assessoria', titulo: 'Assessoria: pagamento em atraso', texto: `${moeda(recebimento.atrasado)} em atraso com a Tayná` });
+    out.push({ nivel: 'critico', tipo: 'assessoria', codigo: 'assessoria', p: { valor: recebimento.atrasado }, titulo: 'Assessoria: pagamento em atraso', texto: `${moeda(recebimento.atrasado)} em atraso com a Tayná` });
   }
   if (recebimento && recebimento.divergencia) out.push({ nivel: 'info', tipo: 'assessoria', titulo: 'Conferir valores', texto: recebimento.divergencia });
   const peso = { critico: 0, aviso: 1, info: 2 };

@@ -136,7 +136,7 @@ async function principal() {
   ok('depois disso só a senha nova vale; equipe não entra por senha; casal aparece em Usuários');
 
   for (let i = 0; i < 5; i++) await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: `errada${i}` } });
-  assert.match(decodeURIComponent(loc(await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: 'nosso-casamento' } }))), /Muitas tentativas/);
+  assert.match(decodeURIComponent(loc(await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: 'nosso-casamento' } }))), /erro=tentativas/);
   ok('5 senhas erradas bloqueiam por 15 minutos');
 
   r = await pedir('POST', '/api/usuarios', { cookie: ADMIN, corpo: { acao: 'zerar-senha', email: 'ana@hotmail.com', motivo: 'Casal esqueceu a senha' } });

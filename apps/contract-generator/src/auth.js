@@ -27,6 +27,7 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 const path = require('path');
+const idiomas = require('./idiomas');
 
 const PAPEIS = ['admin', 'equipe', 'casal'];
 const DURACAO_SESSAO = 12 * 60 * 60; // 12 h
@@ -224,7 +225,7 @@ function conferirIdToken(idToken, { clientId, nonce, agora = Math.floor(Date.now
 // ---------------------------------------------------------------------------
 // Permissões por perfil
 // ---------------------------------------------------------------------------
-const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/(movel\.(css|js)|campos\.js|acompanhamento\.js|motivo\.js)$/, /^GET \/saude$/,
+const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/(movel\.(css|js)|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js)$/, /^GET \/saude$/,
   // formulário do site (taynaalvesassessoria.com.br): pedido de orçamento e de horário com a Tayná
   /^GET \/api\/publico\/(servicos|horarios)$/, /^POST \/api\/publico\/(orcamento|agenda)$/];
 const EQUIPE = [
@@ -281,7 +282,9 @@ function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPor
   const retorno = `${c.url}/auth/google/retorno`;
   const LOCAL = { email: 'local', nome: 'Este computador', papel: 'admin', local: true };
 
-  const html = (res, status, corpo) => { res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(corpo); };
+  const html = (res, status, corpo, extra = {}) => { res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Language': extra.lang || 'pt', ...(extra.cookie ? { 'Set-Cookie': extra.cookie } : {}) }); res.end(corpo); };
+  // idioma das telas do casal (?idioma=xx fica gravado no cookie)
+  const idiomaDe = (req, url) => { const lang = idiomas.escolher(req, url); const q = idiomas.valido(url.searchParams.get('idioma')); return { lang, cookie: q ? idiomas.cookieIdioma(q, seguro) : null }; };
   const redirecionar = (res, para, cookies = []) => { res.writeHead(302, { Location: para, 'Set-Cookie': cookies, 'Cache-Control': 'no-store' }); res.end(); };
   const destinoSeguro = (p) => (typeof p === 'string' && /^\/(?!\/)[^\s\\]*$/.test(p) && !p.startsWith('/auth/') ? p : '/');
 
@@ -298,7 +301,7 @@ function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPor
     const chave = `${req.method} ${url.pathname}`;
 
     // ---- rotas do próprio login ----
-    if (chave === 'GET /entrar') return html(res, 200, paginaEntrar(url.searchParams.get('erro'), url.searchParams.get('email'), destinoSeguro(url.searchParams.get('voltar')))), { fim: true };
+    if (chave === 'GET /entrar') { const i = idiomaDe(req, url); return html(res, 200, paginaEntrar(url.searchParams.get('erro'), url.searchParams.get('email'), destinoSeguro(url.searchParams.get('voltar')), i.lang), i), { fim: true }; }
     if (chave === 'GET /auth/google') {
       const estado = { s: aleatorio(), n: aleatorio(), v: aleatorio(48), r: destinoSeguro(url.searchParams.get('voltar')), exp: Math.floor(Date.now() / 1000) + 600 };
       const desafio = b64url(crypto.createHash('sha256').update(estado.v).digest());
@@ -336,12 +339,12 @@ function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPor
       const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || '';
       const f = await lerForm(req);
       const email = normEmail(f.email); const senha = String(f.senha || '');
-      const falha = (m = 'E-mail ou senha incorretos.') => { errou(`ip:${ip}`); errou(`email:${email}`); redirecionar(res, `/entrar?erro=${encodeURIComponent(m)}&email=${encodeURIComponent(email)}#casal`); return { fim: true }; };
-      if (!origemOk(req)) return falha('Origem não permitida.');
-      if (bloqueado(`ip:${ip}`) || bloqueado(`email:${email}`)) { redirecionar(res, `/entrar?erro=${encodeURIComponent('Muitas tentativas. Espere 15 minutos e tente de novo.')}#casal`); return { fim: true }; }
-      if (!email || !senha) return falha('Informe o e-mail e a senha.');
+      const falha = (m = 'credenciais') => { errou(`ip:${ip}`); errou(`email:${email}`); redirecionar(res, `/entrar?erro=${encodeURIComponent(m)}&email=${encodeURIComponent(email)}#casal`); return { fim: true }; };
+      if (!origemOk(req)) return falha('origem');
+      if (bloqueado(`ip:${ip}`) || bloqueado(`email:${email}`)) { redirecionar(res, '/entrar?erro=tentativas#casal'); return { fim: true }; }
+      if (!email || !senha) return falha('informe');
       const bruto = usuarios.listar().find((u) => u.email === email);
-      if (bruto && (bruto.bloqueado || bruto.papel !== 'casal')) return falha(bruto.papel !== 'casal' && !bruto.bloqueado ? 'Equipe da Tayná: use "Entrar com Google".' : undefined);
+      if (bruto && (bruto.bloqueado || bruto.papel !== 'casal')) return falha(bruto.papel !== 'casal' && !bruto.bloqueado ? 'equipe' : undefined);
       if (senhas.tem(email)) {
         if (!senhas.conferir(email, senha)) return falha();
         const u = usuarios.obter(email);
@@ -361,17 +364,17 @@ function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPor
     }
     if (chave === 'GET /auth/nova-senha' || chave === 'POST /auth/nova-senha') {
       const pend = conferir(c.segredo, lerCookies(req)[COOKIE_NOVA]);
-      if (!pend) { redirecionar(res, `/entrar?erro=${encodeURIComponent('O primeiro acesso expirou. Entre de novo com o CPF.')}#casal`); return { fim: true }; }
-      if (req.method === 'GET') return html(res, 200, paginaNovaSenha(pend, url.searchParams.get('erro'))), { fim: true };
+      if (!pend) { redirecionar(res, '/entrar?erro=expirou#casal'); return { fim: true }; }
+      if (req.method === 'GET') { const i = idiomaDe(req, url); return html(res, 200, paginaNovaSenha(pend, url.searchParams.get('erro'), i.lang), i), { fim: true }; }
       const f = await lerForm(req);
       const s1 = String(f.senha || ''); const s2 = String(f.confirmar || '');
       const casal = casalPorArquivo(pend.arquivo);
-      const erroSenha = !origemOk(req) ? 'Origem não permitida.' : s1.length < 8 ? 'A senha precisa ter pelo menos 8 caracteres.' : s1 !== s2 ? 'As duas senhas não são iguais.'
-        : (casal && digitos(s1) === digitos(casal.cpf)) ? 'A senha nova não pode ser o CPF.' : '';
-      if (erroSenha) { redirecionar(res, `/auth/nova-senha?erro=${encodeURIComponent(erroSenha)}`); return { fim: true }; }
+      const erroSenha = !origemOk(req) ? 'origem' : s1.length < 8 ? 'curta' : s1 !== s2 ? 'diferentes'
+        : (casal && digitos(s1) === digitos(casal.cpf)) ? 'cpf' : '';
+      if (erroSenha) { redirecionar(res, `/auth/nova-senha?erro=${erroSenha}`); return { fim: true }; }
       let u = usuarios.listar().find((x) => x.email === pend.email);
       if (!u) u = usuarios.salvar({ email: pend.email, nome: pend.nome || '', papel: 'casal', casal: pend.arquivo }, 'primeiro acesso do casal');
-      if (u.bloqueado || u.papel !== 'casal') { redirecionar(res, '/entrar?erro=' + encodeURIComponent('Acesso não liberado.')); return { fim: true }; }
+      if (u.bloqueado || u.papel !== 'casal') { redirecionar(res, '/entrar?erro=liberado'); return { fim: true }; }
       senhas.definir(pend.email, s1);
       abrirSessao(res, u, '/meu-evento', [cookie(COOKIE_NOVA, '', { maxAge: 0, seguro })]);
       return { fim: true };
@@ -386,7 +389,7 @@ function criarAuth({ arquivoUsuarios, arquivoSenhas, env = process.env, casalPor
     const usuario = sessaoDe(req);
     const ehApi = url.pathname.startsWith('/api/');
     if (!usuario) {
-      if (ehApi) { res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ erro: 'Sessão expirada. Entre de novo.' })); }
+      if (ehApi) { res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ erro: idiomas.t(idiomas.escolher(req, url), 'erro.sessao') })); }
       else redirecionar(res, `/entrar?voltar=${encodeURIComponent(url.pathname + url.search)}`);
       return { fim: true };
     }
@@ -423,6 +426,7 @@ const ESTILO = `<style>
     border: 1px solid #dadce0; border-radius: 8px; color: #3c4043; font-weight: 600; text-decoration: none; background: #fff; }
   a.google:hover { background: #f8f9fa; } .erro { color: #b3261e; background: #fbeceb; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin-bottom: 14px; }
   .nota { color: #7b6f6a; font-size: 12.5px; margin-top: 18px; } a.lk { color: #824634; }
+  .idiomas { font-size: 12.5px; color: #9a8d88; text-align: right; margin: -14px -16px 8px 0; letter-spacing: .3px; } .idiomas a { color: #824634; text-decoration: none; padding: 2px; } .idiomas b { color: #2b2220; }
   form.casal { display: flex; flex-direction: column; gap: 10px; text-align: left; }
   form.casal .tit { font-weight: 700; color: #824634; text-align: center; }
   form.casal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: #5c4f4a; }
@@ -433,34 +437,42 @@ const ESTILO = `<style>
   .ou::before, .ou::after { content: ""; flex: 1; border-top: 1px solid #eadcd4; }
 </style>`;
 const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.8 6.1C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.8-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>';
-function paginaEntrar(erro, email, voltar = '/') {
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
-<img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Lotus</h1><div class="sub">sistema de gestão</div>
-${erro ? `<div class="erro" role="alert">${esc(erro)}</div>` : ''}
+// mensagem de erro: código conhecido (traduzido) ou texto vindo do login do Google
+const textoErro = (erro, lang) => { const k = `erro.${erro}`; const tr = idiomas.t(lang, k); return tr !== k ? tr : erro; };
+const seletorIdioma = (lang, caminho) => `<div class="idiomas" aria-label="${idiomas.t(lang, 'idioma')}">${idiomas.seletorHtml(lang, caminho)}</div>`;
+function paginaEntrar(erro, email, voltar = '/', lang = 'pt') {
+  const t = (k) => idiomas.t(lang, k);
+  const htmlLang = idiomas.LOCALE[lang] || 'pt-BR';
+  return `<!DOCTYPE html><html lang="${htmlLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${t('entrar.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
+${seletorIdioma(lang, '/entrar')}
+<img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Lotus</h1><div class="sub">${t('entrar.sub')}</div>
+${erro ? `<div class="erro" role="alert">${esc(textoErro(erro, lang))}</div>` : ''}
 <form class="casal" id="casal" method="post" action="/auth/senha">
-  <div class="tit">Área do casal</div>
-  <label>E-mail do contrato<input name="email" type="email" autocomplete="username" required value="${esc(email || '')}"></label>
-  <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
-  <button type="submit">Entrar</button>
-  <div class="dica">Primeiro acesso: a senha é o <b>CPF do contrato</b> (só números). Em seguida vocês criam uma senha própria.</div>
+  <div class="tit">${t('entrar.casal')}</div>
+  <label>${t('entrar.email')}<input name="email" type="email" autocomplete="username" required value="${esc(email || '')}"></label>
+  <label>${t('entrar.senha')}<input name="senha" type="password" autocomplete="current-password" required></label>
+  <button type="submit">${t('entrar.botao')}</button>
+  <div class="dica">${t('entrar.dica')}</div>
 </form>
-<div class="ou"><span>equipe da Tayná</span></div>
-<a class="google" href="/auth/google${voltar && voltar !== '/' ? `?voltar=${encodeURIComponent(voltar)}` : ''}">${G} Entrar com Google</a>
-<div class="nota">Esqueceu a senha? Fale com a Tayná. · <a href="/privacidade" style="color:inherit">Privacidade</a></div></div></body></html>`;
+<div class="ou"><span>${t('entrar.equipe')}</span></div>
+<a class="google" href="/auth/google${voltar && voltar !== '/' ? `?voltar=${encodeURIComponent(voltar)}` : ''}">${G} ${t('entrar.google')}</a>
+<div class="nota">${t('entrar.esqueceu')} · <a href="/privacidade" style="color:inherit">${t('entrar.privacidade')}</a></div></div></body></html>`;
 }
-function paginaNovaSenha(pend, erro) {
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Criar senha · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
-<img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Bem-vindos!</h1>
-<div class="sub">${esc(pend.nome || 'área do casal')}</div>
-${erro ? `<div class="erro" role="alert">${esc(erro)}</div>` : ''}
+function paginaNovaSenha(pend, erro, lang = 'pt') {
+  const t = (k) => idiomas.t(lang, k);
+  return `<!DOCTYPE html><html lang="${idiomas.LOCALE[lang] || 'pt-BR'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${t('nova.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
+${seletorIdioma(lang, '/auth/nova-senha')}
+<img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>${t('nova.bemvindos')}</h1>
+<div class="sub">${esc(pend.nome || t('nova.area'))}</div>
+${erro ? `<div class="erro" role="alert">${esc(textoErro(erro, lang))}</div>` : ''}
 <form class="casal" method="post" action="/auth/nova-senha">
-  <div class="dica" style="margin:0 0 4px">Criem uma senha para os próximos acessos (mínimo 8 caracteres). O CPF deixa de valer como senha.</div>
+  <div class="dica" style="margin:0 0 4px">${t('nova.dica')}</div>
   <input type="email" name="email" value="${esc(pend.email)}" autocomplete="username" hidden>
-  <label>Nova senha<input name="senha" type="password" autocomplete="new-password" minlength="8" required></label>
-  <label>Repita a senha<input name="confirmar" type="password" autocomplete="new-password" minlength="8" required></label>
-  <button type="submit">Salvar e entrar</button>
+  <label>${t('nova.senha')}<input name="senha" type="password" autocomplete="new-password" minlength="8" required></label>
+  <label>${t('nova.repita')}<input name="confirmar" type="password" autocomplete="new-password" minlength="8" required></label>
+  <button type="submit">${t('nova.botao')}</button>
 </form></div></body></html>`;
 }
 function paginaSemAcesso(u) {

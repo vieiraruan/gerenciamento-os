@@ -31,6 +31,7 @@ const gestao = require('./gestao');
 const acomp = require('./acompanhamento');
 const avisos = require('./avisos');
 const imagens = require('./imagens');
+const idiomas = require('./idiomas');
 const registro = require('./registro');
 const { AsyncLocalStorage } = require('async_hooks');
 
@@ -401,7 +402,7 @@ let CACHE_HORARIOS = { t: 0, horarios: [] };
 async function horariosLivres(forcar = false) {
   if (!forcar && Date.now() - CACHE_HORARIOS.t < 180e3) return CACHE_HORARIOS.horarios;
   const r = await planilhaGoogle.chamar(DADOS, 'horarios', { dias: 10, minutos: 30 }, { tempo: 20000 });
-  const horarios = r.ok ? (r.horarios || []).map((inicio) => ({ inicio, rotulo: pedidos.rotuloHorario(inicio) })) : [];
+  const horarios = r.ok ? (r.horarios || []).map((inicio) => ({ inicio, rotulo: pedidos.rotuloHorario(inicio) })) : [];  // rótulo em pt; o site pede ?idioma
   CACHE_HORARIOS = { t: r.ok ? Date.now() : 0, horarios };
   return horarios;
 }
@@ -525,7 +526,9 @@ function casalDe(usuario, arquivoPedido) {
 }
 
 /** Tudo o que o casal vê na área do casal: preparativos (editáveis) e fornecedores/pagamentos (só leitura). */
-function meuEvento(pedidoArquivo, { carregarFin = null, admin = false } = {}) {
+function meuEvento(pedidoArquivo, { carregarFin = null, admin = false, idioma = 'pt' } = {}) {
+  const lang = idiomas.valido(idioma) || 'pt';
+  const tr = (txt) => idiomas.tarefa(txt, lang);
   const { arquivo, campos, cliente } = contratoDe(pedidoArquivo);
   const evento = ev.carregarEvento(DADOS, arquivo, campos, cliente);
   const vertente = evento.vertente || (/^s/i.test(campos.destination || '') ? 'destination' : 'padrao');
@@ -534,9 +537,9 @@ function meuEvento(pedidoArquivo, { carregarFin = null, admin = false } = {}) {
   // no painel da Tayná a assessoria aparece à parte (recebimento); o casal vê a linha dela com os fornecedores
   const r = f ? fin.resumo(admin ? { ...f, itens: (f.itens || []).filter((i) => !gestao.ehTayna(i)) } : f) : null;
   const rotuloEtapa = (m) => (m === 1 ? '1 MÊS ANTES' : `${m} MESES ANTES`);
-  const tarefa = (i, sec) => ({ chave: i.chave, texto: i.texto, concluida: i.concluida, status: i.status || '', obs: i.obs || '',
+  const tarefa = (i, sec) => ({ chave: i.chave, texto: tr(i.texto), concluida: i.concluida, status: i.status || '', obs: i.obs || '',
     atrasada: Boolean(i.atrasada), fornecedor: i.fornecedor || '', pelo_casal: i.editado_por === 'casal',
-    etapa: sec ? sec.rotulo : rotuloEtapa(Number(i.mes_base) || 1), prazo: sec ? sec.fim || '' : '' });
+    etapa: sec ? sec.rotulo : rotuloEtapa(Number(i.mes_base) || 1), etapa_meses: sec ? sec.meses : Number(i.mes_base) || 1, prazo: sec ? sec.fim || '' : '' });
   const cadastros = new Map(fin.listarFornecedores(DADOS).map((c) => [c.id, c]));
   const recebimento = admin ? gestao.recebimentoCasal(arquivo, campos, f) : null;
   const dataEvento = fin.dataDe(campos.evento_data) || '';
@@ -546,11 +549,12 @@ function meuEvento(pedidoArquivo, { carregarFin = null, admin = false } = {}) {
     status_tarefa: STATUS_TAREFA,
     cronograma: ck ? {
       ritmo: ck.ritmo,
-      secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao, itens: sec.itens.map((i) => tarefa(i, sec)) })),
+      secoes: ck.secoes.map((sec) => ({ rotulo: sec.rotulo, meses: sec.meses, inicio: sec.inicio, fim: sec.fim, situacao: sec.situacao, itens: sec.itens.map((i) => tarefa(i, sec)) })),
       concluidas: ck.concluidas.map((i) => ({ ...tarefa(i), concluida_em: i.concluida_em || '' })),
     } : null,
     burndown: ck ? acomp.burndown(ck, evento) : null,
-    alertas: acomp.alertas({ ck, resumoFin: r, recebimento, dataEvento }),
+    alertas: acomp.alertas({ ck, resumoFin: r, recebimento, dataEvento, traduzir: tr }),
+    idioma: lang,
     fornecedores: r ? r.itens.map((i) => {
       const cad = (i.fornecedor_id && cadastros.get(i.fornecedor_id)) || {};
       const c = i.calc;
@@ -602,14 +606,17 @@ async function pagamentoDoCasal(usuario, q, comprovante) {
   const limpo = { id: item.id, tipo: ['entrada', 'parcela', 'avulso'].includes(d.tipo) ? d.tipo : 'parcela', valor: d.valor, data: d.data,
     forma: String(d.forma || '').slice(0, 40), obs: String(d.obs || '').slice(0, 300), lancado_por: (usuario && usuario.email) || 'casal' };
   await enviarFinanceiro(new URLSearchParams({ arquivo: arq, op: 'pagamento', dados: JSON.stringify(limpo) }), comprovante);
-  return meuEvento(arq);
+  return meuEvento(arq, { idioma: q.get('idioma') });
 }
 
 
 const rotas = {
   // ---- Site: pedido de orçamento (público, sem login) ----
-  'GET /api/publico/servicos': () => ({ servicos: pedidos.servicosDoSite() }),
-  'GET /api/publico/horarios': async () => ({ horarios: await horariosLivres(), whatsapp: pedidos.linkWhatsTayna({ nome: 'um casal', data: '' }) }),
+  'GET /api/publico/servicos': (q) => ({ servicos: pedidos.servicosDoSite(q.get('idioma') || 'pt') }),
+  'GET /api/publico/horarios': async (q) => {
+    const l = idiomas.valido(q.get('idioma')) || 'pt';
+    return { horarios: (await horariosLivres()).map((h) => ({ ...h, rotulo: pedidos.rotuloHorario(h.inicio, l) })), whatsapp: pedidos.linkWhatsTayna({ nome: 'um casal', data: '' }) };
+  },
   'POST /api/publico/orcamento': (q, corpo, usuario, req) => {
     if (corpo.site) return { ok: true, id: '00000000-000000', token: '' }; // robô (campo escondido preenchido): não grava
     const ip = limitar(req, 'orcamento', 6);
@@ -622,9 +629,9 @@ const rotas = {
     const p = pedidos.carregar(DADOS, String(corpo.id || ''));
     const ok = p && typeof corpo.token === 'string' && corpo.token.length === p.token.length
       && require('crypto').timingSafeEqual(Buffer.from(corpo.token), Buffer.from(p.token));
-    if (!ok) throw new Error('Pedido não encontrado.');
+    if (!ok) throw new Error(idiomas.t(corpo.idioma, 'site.nao_encontrado'));
     const livres = await horariosLivres(true);
-    if (!livres.some((h) => h.inicio === corpo.inicio)) throw new Error('Este horário acabou de ser ocupado. Escolha outro.');
+    if (!livres.some((h) => h.inicio === corpo.inicio)) throw new Error(idiomas.t(p.idioma, 'site.ocupado'));
     p.agenda = { inicio: corpo.inicio, pedido_em: new Date().toISOString(), estado: 'aguardando' };
     p.historico.push(`${new Date().toISOString()} - Casal pediu conversa em ${pedidos.rotuloHorario(corpo.inicio)}.`);
     pedidos.salvar(DADOS, p);
@@ -634,7 +641,7 @@ const rotas = {
       planilhaGoogle.chamar(DADOS, 'email', { ...a, para: emailAlertas(), nome_remetente: 'Lotus' })
         .then((r) => { const atual = pedidos.carregar(DADOS, p.id); atual.emails.agenda = r; pedidos.salvar(DADOS, atual); }).catch(() => {});
     }
-    return { ok: true, rotulo: pedidos.rotuloHorario(corpo.inicio) };
+    return { ok: true, rotulo: pedidos.rotuloHorario(corpo.inicio, p.idioma) };
   },
 
   // ---- Imagens compartilhadas (equipe e admin) ----
@@ -839,13 +846,13 @@ const rotas = {
   'GET /api/eu': (q, corpo, u) => ({ login: AUTH.ativo, email: u?.email || '', nome: u?.nome || '', papel: u?.papel || 'admin', casal: u?.casal || '', foto: u?.foto || '' }),
 
   // portal do casal: o próprio evento, cronograma e fornecedores (só leitura). Admin pode ver qualquer um (?arquivo=)
-  'GET /api/meu-evento': (q, corpo, u) => meuEvento(casalDe(u, q.get('arquivo'))),
+  'GET /api/meu-evento': (q, corpo, u) => meuEvento(casalDe(u, q.get('arquivo')), { idioma: q.get('idioma') }),
   // o casal marca as atividades dos preparativos (situação e observação)
   'POST /api/meu-evento/tarefa': (q, corpo, u) => {
     const arquivo = casalDe(u, corpo.arquivo);
     if (corpo.status !== undefined && !STATUS_TAREFA.includes(corpo.status)) throw new Error('Situação inválida.');
     marcarTarefa(arquivo, { chave: corpo.chave, status: corpo.status, obs: corpo.obs, status_atual: corpo.status_atual }, u);
-    return meuEvento(arquivo);
+    return meuEvento(arquivo, { idioma: corpo.idioma || q.get('idioma') });
   },
 
   // usuários do Lotus online (só admin)
@@ -1204,11 +1211,12 @@ async function atender(req, res, url) {
         .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`)
         .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`)
         .replace(/\/acompanhamento\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'acompanhamento.js')).mtimeMs)}`)
-        .replace(/\/motivo\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'motivo.js')).mtimeMs)}`);
+        .replace(/\/motivo\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'motivo.js')).mtimeMs)}`)
+        .replace(/\/idioma\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'idioma.js')).mtimeMs)}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     // ajustes de celular comuns a todas as telas
-    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js|motivo\.js)$/.exec(url.pathname);
+    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js)$/.exec(url.pathname);
     if (req.method === 'GET' && comum) {
       res.writeHead(200, { 'Content-Type': comum[1].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'app', comum[1])));

@@ -1,0 +1,753 @@
+{
+ "_comentario": "Tradução das atividades do cronograma (área do casal). Chave = texto em português do modelo (templates/checklists). Texto sem tradução aparece em português.",
+ "Definição da data do casamento": {
+  "en": "Set the wedding date",
+  "es": "Definir la fecha de la boda",
+  "fr": "Fixer la date du mariage",
+  "de": "Hochzeitsdatum festlegen"
+ },
+ "Quantidade de convidados / fazer a lista completa": {
+  "en": "Number of guests / make the full guest list",
+  "es": "Número de invitados / hacer la lista completa",
+  "fr": "Nombre d'invités / établir la liste complète",
+  "de": "Gästezahl / vollständige Gästeliste erstellen"
+ },
+ "Definição do orçamento total do casamento": {
+  "en": "Set the total wedding budget",
+  "es": "Definir el presupuesto total de la boda",
+  "fr": "Définir le budget total du mariage",
+  "de": "Gesamtbudget der Hochzeit festlegen"
+ },
+ "Definir estilo da festa e da cerimônia (informal, clássica, rústica, boho e outras)": {
+  "en": "Choose the style of the party and ceremony (casual, classic, rustic, boho and others)",
+  "es": "Definir el estilo de la fiesta y la ceremonia (informal, clásico, rústico, boho y otros)",
+  "fr": "Définir le style de la fête et de la cérémonie (décontracté, classique, rustique, bohème, etc.)",
+  "de": "Stil von Feier und Trauung festlegen (locker, klassisch, rustikal, Boho u. a.)"
+ },
+ "Ter ideia da paleta de cores (a definição final será após reunião com o decorador)": {
+  "en": "Have an idea of the color palette (final choice after the meeting with the decorator)",
+  "es": "Tener una idea de la paleta de colores (la definición final será tras la reunión con el decorador)",
+  "fr": "Avoir une idée de la palette de couleurs (choix final après la réunion avec le décorateur)",
+  "de": "Eine Idee der Farbpalette haben (endgültig nach dem Termin mit dem Dekorateur)"
+ },
+ "Fazer reunião de briefing | Definir os itens que vai querer e quais fornecedores cotar": {
+  "en": "Briefing meeting | Decide which items you want and which vendors to quote",
+  "es": "Reunión de briefing | Definir qué elementos quieren y qué proveedores cotizar",
+  "fr": "Réunion de briefing | Définir les éléments souhaités et les prestataires à consulter",
+  "de": "Briefing-Termin | Gewünschte Leistungen und anzufragende Dienstleister festlegen"
+ },
+ "Criar pasta de compartilhamento": {
+  "en": "Create a shared folder",
+  "es": "Crear una carpeta compartida",
+  "fr": "Créer un dossier partagé",
+  "de": "Gemeinsamen Ordner anlegen"
+ },
+ "Criar planilha de orçamento | Análise de budget": {
+  "en": "Create the budget spreadsheet | Budget review",
+  "es": "Crear la hoja de presupuesto | Análisis del presupuesto",
+  "fr": "Créer le tableau du budget | Analyse du budget",
+  "de": "Budget-Tabelle erstellen | Budget prüfen"
+ },
+ "Elaborar planilha de fluxo de pagamento | Preencher com o que já foi contratado": {
+  "en": "Prepare the payment schedule spreadsheet | Fill in what has already been booked",
+  "es": "Elaborar la hoja de flujo de pagos | Completar con lo ya contratado",
+  "fr": "Préparer l'échéancier des paiements | Le remplir avec ce qui est déjà réservé",
+  "de": "Zahlungsplan erstellen | Bereits Gebuchtes eintragen"
+ },
+ "Contratar o espaço para cerimônia e festa": {
+  "en": "Book the venue for the ceremony and party",
+  "es": "Contratar el lugar para la ceremonia y la fiesta",
+  "fr": "Réserver le lieu de la cérémonie et de la fête",
+  "de": "Location für Trauung und Feier buchen"
+ },
+ "Iniciar a pesquisa de fornecedores: buffet, música, bebidas, decoração, foto, vídeo e outros": {
+  "en": "Start researching vendors: catering, music, drinks, decor, photo, video and others",
+  "es": "Empezar a buscar proveedores: catering, música, bebidas, decoración, foto, vídeo y otros",
+  "fr": "Commencer à chercher les prestataires : traiteur, musique, boissons, décoration, photo, vidéo, etc.",
+  "de": "Dienstleister recherchieren: Catering, Musik, Getränke, Deko, Foto, Video u. a."
+ },
+ "Contratar buffet": {
+  "en": "Book the catering",
+  "es": "Contratar el catering",
+  "fr": "Réserver le traiteur",
+  "de": "Catering buchen"
+ },
+ "Contratar decoração da cerimônia e recepção / adesivo de pista": {
+  "en": "Book the ceremony and reception decor / dance floor decal",
+  "es": "Contratar la decoración de la ceremonia y la recepción / vinilo de pista",
+  "fr": "Réserver la décoration de la cérémonie et de la réception / sticker de piste",
+  "de": "Deko für Trauung und Empfang buchen / Tanzflächen-Aufkleber"
+ },
+ "Contratar mesas e cadeiras (se não estiver incluso no contrato da decoração)": {
+  "en": "Rent tables and chairs (if not included in the decor contract)",
+  "es": "Contratar mesas y sillas (si no están incluidas en el contrato de decoración)",
+  "fr": "Louer tables et chaises (si non incluses dans le contrat de décoration)",
+  "de": "Tische und Stühle mieten (falls nicht im Deko-Vertrag enthalten)"
+ },
+ "Contratar audiovisual (palco, sonorização, iluminação cênica e de pista)": {
+  "en": "Book audiovisual (stage, sound, stage and dance floor lighting)",
+  "es": "Contratar audiovisual (escenario, sonido, iluminación escénica y de pista)",
+  "fr": "Réserver l'audiovisuel (scène, sonorisation, éclairage scénique et de piste)",
+  "de": "Technik buchen (Bühne, Ton, Bühnen- und Tanzflächenlicht)"
+ },
+ "Contratar estrutura necessária (fechamentos, cobertura, piso e outros)": {
+  "en": "Book the required structures (enclosures, roofing, flooring and others)",
+  "es": "Contratar la estructura necesaria (cerramientos, cubierta, piso y otros)",
+  "fr": "Réserver les structures nécessaires (cloisons, couverture, plancher, etc.)",
+  "de": "Notwendige Aufbauten buchen (Seitenwände, Überdachung, Boden u. a.)"
+ },
+ "Contratar gerador": {
+  "en": "Rent a generator",
+  "es": "Contratar generador",
+  "fr": "Louer un groupe électrogène",
+  "de": "Stromaggregat mieten"
+ },
+ "Contratar banda da cerimônia": {
+  "en": "Book the ceremony musicians",
+  "es": "Contratar la banda de la ceremonia",
+  "fr": "Réserver les musiciens de la cérémonie",
+  "de": "Musiker für die Trauung buchen"
+ },
+ "Contratar DJ": {
+  "en": "Book the DJ",
+  "es": "Contratar DJ",
+  "fr": "Réserver le DJ",
+  "de": "DJ buchen"
+ },
+ "Contratar banda / dupla sertaneja / bloco de carnaval": {
+  "en": "Book a band / country duo / carnival group",
+  "es": "Contratar banda / dúo sertanejo / comparsa de carnaval",
+  "fr": "Réserver un groupe / duo sertanejo / bloc de carnaval",
+  "de": "Band / Sertanejo-Duo / Karnevalsgruppe buchen"
+ },
+ "Começar a pesquisar o vestido de noiva": {
+  "en": "Start looking for the wedding dress",
+  "es": "Empezar a buscar el vestido de novia",
+  "fr": "Commencer à chercher la robe de mariée",
+  "de": "Mit der Suche nach dem Brautkleid beginnen"
+ },
+ "Contratar celebrante": {
+  "en": "Book the officiant",
+  "es": "Contratar al oficiante",
+  "fr": "Réserver l'officiant",
+  "de": "Trauredner buchen"
+ },
+ "Contratar equipe de cabelo e maquiagem": {
+  "en": "Book the hair and makeup team",
+  "es": "Contratar el equipo de peluquería y maquillaje",
+  "fr": "Réserver l'équipe coiffure et maquillage",
+  "de": "Team für Haare und Make-up buchen"
+ },
+ "Contratar foto": {
+  "en": "Book the photographer",
+  "es": "Contratar fotografía",
+  "fr": "Réserver le photographe",
+  "de": "Fotografen buchen"
+ },
+ "Contratar vídeo": {
+  "en": "Book the videographer",
+  "es": "Contratar vídeo",
+  "fr": "Réserver le vidéaste",
+  "de": "Videografen buchen"
+ },
+ "Pesquisar destino de lua de mel": {
+  "en": "Research honeymoon destinations",
+  "es": "Buscar destino de luna de miel",
+  "fr": "Chercher la destination de la lune de miel",
+  "de": "Flitterwochen-Ziel recherchieren"
+ },
+ "Definir e comprar presente para padrinhos, madrinhas, pajens e daminhas (entregar junto ao convite)": {
+  "en": "Choose and buy gifts for the best men, bridesmaids, page boys and flower girls (give with the invitation)",
+  "es": "Definir y comprar los regalos para padrinos, madrinas, pajes y damitas (entregar junto con la invitación)",
+  "fr": "Choisir et acheter les cadeaux des témoins, demoiselles d'honneur, pages et petites filles d'honneur (à remettre avec l'invitation)",
+  "de": "Geschenke für Trauzeugen, Brautjungfern, Pagen und Blumenkinder auswählen und kaufen (mit der Einladung überreichen)"
+ },
+ "Pegar tamanho de cada item dos presentes de padrinhos e madrinhas, para definir o tamanho das caixas": {
+  "en": "Measure each item of the best men's and bridesmaids' gifts to choose the box size",
+  "es": "Medir cada elemento de los regalos de padrinos y madrinas para definir el tamaño de las cajas",
+  "fr": "Mesurer chaque article des cadeaux des témoins pour définir la taille des boîtes",
+  "de": "Maße der Geschenke für Trauzeugen und Brautjungfern nehmen, um die Boxgröße festzulegen"
+ },
+ "Contratar cabine fotográfica": {
+  "en": "Book a photo booth",
+  "es": "Contratar cabina de fotos",
+  "fr": "Réserver un photomaton",
+  "de": "Fotobox buchen"
+ },
+ "Contratar convites": {
+  "en": "Order the invitations",
+  "es": "Contratar las invitaciones",
+  "fr": "Commander les faire-part",
+  "de": "Einladungskarten bestellen"
+ },
+ "Itens de papelaria (tag para bem-casado / lágrima de alegria / chuva de arroz / kit toalete / tag para lembranças)": {
+  "en": "Stationery (tags for bem-casado sweets / tears-of-joy tissues / rice toss / restroom kit / favor tags)",
+  "es": "Papelería (etiqueta para bem-casado / lágrimas de alegría / lluvia de arroz / kit de baño / etiqueta para recuerdos)",
+  "fr": "Papeterie (étiquettes pour bem-casados / larmes de joie / lancer de riz / kit toilettes / étiquettes des cadeaux invités)",
+  "de": "Papeterie (Anhänger für Bem-casados / Freudentränen-Tücher / Reiswurf / Toiletten-Set / Anhänger für Gastgeschenke)"
+ },
+ "Comprar os robes das madrinhas e da noiva": {
+  "en": "Buy robes for the bride and bridesmaids",
+  "es": "Comprar las batas de las madrinas y de la novia",
+  "fr": "Acheter les peignoirs de la mariée et des demoiselles d'honneur",
+  "de": "Morgenmäntel für Braut und Brautjungfern kaufen"
+ },
+ "Definir onde os padrinhos, daminhas e pajens irão alugar ou comprar o traje (para colocar a informação no convite)": {
+  "en": "Decide where the best men, flower girls and page boys will rent or buy their outfits (to include in the invitation)",
+  "es": "Definir dónde los padrinos, damitas y pajes alquilarán o comprarán su ropa (para incluirlo en la invitación)",
+  "fr": "Définir où les témoins, petites filles d'honneur et pages loueront ou achèteront leur tenue (à indiquer dans l'invitation)",
+  "de": "Festlegen, wo Trauzeugen, Blumenkinder und Pagen ihre Kleidung leihen oder kaufen (für die Einladung)"
+ },
+ "Escrever cartinha \"Por que foi escolhido\" para cada padrinho e madrinha | Colocar junto ao convite": {
+  "en": "Write a \"Why we chose you\" note for each best man and bridesmaid | Include it with the invitation",
+  "es": "Escribir la cartita \"Por qué te elegimos\" para cada padrino y madrina | Incluirla con la invitación",
+  "fr": "Écrire un petit mot « Pourquoi nous t'avons choisi » pour chaque témoin | Le joindre à l'invitation",
+  "de": "Für jeden Trauzeugen einen Brief „Warum wir dich gewählt haben“ schreiben | Der Einladung beilegen"
+ },
+ "Fazer o convite dos padrinhos, madrinhas, damas e pajens | Passar as informações de roupas e acessórios": {
+  "en": "Invite the best men, bridesmaids, flower girls and page boys | Share outfit and accessory details",
+  "es": "Hacer la invitación a padrinos, madrinas, damitas y pajes | Pasar la información de ropa y accesorios",
+  "fr": "Inviter les témoins, demoiselles d'honneur et enfants d'honneur | Transmettre les informations sur les tenues et accessoires",
+  "de": "Trauzeugen, Brautjungfern, Blumenkinder und Pagen einladen | Infos zu Kleidung und Accessoires weitergeben"
+ },
+ "Contratar o vestido de noiva": {
+  "en": "Order the wedding dress",
+  "es": "Contratar el vestido de novia",
+  "fr": "Commander la robe de mariée",
+  "de": "Brautkleid bestellen"
+ },
+ "Contratar doces": {
+  "en": "Order the sweets",
+  "es": "Contratar los dulces",
+  "fr": "Commander les mignardises",
+  "de": "Süßigkeiten bestellen"
+ },
+ "Contratar bolo": {
+  "en": "Order the cake",
+  "es": "Contratar la torta",
+  "fr": "Commander le gâteau",
+  "de": "Hochzeitstorte bestellen"
+ },
+ "Definir as lembrancinhas dos convidados (homens e mulheres)": {
+  "en": "Choose the guest favors (men and women)",
+  "es": "Definir los recuerdos de los invitados (hombres y mujeres)",
+  "fr": "Choisir les cadeaux des invités (hommes et femmes)",
+  "de": "Gastgeschenke festlegen (für Männer und Frauen)"
+ },
+ "Definir acessórios da noiva (joias, sapato, grinalda)": {
+  "en": "Choose the bride's accessories (jewelry, shoes, headpiece)",
+  "es": "Definir los accesorios de la novia (joyas, zapatos, tocado)",
+  "fr": "Choisir les accessoires de la mariée (bijoux, chaussures, coiffe)",
+  "de": "Accessoires der Braut festlegen (Schmuck, Schuhe, Haarschmuck)"
+ },
+ "Reservar o dia da noiva e a noite de núpcias": {
+  "en": "Book the bride's getting-ready day and the wedding night",
+  "es": "Reservar el día de la novia y la noche de bodas",
+  "fr": "Réserver la journée de préparation de la mariée et la nuit de noces",
+  "de": "Brautstyling-Tag und Hochzeitsnacht reservieren"
+ },
+ "Fazer site dos noivos (informações de maquiagem e cabelo, mapa, horários)": {
+  "en": "Create the couple's website (hair and makeup info, map, schedule)",
+  "es": "Hacer la web de los novios (información de maquillaje y peluquería, mapa, horarios)",
+  "fr": "Créer le site des mariés (infos coiffure et maquillage, plan, horaires)",
+  "de": "Hochzeitswebsite erstellen (Infos zu Haaren und Make-up, Karte, Zeiten)"
+ },
+ "Fazer a lista de presentes": {
+  "en": "Set up the gift registry",
+  "es": "Hacer la lista de regalos",
+  "fr": "Créer la liste de mariage",
+  "de": "Geschenkeliste anlegen"
+ },
+ "Fazer o save-the-date (colocar o site)": {
+  "en": "Create the save-the-date (include the website)",
+  "es": "Hacer el save-the-date (incluir la web)",
+  "fr": "Créer le save-the-date (avec le site)",
+  "de": "Save-the-Date erstellen (mit Website)"
+ },
+ "Contratar equipe de recreação": {
+  "en": "Book a kids' entertainment team",
+  "es": "Contratar el equipo de recreación infantil",
+  "fr": "Réserver l'équipe d'animation pour enfants",
+  "de": "Kinderbetreuung buchen"
+ },
+ "Comprar lembrancinhas (suculentas / sandália / cabine de foto)": {
+  "en": "Buy the favors (succulents / sandals / photo booth)",
+  "es": "Comprar los recuerdos (suculentas / sandalias / cabina de fotos)",
+  "fr": "Acheter les cadeaux invités (plantes grasses / sandales / photomaton)",
+  "de": "Gastgeschenke kaufen (Sukkulenten / Sandalen / Fotobox)"
+ },
+ "Contratar carrinho de comidinhas ou food bike": {
+  "en": "Book a snack cart or food bike",
+  "es": "Contratar carrito de comida o food bike",
+  "fr": "Réserver un chariot de snacks ou un food bike",
+  "de": "Snackwagen oder Food-Bike buchen"
+ },
+ "Roupa do noivo": {
+  "en": "Groom's outfit",
+  "es": "Traje del novio",
+  "fr": "Tenue du marié",
+  "de": "Outfit des Bräutigams"
+ },
+ "Contratar outra atração para a festa (live music, sax, atração de pista de dança e outros)": {
+  "en": "Book another party act (live music, sax, dance floor act and others)",
+  "es": "Contratar otra atracción para la fiesta (música en vivo, saxo, animación de pista y otros)",
+  "fr": "Réserver une autre animation (musique live, saxophone, animation de piste, etc.)",
+  "de": "Weiteren Programmpunkt buchen (Livemusik, Saxofon, Tanzflächen-Act u. a.)"
+ },
+ "Enviar o save-the-date": {
+  "en": "Send the save-the-date",
+  "es": "Enviar el save-the-date",
+  "fr": "Envoyer le save-the-date",
+  "de": "Save-the-Date verschicken"
+ },
+ "Definir lua de mel": {
+  "en": "Plan the honeymoon",
+  "es": "Definir la luna de miel",
+  "fr": "Organiser la lune de miel",
+  "de": "Flitterwochen festlegen"
+ },
+ "Roupa das crianças": {
+  "en": "Children's outfits",
+  "es": "Ropa de los niños",
+  "fr": "Tenues des enfants",
+  "de": "Kleidung der Kinder"
+ },
+ "Roupa dos pais": {
+  "en": "Parents' outfits",
+  "es": "Ropa de los padres",
+  "fr": "Tenues des parents",
+  "de": "Kleidung der Eltern"
+ },
+ "Contratar bem-casados (escolher papel e fita)": {
+  "en": "Order bem-casado sweets (choose wrapping paper and ribbon)",
+  "es": "Contratar los bem-casados (elegir papel y cinta)",
+  "fr": "Commander les bem-casados (choisir papier et ruban)",
+  "de": "Bem-casados bestellen (Papier und Band auswählen)"
+ },
+ "Locar bandeja dos doces e bolo (alinhar diâmetro do bolo com o fornecedor)": {
+  "en": "Rent trays for the sweets and cake (confirm the cake diameter with the vendor)",
+  "es": "Alquilar bandejas para dulces y torta (confirmar el diámetro de la torta con el proveedor)",
+  "fr": "Louer les plateaux pour les mignardises et le gâteau (vérifier le diamètre du gâteau avec le prestataire)",
+  "de": "Tabletts für Süßes und Torte mieten (Tortendurchmesser mit dem Anbieter abstimmen)"
+ },
+ "Enviar os convites para a calígrafa": {
+  "en": "Send the invitations to the calligrapher",
+  "es": "Enviar las invitaciones a la calígrafa",
+  "fr": "Envoyer les faire-part à la calligraphe",
+  "de": "Einladungen an die Kalligrafin schicken"
+ },
+ "Comprar as alianças": {
+  "en": "Buy the wedding rings",
+  "es": "Comprar los anillos",
+  "fr": "Acheter les alliances",
+  "de": "Eheringe kaufen"
+ },
+ "Contratar copeira / serviços gerais / manobrista / segurança": {
+  "en": "Hire kitchen help / general services / valet / security",
+  "es": "Contratar ayudante de cocina / servicios generales / aparcacoches / seguridad",
+  "fr": "Engager aide en cuisine / services généraux / voiturier / sécurité",
+  "de": "Küchenhilfe / Allgemeine Dienste / Parkservice / Security buchen"
+ },
+ "Contratar bebidas: uísque / espumante / chopp / cerveja": {
+  "en": "Order drinks: whisky / sparkling wine / draft beer / beer",
+  "es": "Contratar bebidas: whisky / espumante / cerveza de barril / cerveza",
+  "fr": "Commander les boissons : whisky / mousseux / bière pression / bière",
+  "de": "Getränke bestellen: Whisky / Sekt / Fassbier / Bier"
+ },
+ "Contratar drinks / barman": {
+  "en": "Book cocktails / bartender",
+  "es": "Contratar cócteles / barman",
+  "fr": "Réserver cocktails / barman",
+  "de": "Cocktails / Barkeeper buchen"
+ },
+ "Comprar kit toalete (caixa e itens necessários)": {
+  "en": "Buy the restroom kit (box and items)",
+  "es": "Comprar el kit de baño (caja y artículos necesarios)",
+  "fr": "Acheter le kit toilettes (boîte et articles nécessaires)",
+  "de": "Toiletten-Set kaufen (Box und benötigte Artikel)"
+ },
+ "Contratar serviço de valet, segurança e limpeza (vassourinhas e camareiras para toaletes)": {
+  "en": "Hire valet, security and cleaning (cleaning staff and restroom attendants)",
+  "es": "Contratar aparcacoches, seguridad y limpieza (personal de limpieza y de baños)",
+  "fr": "Engager voiturier, sécurité et ménage (agents d'entretien et personnel des toilettes)",
+  "de": "Parkservice, Security und Reinigung buchen (Reinigungskräfte und Toilettenpersonal)"
+ },
+ "Escolher e comprar ou fazer a almofadinha/pratinho para a entrada das alianças": {
+  "en": "Choose and buy or make the ring pillow/dish for the ring entrance",
+  "es": "Elegir y comprar o hacer el cojín/platito para la entrada de los anillos",
+  "fr": "Choisir et acheter ou fabriquer le coussin/la coupelle pour l'entrée des alliances",
+  "de": "Ringkissen/-schale für den Ringeinzug auswählen und kaufen oder selbst machen"
+ },
+ "Comprar topo de bolo (depende do prazo de cada fornecedor e modelo escolhido)": {
+  "en": "Buy the cake topper (depends on each vendor's lead time and the chosen model)",
+  "es": "Comprar el adorno de la torta (depende del plazo de cada proveedor y del modelo elegido)",
+  "fr": "Acheter la figurine du gâteau (selon le délai du prestataire et le modèle choisi)",
+  "de": "Tortenaufsatz kaufen (abhängig von Lieferzeit und gewähltem Modell)"
+ },
+ "Comprar leques (caso seja no verão)": {
+  "en": "Buy hand fans (if it's in the summer)",
+  "es": "Comprar abanicos (si es en verano)",
+  "fr": "Acheter des éventails (si c'est en été)",
+  "de": "Fächer kaufen (falls im Sommer)"
+ },
+ "Organizar chá de cozinha / chá bar / chá de lingerie": {
+  "en": "Organize the bridal shower / couple's shower / lingerie shower",
+  "es": "Organizar despedida de soltera / fiesta de pareja / fiesta de lencería",
+  "fr": "Organiser la bridal shower / la fête des futurs mariés / la soirée lingerie",
+  "de": "Bridal Shower / Paar-Party / Dessous-Party organisieren"
+ },
+ "Definir dia do noivo: massagem / barbearia": {
+  "en": "Plan the groom's day: massage / barber",
+  "es": "Definir el día del novio: masaje / barbería",
+  "fr": "Organiser la journée du marié : massage / barbier",
+  "de": "Tag des Bräutigams planen: Massage / Barbier"
+ },
+ "Comprar chinelos": {
+  "en": "Buy flip-flops",
+  "es": "Comprar chanclas",
+  "fr": "Acheter des tongs",
+  "de": "Flip-Flops kaufen"
+ },
+ "Contratar fornecedor para buquê, lapelas e acessórios das daminhas (caso a decoradora não faça)": {
+  "en": "Book a vendor for the bouquet, boutonnières and flower girls' accessories (if the decorator doesn't do them)",
+  "es": "Contratar proveedor para el ramo, los ojales y los accesorios de las damitas (si la decoradora no los hace)",
+  "fr": "Réserver un prestataire pour le bouquet, les boutonnières et les accessoires des petites filles d'honneur (si la décoratrice ne s'en charge pas)",
+  "de": "Anbieter für Brautstrauß, Anstecker und Accessoires der Blumenkinder buchen (falls die Dekorateurin das nicht macht)"
+ },
+ "Comprar acessórios de pista (chapéus, máscaras, bastões de LED)": {
+  "en": "Buy dance floor props (hats, masks, LED sticks)",
+  "es": "Comprar accesorios de pista (sombreros, máscaras, bastones LED)",
+  "fr": "Acheter les accessoires de piste (chapeaux, masques, bâtons LED)",
+  "de": "Party-Accessoires kaufen (Hüte, Masken, LED-Stäbe)"
+ },
+ "Escolher o local do dia da noiva": {
+  "en": "Choose where the bride will get ready",
+  "es": "Elegir el lugar del día de la novia",
+  "fr": "Choisir le lieu de préparation de la mariée",
+  "de": "Ort für das Brautstyling auswählen"
+ },
+ "Contratar carro da noiva | carro de sobras | carro para levar coisas para o espaço": {
+  "en": "Book the bride's car | car for leftovers | car to take things to the venue",
+  "es": "Contratar el coche de la novia | coche para lo que sobre | coche para llevar cosas al lugar",
+  "fr": "Réserver la voiture de la mariée | voiture pour les restes | voiture pour apporter le matériel au lieu",
+  "de": "Brautauto | Auto für Reste | Auto für den Transport zur Location buchen"
+ },
+ "Contratar climatizadores": {
+  "en": "Rent evaporative coolers",
+  "es": "Contratar climatizadores",
+  "fr": "Louer des rafraîchisseurs d'air",
+  "de": "Verdunstungskühler mieten"
+ },
+ "Contratar A&B para o almoço do making of da noiva | noivo": {
+  "en": "Book food & drinks for the bride's and groom's getting-ready lunch",
+  "es": "Contratar comida y bebida para el almuerzo del making of de la novia | novio",
+  "fr": "Réserver le repas des préparatifs de la mariée | du marié",
+  "de": "Essen & Getränke für das Getting-Ready-Mittagessen von Braut | Bräutigam buchen"
+ },
+ "Dar entrada na documentação do cartório | igreja": {
+  "en": "Submit the registry office | church paperwork",
+  "es": "Presentar la documentación en el registro civil | iglesia",
+  "fr": "Déposer le dossier à la mairie | à l'église",
+  "de": "Unterlagen beim Standesamt | bei der Kirche einreichen"
+ },
+ "Providenciar hospedagem para a equipe de decoração e assessoria (se necessário)": {
+  "en": "Arrange accommodation for the decor and planning team (if needed)",
+  "es": "Gestionar alojamiento para el equipo de decoración y asesoría (si es necesario)",
+  "fr": "Prévoir l'hébergement de l'équipe de décoration et d'organisation (si nécessaire)",
+  "de": "Unterkunft für Deko- und Planungsteam organisieren (falls nötig)"
+ },
+ "Taxas de ECAD (direitos autorais dos músicos) / CREA (responsabilidade técnica de banda, luz, gerador e estrutura)": {
+  "en": "ECAD fees (music copyright) / CREA (technical responsibility for band, lighting, generator and structures)",
+  "es": "Tasas del ECAD (derechos de autor de los músicos) / CREA (responsabilidad técnica de banda, luces, generador y estructura)",
+  "fr": "Redevances ECAD (droits d'auteur musicaux) / CREA (responsabilité technique : groupe, éclairage, groupe électrogène et structures)",
+  "de": "ECAD-Gebühren (Musikurheberrechte) / CREA (technische Verantwortung für Band, Licht, Aggregat und Aufbauten)"
+ },
+ "Reunião com o decorador para escolher os pontos finais": {
+  "en": "Meeting with the decorator to finalize the details",
+  "es": "Reunión con el decorador para definir los detalles finales",
+  "fr": "Réunion avec le décorateur pour finaliser les détails",
+  "de": "Termin mit dem Dekorateur, um die letzten Details festzulegen"
+ },
+ "Comprar ou alinhar com o fornecedor as forminhas dos doces": {
+  "en": "Buy the sweet cups or arrange them with the vendor",
+  "es": "Comprar o acordar con el proveedor los capacillos de los dulces",
+  "fr": "Acheter les caissettes des mignardises ou les prévoir avec le prestataire",
+  "de": "Pralinenförmchen kaufen oder mit dem Anbieter abstimmen"
+ },
+ "Fazer kit para distrair as crianças (caso haja muitas crianças no casamento)": {
+  "en": "Put together a kit to keep children entertained (if there are many children)",
+  "es": "Preparar un kit para entretener a los niños (si hay muchos niños en la boda)",
+  "fr": "Préparer un kit pour occuper les enfants (s'il y a beaucoup d'enfants)",
+  "de": "Beschäftigungsset für Kinder vorbereiten (falls viele Kinder kommen)"
+ },
+ "Entregar os convites": {
+  "en": "Deliver the invitations",
+  "es": "Entregar las invitaciones",
+  "fr": "Distribuer les faire-part",
+  "de": "Einladungen verteilen"
+ },
+ "Começar o RSVP receptivo (serviço adicional), caso tenha contratado": {
+  "en": "Start the incoming RSVP (add-on service), if booked",
+  "es": "Empezar el RSVP receptivo (servicio adicional), si lo contrataron",
+  "fr": "Commencer le RSVP passif (service supplémentaire), s'il a été réservé",
+  "de": "Passive Rückmeldungen (RSVP, Zusatzleistung) starten, falls gebucht"
+ },
+ "Reunião com a banda e o DJ | músicos da cerimônia (se for necessário)": {
+  "en": "Meeting with the band and DJ | ceremony musicians (if needed)",
+  "es": "Reunión con la banda y el DJ | músicos de la ceremonia (si es necesario)",
+  "fr": "Réunion avec le groupe et le DJ | musiciens de la cérémonie (si nécessaire)",
+  "de": "Termin mit Band und DJ | Trauungsmusikern (falls nötig)"
+ },
+ "Fazer VT com os principais fornecedores": {
+  "en": "Site visit with the main vendors",
+  "es": "Visita técnica con los principales proveedores",
+  "fr": "Visite technique avec les principaux prestataires",
+  "de": "Vor-Ort-Begehung mit den wichtigsten Dienstleistern"
+ },
+ "Degustação do menu para escolher o cardápio final do casamento": {
+  "en": "Menu tasting to choose the final wedding menu",
+  "es": "Degustación para elegir el menú final de la boda",
+  "fr": "Dégustation pour choisir le menu final du mariage",
+  "de": "Menüverkostung zur Auswahl des finalen Hochzeitsmenüs"
+ },
+ "Enviar o cardápio final para a gráfica imprimir os menus e o restante da papelaria": {
+  "en": "Send the final menu to the printer for the menu cards and remaining stationery",
+  "es": "Enviar el menú final a la imprenta para los menús y el resto de la papelería",
+  "fr": "Envoyer le menu final à l'imprimeur pour les menus et le reste de la papeterie",
+  "de": "Finales Menü an die Druckerei für Menükarten und restliche Papeterie schicken"
+ },
+ "Organização do cronograma, cortejo e todos os materiais": {
+  "en": "Organize the timeline, processional and all materials",
+  "es": "Organizar el cronograma, el cortejo y todos los materiales",
+  "fr": "Organiser le déroulé, le cortège et tout le matériel",
+  "de": "Ablaufplan, Einzug und alle Materialien organisieren"
+ },
+ "Imprimir fotos (de acordo com as medidas dos porta-retratos da decoradora)": {
+  "en": "Print photos (according to the decorator's frame sizes)",
+  "es": "Imprimir fotos (según las medidas de los portarretratos de la decoradora)",
+  "fr": "Imprimer les photos (selon la taille des cadres de la décoratrice)",
+  "de": "Fotos drucken (passend zu den Bilderrahmen der Dekorateurin)"
+ },
+ "Começar o RSVP ativo, caso tenha contratado": {
+  "en": "Start the active RSVP (calling guests), if booked",
+  "es": "Empezar el RSVP activo, si lo contrataron",
+  "fr": "Commencer le RSVP actif, s'il a été réservé",
+  "de": "Aktive Rückmeldungen (RSVP) starten, falls gebucht"
+ },
+ "Comprar almoço para o camarim da banda (pães de metro, refrigerante, água)": {
+  "en": "Buy food for the band's dressing room (party subs, soft drinks, water)",
+  "es": "Comprar comida para el camerino de la banda (sándwiches, refrescos, agua)",
+  "fr": "Acheter le repas pour la loge du groupe (sandwichs géants, sodas, eau)",
+  "de": "Verpflegung für die Band-Garderobe kaufen (Partybaguettes, Softdrinks, Wasser)"
+ },
+ "Aumentar quantidade de doces e bem-casados, mobiliário, buffet, staff, segurança, valet, vassourinha, chinelos, lembrancinhas e recreação, se necessário": {
+  "en": "Increase sweets and bem-casados, furniture, catering, staff, security, valet, cleaning, flip-flops, favors and kids' entertainment, if needed",
+  "es": "Aumentar la cantidad de dulces y bem-casados, mobiliario, catering, personal, seguridad, aparcacoches, limpieza, chanclas, recuerdos y recreación, si es necesario",
+  "fr": "Augmenter les mignardises et bem-casados, le mobilier, le traiteur, le personnel, la sécurité, le voiturier, le ménage, les tongs, les cadeaux invités et l'animation enfants, si nécessaire",
+  "de": "Süßes und Bem-casados, Mobiliar, Catering, Personal, Security, Parkservice, Reinigung, Flip-Flops, Gastgeschenke und Kinderbetreuung bei Bedarf aufstocken"
+ },
+ "Confirmar quantidade de crianças com a equipe de recreação": {
+  "en": "Confirm the number of children with the entertainment team",
+  "es": "Confirmar el número de niños con el equipo de recreación",
+  "fr": "Confirmer le nombre d'enfants avec l'équipe d'animation",
+  "de": "Anzahl der Kinder mit der Kinderbetreuung bestätigen"
+ },
+ "Fazer teste de cabelo e maquiagem | última prova do vestido": {
+  "en": "Hair and makeup trial | final dress fitting",
+  "es": "Prueba de peluquería y maquillaje | última prueba del vestido",
+  "fr": "Essai coiffure et maquillage | dernier essayage de la robe",
+  "de": "Probestyling Haare und Make-up | letzte Kleidanprobe"
+ },
+ "Reunir com o celebrante e montar o fluxo da cerimônia": {
+  "en": "Meet the officiant and plan the ceremony flow",
+  "es": "Reunirse con el oficiante y armar el desarrollo de la ceremonia",
+  "fr": "Rencontrer l'officiant et préparer le déroulé de la cérémonie",
+  "de": "Mit dem Trauredner treffen und den Ablauf der Trauung planen"
+ },
+ "Verificar se os pagamentos estão em ordem": {
+  "en": "Check that all payments are in order",
+  "es": "Verificar que los pagos estén al día",
+  "fr": "Vérifier que tous les paiements sont à jour",
+  "de": "Prüfen, ob alle Zahlungen erledigt sind"
+ },
+ "Retirar o vestido de noiva e a roupa do noivo": {
+  "en": "Pick up the wedding dress and the groom's outfit",
+  "es": "Retirar el vestido de novia y el traje del novio",
+  "fr": "Récupérer la robe de mariée et la tenue du marié",
+  "de": "Brautkleid und Outfit des Bräutigams abholen"
+ },
+ "Quantidade de convidados / Fazer lista completa": {
+  "en": "Number of guests / make the full guest list",
+  "es": "Número de invitados / hacer la lista completa",
+  "fr": "Nombre d'invités / établir la liste complète",
+  "de": "Gästezahl / vollständige Gästeliste erstellen"
+ },
+ "Criar pasta de compartilhamento (Drive + link no grupo do WhatsApp)": {
+  "en": "Create a shared folder (Drive + link in the WhatsApp group)",
+  "es": "Crear una carpeta compartida (Drive + enlace en el grupo de WhatsApp)",
+  "fr": "Créer un dossier partagé (Drive + lien dans le groupe WhatsApp)",
+  "de": "Gemeinsamen Ordner anlegen (Drive + Link in der WhatsApp-Gruppe)"
+ },
+ "Definir o destino e visitar o local (acesso, hospedagem e fornecedores da região)": {
+  "en": "Choose the destination and visit the venue (access, accommodation and local vendors)",
+  "es": "Definir el destino y visitar el lugar (acceso, alojamiento y proveedores de la zona)",
+  "fr": "Choisir la destination et visiter le lieu (accès, hébergement et prestataires locaux)",
+  "de": "Reiseziel festlegen und Location besichtigen (Anreise, Unterkünfte, lokale Dienstleister)"
+ },
+ "Contratar audiovisual (palco, sonorização, iluminação de pista e cênica)": {
+  "en": "Book audiovisual (stage, sound, dance floor and stage lighting)",
+  "es": "Contratar audiovisual (escenario, sonido, iluminación de pista y escénica)",
+  "fr": "Réserver l'audiovisuel (scène, sonorisation, éclairage de piste et scénique)",
+  "de": "Technik buchen (Bühne, Ton, Tanzflächen- und Bühnenlicht)"
+ },
+ "Pesquisar o vestido de noiva": {
+  "en": "Look for the wedding dress",
+  "es": "Buscar el vestido de novia",
+  "fr": "Chercher la robe de mariée",
+  "de": "Brautkleid suchen"
+ },
+ "Contratar fotógrafo": {
+  "en": "Book the photographer",
+  "es": "Contratar fotógrafo",
+  "fr": "Réserver le photographe",
+  "de": "Fotografen buchen"
+ },
+ "Contratar mesas / cadeiras / toalhas": {
+  "en": "Rent tables / chairs / tablecloths",
+  "es": "Contratar mesas / sillas / manteles",
+  "fr": "Louer tables / chaises / nappes",
+  "de": "Tische / Stühle / Tischdecken mieten"
+ },
+ "Definir onde padrinhos, daminhas e pajens irão alugar ou comprar o traje (para colocar a informação no convite)": {
+  "en": "Decide where the best men, flower girls and page boys will rent or buy their outfits (to include in the invitation)",
+  "es": "Definir dónde padrinos, damitas y pajes alquilarán o comprarán su ropa (para incluirlo en la invitación)",
+  "fr": "Définir où les témoins, petites filles d'honneur et pages loueront ou achèteront leur tenue (à indiquer dans l'invitation)",
+  "de": "Festlegen, wo Trauzeugen, Blumenkinder und Pagen ihre Kleidung leihen oder kaufen (für die Einladung)"
+ },
+ "Definir as lembrancinhas: convidados (homens e mulheres) / welcome kit no hotel": {
+  "en": "Choose the favors: guests (men and women) / hotel welcome kit",
+  "es": "Definir los recuerdos: invitados (hombres y mujeres) / welcome kit en el hotel",
+  "fr": "Choisir les cadeaux : invités (hommes et femmes) / kit de bienvenue à l'hôtel",
+  "de": "Gastgeschenke festlegen: Gäste (Männer und Frauen) / Welcome-Kit im Hotel"
+ },
+ "Reservar o dia da noiva e a noite de núpcias no hotel": {
+  "en": "Book the bride's getting-ready day and the wedding night at the hotel",
+  "es": "Reservar el día de la novia y la noche de bodas en el hotel",
+  "fr": "Réserver la journée de préparation de la mariée et la nuit de noces à l'hôtel",
+  "de": "Brautstyling-Tag und Hochzeitsnacht im Hotel reservieren"
+ },
+ "Fazer site dos noivos (hotéis, maquiagem e cabelo, mapa, esquema de vans)": {
+  "en": "Create the couple's website (hotels, hair and makeup, map, shuttle schedule)",
+  "es": "Hacer la web de los novios (hoteles, maquillaje y peluquería, mapa, esquema de vans)",
+  "fr": "Créer le site des mariés (hôtels, coiffure et maquillage, plan, navettes)",
+  "de": "Hochzeitswebsite erstellen (Hotels, Haare und Make-up, Karte, Shuttle-Plan)"
+ },
+ "Comprar lembrancinhas": {
+  "en": "Buy the favors",
+  "es": "Comprar los recuerdos",
+  "fr": "Acheter les cadeaux invités",
+  "de": "Gastgeschenke kaufen"
+ },
+ "Contratar programação do segundo dia (churrasco, samba, música) — se houver": {
+  "en": "Book the second-day program (barbecue, samba, music) — if any",
+  "es": "Contratar la programación del segundo día (asado, samba, música) — si la hay",
+  "fr": "Réserver le programme du lendemain (barbecue, samba, musique) — le cas échéant",
+  "de": "Programm für den zweiten Tag buchen (Grillen, Samba, Musik) — falls geplant"
+ },
+ "Enviar o save-the-date (importante para convidados de outro estado ou país)": {
+  "en": "Send the save-the-date (important for guests from other states or countries)",
+  "es": "Enviar el save-the-date (importante para invitados de otro estado o país)",
+  "fr": "Envoyer le save-the-date (important pour les invités d'une autre région ou d'un autre pays)",
+  "de": "Save-the-Date verschicken (wichtig für Gäste aus anderen Regionen oder Ländern)"
+ },
+ "Contratar banheiros (químicos ou trailer), se o espaço não tiver estrutura suficiente": {
+  "en": "Rent restrooms (portable or trailer) if the venue doesn't have enough",
+  "es": "Contratar baños (químicos o tráiler), si el lugar no tiene suficientes",
+  "fr": "Louer des toilettes (mobiles ou en remorque) si le lieu n'en a pas assez",
+  "de": "Toiletten mieten (mobil oder Toilettenwagen), falls die Location nicht genug hat"
+ },
+ "Contratar ambulância / equipe de primeiros socorros": {
+  "en": "Book an ambulance / first-aid team",
+  "es": "Contratar ambulancia / equipo de primeros auxilios",
+  "fr": "Réserver une ambulance / une équipe de premiers secours",
+  "de": "Krankenwagen / Sanitätsdienst buchen"
+ },
+ "Escolher e comprar ou fazer a almofadinha/pratinho para entrada das alianças": {
+  "en": "Choose and buy or make the ring pillow/dish for the ring entrance",
+  "es": "Elegir y comprar o hacer el cojín/platito para la entrada de los anillos",
+  "fr": "Choisir et acheter ou fabriquer le coussin/la coupelle pour l'entrée des alliances",
+  "de": "Ringkissen/-schale für den Ringeinzug auswählen und kaufen oder selbst machen"
+ },
+ "Fazer pré-reserva nos hotéis para os convidados (destination)": {
+  "en": "Pre-book hotel rooms for the guests (destination)",
+  "es": "Hacer la prerreserva en los hoteles para los invitados (destination)",
+  "fr": "Pré-réserver les hôtels pour les invités (destination)",
+  "de": "Hotelzimmer für die Gäste vorreservieren (Destination)"
+ },
+ "Contratar translado dos convidados (aeroporto, hotéis, passeios)": {
+  "en": "Book guest transfers (airport, hotels, tours)",
+  "es": "Contratar el traslado de los invitados (aeropuerto, hoteles, paseos)",
+  "fr": "Réserver les transferts des invités (aéroport, hôtels, excursions)",
+  "de": "Gästetransfers buchen (Flughafen, Hotels, Ausflüge)"
+ },
+ "Contratar aquecedores / climatizadores": {
+  "en": "Rent heaters / coolers",
+  "es": "Contratar calefactores / climatizadores",
+  "fr": "Louer des chauffages / rafraîchisseurs",
+  "de": "Heizstrahler / Kühlgeräte mieten"
+ },
+ "Entrada na documentação do cartório | igreja": {
+  "en": "Submit the registry office | church paperwork",
+  "es": "Presentar la documentación en el registro civil | iglesia",
+  "fr": "Déposer le dossier à la mairie | à l'église",
+  "de": "Unterlagen beim Standesamt | bei der Kirche einreichen"
+ },
+ "Providenciar hospedagem para a equipe de decoração e assessoria": {
+  "en": "Arrange accommodation for the decor and planning team",
+  "es": "Gestionar alojamiento para el equipo de decoración y asesoría",
+  "fr": "Prévoir l'hébergement de l'équipe de décoration et d'organisation",
+  "de": "Unterkunft für Deko- und Planungsteam organisieren"
+ },
+ "Contratar alimentação / coffee break para a equipe e fornecedores": {
+  "en": "Book meals / coffee break for the team and vendors",
+  "es": "Contratar comida / coffee break para el equipo y los proveedores",
+  "fr": "Prévoir repas / pause-café pour l'équipe et les prestataires",
+  "de": "Verpflegung / Kaffeepause für Team und Dienstleister buchen"
+ },
+ "Taxas de ECAD (direitos autorais dos músicos) / CREA (termo de responsabilidade técnica: banda, luz, gerador e estrutura)": {
+  "en": "ECAD fees (music copyright) / CREA (technical responsibility statement: band, lighting, generator and structures)",
+  "es": "Tasas del ECAD (derechos de autor de los músicos) / CREA (término de responsabilidad técnica: banda, luces, generador y estructura)",
+  "fr": "Redevances ECAD (droits d'auteur musicaux) / CREA (attestation de responsabilité technique : groupe, éclairage, groupe électrogène et structures)",
+  "de": "ECAD-Gebühren (Musikurheberrechte) / CREA (technische Verantwortungserklärung: Band, Licht, Aggregat und Aufbauten)"
+ },
+ "Começar RSVP receptivo, caso tenha contratado": {
+  "en": "Start the incoming RSVP, if booked",
+  "es": "Empezar el RSVP receptivo, si lo contrataron",
+  "fr": "Commencer le RSVP passif, s'il a été réservé",
+  "de": "Passive Rückmeldungen (RSVP) starten, falls gebucht"
+ },
+ "Contratar o número de vans necessário para os convidados hospedados nos hotéis": {
+  "en": "Book enough vans for the guests staying at the hotels",
+  "es": "Contratar las vans necesarias para los invitados alojados en los hoteles",
+  "fr": "Réserver le nombre de navettes nécessaire pour les invités logés à l'hôtel",
+  "de": "Ausreichend Shuttles für die Gäste in den Hotels buchen"
+ },
+ "Enviar aos convidados o guia do destino (hotéis, vans, horários e programação)": {
+  "en": "Send guests the destination guide (hotels, shuttles, times and program)",
+  "es": "Enviar a los invitados la guía del destino (hoteles, vans, horarios y programación)",
+  "fr": "Envoyer aux invités le guide de la destination (hôtels, navettes, horaires et programme)",
+  "de": "Den Gästen den Reiseführer schicken (Hotels, Shuttles, Zeiten und Programm)"
+ },
+ "Contratar estrutura de plano B (se for necessário)": {
+  "en": "Book a plan B structure (if needed)",
+  "es": "Contratar la estructura del plan B (si es necesario)",
+  "fr": "Réserver une structure de plan B (si nécessaire)",
+  "de": "Plan-B-Aufbau buchen (falls nötig)"
+ },
+ "Confirmar a hospedagem e a chegada da equipe de assessoria e decoração (1 dia antes do evento)": {
+  "en": "Confirm accommodation and arrival of the planning and decor team (1 day before the event)",
+  "es": "Confirmar el alojamiento y la llegada del equipo de asesoría y decoración (1 día antes del evento)",
+  "fr": "Confirmer l'hébergement et l'arrivée de l'équipe d'organisation et de décoration (la veille de l'événement)",
+  "de": "Unterkunft und Ankunft des Planungs- und Deko-Teams bestätigen (1 Tag vor dem Event)"
+ }
+}

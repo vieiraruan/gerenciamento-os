@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const idiomas = require('./idiomas');
 
 const RAIZ = path.resolve(__dirname, '..');
 const BASE_CONVIDADOS = 150;
@@ -32,22 +33,23 @@ function catalogo() {
 
 /** Serviços que o site oferece no formulário (sem preço). Os adicionais (Te Deixa Tranquila, Sai na Vassoura)
  * ficam de fora: são negociados na conversa com a Tayná. */
-function servicosDoSite() {
-  return [...catalogo().filter((s) => !s.adicional).map(({ id, nome }) => ({ id, nome })), { id: NAO_SEI, nome: 'Ainda não sei' }];
+function servicosDoSite(idioma = 'pt') {
+  return [...catalogo().filter((s) => !s.adicional).map(({ id, nome }) => ({ id, nome })), { id: NAO_SEI, nome: idiomas.t(idioma, 'site.nao_sei') }];
 }
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /** Orçamento prévio: pacote + profissionais adicionais (+50 convidados acima de 150) + 15% fora da Região Metropolitana. */
-function calcular(servicoId, convidados, fora) {
-  const cat = catalogo();
+function calcular(servicoId, convidados, fora, idioma = 'pt') {
+  const t = (k, p) => idiomas.t(idioma, k, p);
+  const cat = catalogo().map((c) => ({ ...c, descricao: idiomas.descricaoServico(c.id, c.descricao, idioma) }));
   const sv = cat.find((s) => s.id === servicoId);
-  if (!sv) return { referencia: cat.map(({ nome, descricao, preco }) => ({ nome, descricao, preco })) };
+  if (!sv) return { referencia: cat.filter((c) => !c.adicional).map(({ nome, descricao, preco }) => ({ nome, descricao, preco })) };
   const n = Number(convidados) > BASE_CONVIDADOS ? Math.ceil((Number(convidados) - BASE_CONVIDADOS) / POR_PROFISSIONAL) : 0;
-  const itens = [{ texto: `${sv.nome} (até ${BASE_CONVIDADOS} convidados)`, valor: sv.preco }];
-  if (n) itens.push({ texto: `${n} profissional${n > 1 ? 'is' : ''} adiciona${n > 1 ? 'is' : 'l'} (${convidados} convidados)`, valor: n * VALOR_PROFISSIONAL });
+  const itens = [{ texto: t('orc.base', { nome: sv.nome, n: BASE_CONVIDADOS }), valor: sv.preco }];
+  if (n) itens.push({ texto: t(n > 1 ? 'orc.profn' : 'orc.prof1', { n, c: convidados }), valor: n * VALOR_PROFISSIONAL });
   const subtotal = itens.reduce((s, i) => s + i.valor, 0);
-  if (fora) itens.push({ texto: 'Destination — fora da Região Metropolitana do Recife (+15%)', valor: r2(subtotal * DESTINATION) });
+  if (fora) itens.push({ texto: t('orc.dest'), valor: r2(subtotal * DESTINATION) });
   return { servico: { id: sv.id, nome: sv.nome, descricao: sv.descricao }, itens, total: r2(itens.reduce((s, i) => s + i.valor, 0)) };
 }
 
@@ -83,6 +85,8 @@ function formatarTelefone(w) {
 
 /** Confere e limpa o que veio do formulário. Lança Error com mensagem para o casal. */
 function validar(d) {
+  const idioma = idiomas.valido(d.idioma) || 'pt';
+  const t = (k) => idiomas.t(idioma, k);
   const nome = texto(d.nome, 120);
   const email = texto(d.email, 160).toLowerCase();
   const whatsapp = normalizarWhats(d.whatsapp);
@@ -91,12 +95,12 @@ function validar(d) {
   const cidade = texto(d.cidade, 120);
   const servico = texto(d.servico, 40) || NAO_SEI;
   const mensagem = texto(d.mensagem, 2000);
-  if (nome.length < 3) throw new Error('Informe o nome do casal.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Informe um e-mail válido.');
-  if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) throw new Error('Data do casamento inválida.');
-  if (!servicosDoSite().some((s) => s.id === servico)) throw new Error('Escolha um serviço da lista.');
-  if (!d.consentimento) throw new Error('Para enviar o orçamento por e-mail, marque a autorização.');
-  return { nome, email, whatsapp, data, convidados, cidade, servico, fora: Boolean(d.fora), mensagem };
+  if (nome.length < 3) throw new Error(t('site.nome'));
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error(t('site.email'));
+  if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) throw new Error(t('site.data'));
+  if (!servicosDoSite().some((s) => s.id === servico)) throw new Error(t('site.servico'));
+  if (!d.consentimento) throw new Error(t('site.consentimento'));
+  return { nome, email, whatsapp, data, convidados, cidade, servico, fora: Boolean(d.fora), mensagem, idioma };
 }
 
 function novoId() {
@@ -129,7 +133,7 @@ function criar(dirDados, dados, origem = {}) {
   const d = validar(dados);
   const pedido = {
     id: novoId(), token: crypto.randomBytes(18).toString('hex'), estado: 'novo', criado_em: new Date().toISOString(),
-    ...d, orcamento: calcular(d.servico, d.convidados, d.fora), origem: { ip: origem.ip || '', navegador: texto(origem.navegador, 200) },
+    ...d, orcamento: calcular(d.servico, d.convidados, d.fora, d.idioma), origem: { ip: origem.ip || '', navegador: texto(origem.navegador, 200) },
     emails: {}, agenda: null, historico: [],
   };
   return salvar(dirDados, pedido);
@@ -137,7 +141,7 @@ function criar(dirDados, dados, origem = {}) {
 
 /** Só o que o site pode ver (nada de preço nem dados internos). */
 function publico(p) {
-  return { id: p.id, token: p.token, nome: p.nome, servico: p.orcamento.servico ? p.orcamento.servico.nome : 'Ainda não sei',
+  return { id: p.id, token: p.token, nome: p.nome, servico: p.orcamento.servico ? p.orcamento.servico.nome : idiomas.t(p.idioma, 'site.nao_sei'),
     agenda: p.agenda ? { inicio: p.agenda.inicio, estado: p.agenda.estado } : null };
 }
 
@@ -152,8 +156,12 @@ const dataBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso |
 
 function gerarPdf(pedido, empresa = {}) {
   const PDFDocument = require('pdfkit');
+  const l = idiomas.valido(pedido.idioma) || 'pt';
+  const t = (k, p) => idiomas.t(l, k, p);
+  const moeda = (v) => idiomas.moeda(v, l);
+  const dataBr = (iso) => idiomas.data(iso, l, l === 'pt' ? {} : { day: 'numeric', month: 'long', year: 'numeric' });
   return new Promise((ok, erro) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 56, info: { Title: `Orçamento prévio - ${pedido.nome}`, Author: empresa.nome_fantasia || 'Tayná Alves Assessoria' } });
+    const doc = new PDFDocument({ size: 'A4', margin: 56, info: { Title: `${t('pdf.titulo')} - ${pedido.nome}`, Author: empresa.nome_fantasia || 'Tayná Alves Assessoria' } });
     const partes = [];
     doc.on('data', (c) => partes.push(c));
     doc.on('end', () => ok(Buffer.concat(partes)));
@@ -165,15 +173,15 @@ function gerarPdf(pedido, empresa = {}) {
     doc.rect(0, 0, L, 150).fill(TERRA);
     const logo = path.join(RAIZ, 'templates', 'marca', 'logo-branca.png');
     if (fs.existsSync(logo)) doc.image(logo, 56, 22, { height: 106 });
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20).text('Orçamento prévio', 56, 58, { width: largura, align: 'right' });
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20).text(t('pdf.titulo'), 56, 58, { width: largura, align: 'right' });
     doc.font('Helvetica').fontSize(10).fillColor('#F3D3C2')
-      .text(`Emitido em ${dataBr(pedido.criado_em)} · válido por ${VALIDADE_DIAS} dias`, 56, 86, { width: largura, align: 'right' });
+      .text(t('pdf.emitido', { d: dataBr(pedido.criado_em), n: VALIDADE_DIAS }), 56, 86, { width: largura, align: 'right' });
 
     doc.fillColor(TINTA).font('Helvetica-Bold').fontSize(16).text(pedido.nome, 56, 182);
     const linhas = [
-      pedido.data ? ['Data do casamento', dataBr(pedido.data)] : null,
-      pedido.cidade ? ['Local', pedido.cidade] : null,
-      pedido.convidados ? ['Convidados (aprox.)', String(pedido.convidados)] : null,
+      pedido.data ? [t('pdf.data'), dataBr(pedido.data)] : null,
+      pedido.cidade ? [t('pdf.local'), pedido.cidade] : null,
+      pedido.convidados ? [t('pdf.convidados'), String(pedido.convidados)] : null,
     ].filter(Boolean);
     let y = 210;
     doc.fontSize(10);
@@ -197,24 +205,22 @@ function gerarPdf(pedido, empresa = {}) {
       });
     };
     if (o.servico) {
-      tabela(o.itens, 'Serviço escolhido');
+      tabela(o.itens, t('pdf.servico'));
       y += 4;
-      doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Total estimado', 56, y);
+      doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text(t('pdf.total'), 56, y);
       doc.fillColor(TERRA).text(moeda(o.total), 56, y, { width: largura, align: 'right' });
       y += 30;
-      doc.font('Helvetica').fontSize(10).fillColor(SUAVE).text(`O que está incluído: ${o.servico.descricao}.`, 56, y, { width: largura });
-      y += doc.heightOfString(`O que está incluído: ${o.servico.descricao}.`, { width: largura }) + 14;
+      const incl = t('pdf.incluido', { d: o.servico.descricao });
+      doc.font('Helvetica').fontSize(10).fillColor(SUAVE).text(incl, 56, y, { width: largura });
+      y += doc.heightOfString(incl, { width: largura }) + 14;
     } else {
-      tabela(o.referencia.map((r) => ({ texto: `${r.nome} — ${r.descricao}`, valor: r.preco })), 'Serviços e valores de referência');
+      tabela(o.referencia.map((r) => ({ texto: `${r.nome} — ${r.descricao}`, valor: r.preco })), t('pdf.referencia'));
       y += 10;
     }
 
     doc.rect(56, y, largura, 92).fill('#F3E6DC');
-    doc.fillColor(TINTA).font('Helvetica-Bold').fontSize(10).text('Como seguimos', 72, y + 12);
-    doc.font('Helvetica').fontSize(10).fillColor(TINTA).text(
-      'Este é um orçamento prévio, com valores de referência (equipe de 2 profissionais, até 150 convidados). '
-      + 'A proposta final é fechada na conversa com a Tayná. A data fica reservada com o contrato assinado e 30% de entrada; '
-      + 'o restante é combinado diretamente com vocês.', 72, y + 28, { width: largura - 32 });
+    doc.fillColor(TINTA).font('Helvetica-Bold').fontSize(10).text(t('pdf.seguimos'), 72, y + 12);
+    doc.font('Helvetica').fontSize(10).fillColor(TINTA).text(t('pdf.seguimos_txt'), 72, y + 28, { width: largura - 32 });
     y += 112;
 
     doc.font('Helvetica').fontSize(9).fillColor(SUAVE).text(
@@ -230,26 +236,30 @@ function gerarPdf(pedido, empresa = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const WHATSAPP_TAYNA = '5581996760320';
-const linkWhatsTayna = (pedido) => `https://wa.me/${WHATSAPP_TAYNA}?text=${encodeURIComponent(`Olá, Tayná! Sou ${pedido.nome}, pedi um orçamento pelo site${pedido.data ? ` (casamento em ${dataBr(pedido.data)})` : ''} e gostaria de conversar.`)}`;
+const linkWhatsTayna = (pedido) => { const l = idiomas.valido(pedido.idioma) || 'pt';
+  return `https://wa.me/${WHATSAPP_TAYNA}?text=${encodeURIComponent(idiomas.t(l, 'whats.tayna', { nome: pedido.nome, quando: pedido.data ? idiomas.t(l, 'whats.quando', { d: idiomas.data(pedido.data, l, l === 'pt' ? {} : undefined) }) : '' }))}`; };
 const linkWhatsCasal = (pedido) => !pedido.whatsapp ? '' : `https://wa.me/${pedido.whatsapp.startsWith('+') ? pedido.whatsapp.slice(1) : `55${pedido.whatsapp}`}?text=${encodeURIComponent(`Olá, ${pedido.nome.split(/\s+(e|&)\s+/i)[0]}! Aqui é a Tayná, da Tayná Alves Assessoria. Recebi o seu pedido de orçamento pelo site.`)}`;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-function moldura(conteudo) {
-  return `<div style="font-family:Arial,Helvetica,sans-serif;color:${TINTA};max-width:560px;margin:0 auto">
+function moldura(conteudo, l = 'pt') {
+  return `<div lang="${idiomas.LOCALE[l] || 'pt-BR'}" style="font-family:Arial,Helvetica,sans-serif;color:${TINTA};max-width:560px;margin:0 auto">
 <div style="background:${TERRA};color:#fff;padding:22px 26px;font-size:20px;font-family:Georgia,serif">Tayná Alves Assessoria e Produção</div>
 <div style="padding:24px 26px;line-height:1.6;font-size:15px;background:#FBF6F1">${conteudo}</div>
 <div style="padding:12px 26px;font-size:12px;color:${SUAVE}">WhatsApp (81) 99676-0320 · @taynaalvesassessoria</div></div>`;
 }
 
 function emailCasal(pedido) {
-  const servico = pedido.orcamento.servico ? pedido.orcamento.servico.nome : 'os serviços da assessoria';
-  const html = moldura(`<p style="font-size:22px;font-family:Georgia,serif;color:${TERRA};margin:0 0 8px">Olá, ${esc(pedido.nome)}!</p>
-<p>Que alegria receber o pedido de vocês${pedido.data ? ` para o casamento em <b>${dataBr(pedido.data)}</b>` : ''}${pedido.cidade ? `, ${esc(pedido.cidade)}` : ''}.</p>
-<p>O <b>orçamento prévio</b> de ${esc(servico)} está no PDF anexo. A proposta final e a reserva da data a Tayná fecha com vocês numa conversa.</p>
-<p style="margin:22px 0"><a href="${linkWhatsTayna(pedido)}" style="background:${TERRA};color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none;font-weight:bold">Conversar com a Tayná no WhatsApp</a></p>
-<p>Com carinho,<br>Tay</p>`);
-  return { para: pedido.email, assunto: `Seu orçamento prévio — ${servico}`, html, responder_para: '',
-    texto: `Olá, ${pedido.nome}! O orçamento prévio de ${servico} está no PDF anexo. Para conversar com a Tayná: ${linkWhatsTayna(pedido)}` };
+  const l = idiomas.valido(pedido.idioma) || 'pt';
+  const t = (k, p) => idiomas.t(l, k, p);
+  const servico = pedido.orcamento.servico ? pedido.orcamento.servico.nome : t('mail.servicos');
+  const quando = pedido.data ? t('mail.quando', { d: idiomas.data(pedido.data, l, l === 'pt' ? {} : undefined) }) : '';
+  const html = moldura(`<p style="font-size:22px;font-family:Georgia,serif;color:${TERRA};margin:0 0 8px">${t('mail.ola', { nome: esc(pedido.nome) })}</p>
+<p>${t('mail.alegria', { quando, onde: pedido.cidade ? `, ${esc(pedido.cidade)}` : '' })}</p>
+<p>${t('mail.pdf', { s: esc(servico) })}</p>
+<p style="margin:22px 0"><a href="${linkWhatsTayna(pedido)}" style="background:${TERRA};color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none;font-weight:bold">${t('mail.botao')}</a></p>
+<p>${t('mail.carinho')}</p>`, l);
+  return { para: pedido.email, assunto: t('mail.assunto', { s: servico }), html, responder_para: '',
+    texto: t('mail.texto', { nome: pedido.nome, s: servico, link: linkWhatsTayna(pedido) }) };
 }
 
 function emailAlerta(pedido, tipo, urlLotus) {
@@ -266,6 +276,7 @@ ${linha('Serviço', esc(o.servico ? o.servico.nome : 'Ainda não sei'))}
 ${linha('Orçamento prévio', o.total ? moeda(o.total) : '')}
 ${linha('WhatsApp', pedido.whatsapp ? `<a href="${linkWhatsCasal(pedido)}">${esc(formatarTelefone(pedido.whatsapp))}</a>` : 'não informado')}
 ${linha('E-mail', esc(pedido.email))}
+${linha('Idioma do casal', pedido.idioma && pedido.idioma !== 'pt' ? `<b>${esc(idiomas.NOMES[pedido.idioma] || pedido.idioma)}</b> (o orçamento foi enviado neste idioma)` : '')}
 ${linha('Mensagem', pedido.mensagem ? `"${esc(pedido.mensagem)}"` : '')}
 </table>
 <p style="margin:22px 0 0"><a href="${urlLotus}/pedidos?id=${pedido.id}" style="background:${TERRA};color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none;font-weight:bold">${tipo === 'agenda' ? 'Confirmar no Lotus' : 'Abrir no Lotus'}</a></p>`);
@@ -273,8 +284,14 @@ ${linha('Mensagem', pedido.mensagem ? `"${esc(pedido.mensagem)}"` : '')}
 }
 
 /** Rótulo do horário para o site (fuso do Recife). */
-const rotuloHorario = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-  .replace(/\.,?/g, '').replace(',', ' ·');
+const rotuloHorario = (iso, idioma = 'pt') => {
+  const l = idiomas.valido(idioma) || 'pt';
+  if (l === 'pt') return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\.,?/g, '').replace(',', ' ·');
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString(idiomas.LOCALE[l], { timeZone: 'America/Recife', weekday: 'short', day: 'numeric', month: 'short' });
+  const hora = d.toLocaleTimeString(idiomas.LOCALE[l], { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+  return `${dia} · ${hora} (Recife)`.replace(/[\u202f\u00a0]/g, ' ');
+};
 
 module.exports = {
   ESTADOS, NAO_SEI, catalogo, servicosDoSite, calcular, validar, criar, carregar, salvar, listar, publico,

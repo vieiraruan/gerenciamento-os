@@ -239,3 +239,10 @@ h2.estreito, .cabeca { max-width: 680px; }
 .bf .etapas li span:first-child { color: var(--ouro); }
 .bf .contato .sobretitulo.claro { color: var(--ouro); }
 @media (max-width: 600px) { .bf-faixa-in p { flex-basis: 100%; order: 2; } .bf-faixa-in a { order: 3; } }
+
+/* idiomas */
+.traduzindo body { visibility: hidden; }
+.idioma-lugar { display: inline-flex; margin-left: auto; margin-right: 8px; }
+.idioma-sel { font: inherit; font-size: 13px; font-weight: 500; color: var(--terracota); background: transparent; border: 1px solid rgba(139, 63, 40, .3); border-radius: 999px; padding: 6px 10px; cursor: pointer; max-width: 150px; }
+.idioma-sel:focus-visible { outline: 2px solid var(--terracota); outline-offset: 2px; }
+@media (min-width: 1001px) { .idioma-lugar { order: 3; margin: 0 0 0 14px; } }

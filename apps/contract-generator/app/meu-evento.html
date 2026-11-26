@@ -12,6 +12,7 @@
   header { background: #fffdfb; padding: 8px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--borda); }
   header img { height: 52px; } header .esp { flex: 1; } header .quem { font-size: 13px; color: var(--suave); text-align: right; }
   header a { color: var(--marca); font-weight: 600; text-decoration: none; font-size: 13px; }
+  header select.seletor-idioma { width: auto; min-height: 34px; font-size: 13px; padding: 4px 8px; border-radius: 8px; color: var(--marca); font-weight: 600; }
   main { max-width: 980px; margin: 0 auto; padding: 14px 16px 48px; }
   .capa { text-align: center; padding: 16px 10px 4px; }
   .capa h1 { font-size: 28px; color: var(--marca); margin: 0; font-weight: 600; }
@@ -102,38 +103,41 @@
   }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
+<script src="/idioma.js"></script>
 <script src="/acompanhamento.js"></script>
 </head>
 <body>
-<header><img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="esp"></div><div class="quem" id="quem"></div></header>
-<main id="conteudo"><div class="s" style="text-align:center;padding:40px">Carregando…</div></main>
+<header><img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><div class="esp"></div><span id="idiomaSel"></span><div class="quem" id="quem"></div></header>
+<main id="conteudo"><div class="s" style="text-align:center;padding:40px" data-i18n="carregando">Carregando…</div></main>
 <footer>Lotus · Tayná Alves Assessoria e Produção</footer>
 
 <dialog id="dlgPag" aria-labelledby="dlgTit">
   <form method="dialog" id="formPag">
-    <h3 id="dlgTit">Enviar pagamento</h3>
+    <h3 id="dlgTit" data-i18n="enviar_pag">Enviar pagamento</h3>
     <p class="s largo" id="dlgForn" style="margin:-6px 0 0"></p>
-    <label>O que foi pago<select name="tipo"><option value="entrada">Entrada</option><option value="parcela">Parcela</option><option value="avulso">Pagamento avulso</option></select></label>
-    <label>Valor (R$)<input name="valor" inputmode="decimal" placeholder="0,00" required></label>
-    <label>Data do pagamento<input name="data" type="date" required></label>
-    <label>Forma<select name="forma"><option>PIX</option><option>Transferência</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></label>
-    <label class="largo">Comprovante (foto ou PDF)<input name="comprovante" type="file" accept="image/*,application/pdf" required></label>
-    <label class="largo">Observação (opcional)<input name="obs" maxlength="300" placeholder="Ex.: parcela de dezembro"></label>
-    <p class="aviso">Depois de enviado, o pagamento <b>não pode ser alterado</b> por vocês. Se algo estiver errado, fale com a Tayná.</p>
+    <label><span data-i18n="dlg_oque">O que foi pago</span><select name="tipo"><option value="entrada" data-i18n="tp_entrada">Entrada</option><option value="parcela" data-i18n="tp_parcela">Parcela</option><option value="avulso" data-i18n="tp_avulso">Pagamento avulso</option></select></label>
+    <label><span data-i18n="dlg_valor">Valor (R$)</span><input name="valor" inputmode="decimal" placeholder="0,00" required></label>
+    <label><span data-i18n="dlg_data">Data do pagamento</span><input name="data" type="date" required></label>
+    <label><span data-i18n="dlg_forma">Forma</span><select name="forma"><option value="PIX" data-i18n="f_PIX">PIX</option><option value="Transferência" data-i18n="f_Transferência">Transferência</option><option value="Boleto" data-i18n="f_Boleto">Boleto</option><option value="Cartão" data-i18n="f_Cartão">Cartão</option><option value="Dinheiro" data-i18n="f_Dinheiro">Dinheiro</option></select></label>
+    <label class="largo"><span data-i18n="dlg_comp">Comprovante (foto ou PDF)</span><input name="comprovante" type="file" accept="image/*,application/pdf" required></label>
+    <label class="largo"><span data-i18n="dlg_obs">Observação (opcional)</span><input name="obs" maxlength="300" placeholder="Ex.: parcela de dezembro" data-i18n-ph="dlg_obs_ex"></label>
+    <p class="aviso" data-i18n-html="dlg_aviso">Depois de enviado, o pagamento <b>não pode ser alterado</b> por vocês. Se algo estiver errado, fale com a Tayná.</p>
     <p class="erro" id="erroPag" role="alert" hidden></p>
-    <div class="botoes"><button type="button" class="btn" id="btnCancelar">Cancelar</button><button type="submit" class="btn primario" id="btnEnviarPag">Enviar pagamento</button></div>
+    <div class="botoes"><button type="button" class="btn" id="btnCancelar" data-i18n="cancelar">Cancelar</button><button type="submit" class="btn primario" id="btnEnviarPag" data-i18n="enviar_pag">Enviar pagamento</button></div>
   </form>
 </dialog>
 
 <script>
+const t = I18N.t;
+I18N.aplicar(); document.title = `${t('titulo')} · Lotus`;
+document.getElementById('idiomaSel').innerHTML = I18N.seletor(); I18N.ligarSeletor();
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const moeda = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
-const dBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const moeda = I18N.moeda;
+const dBr = (iso) => I18N.data(iso);
 const hojeIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const ROTULO_ST = { '': 'A fazer', 'EM ANDAMENTO': 'Em andamento', 'EM COTAÇÃO': 'Em cotação', 'FINALIZADO': 'Concluída', 'NÃO SE APLICA': 'Não se aplica', 'NÃO DESEJO': 'Não desejamos' };
 const classeSt = (st) => st === 'FINALIZADO' ? 'st-FINALIZADO' : st === 'EM ANDAMENTO' ? 'st-EM-ANDAMENTO' : st === 'EM COTAÇÃO' ? 'st-EM-COTACAO' : /^NÃO/.test(st) ? 'st-NAO' : '';
 const ARQ = new URLSearchParams(location.search).get('arquivo') || '';
-const comArq = (url) => ARQ ? `${url}${url.includes('?') ? '&' : '?'}arquivo=${encodeURIComponent(ARQ)}` : url;
+const comArq = (url) => `${url}${url.includes('?') ? '&' : '?'}idioma=${I18N.idioma}${ARQ ? `&arquivo=${encodeURIComponent(ARQ)}` : ''}`;
 let D = null; let aba = 'prep'; let filtro = 'afazer'; let visao = (() => { try { return localStorage.getItem('lotus-visao') || 'lista'; } catch { return 'lista'; } })(); const abertos = new Set();
 
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
@@ -156,102 +160,103 @@ function desenhar() {
   const pend = c ? c.secoes.reduce((n, s) => n + s.itens.filter((i) => !i.concluida).length, 0) : 0;
   document.getElementById('conteudo').innerHTML = `
     <div class="capa"><h1>${esc(ev.nomes)}</h1>
-      <div class="data">${esc(ev.data_extenso || ev.data || ev.periodo || 'data a definir')}${ev.horario ? ` · ${esc(ev.horario)}` : ''}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
-      ${dias !== null ? `<div class="contagem">${dias > 1 ? `Faltam ${dias} dias` : dias === 1 ? 'É amanhã!' : dias === 0 ? 'É hoje!' : 'Casamento realizado'}</div>` : ''}
-      ${ARQ ? '<div class="previa">Prévia da área do casal (você está vendo como o casal vê).</div>' : ''}</div>
+      <div class="data">${esc(ev.data ? I18N.data(ev.data, true) : ev.periodo || t('data_definir'))}${ev.horario ? ` · ${esc(ev.horario)}` : ''}${ev.local ? ` · ${esc(ev.local)}` : ''}</div>
+      ${dias !== null ? `<div class="contagem">${dias > 1 ? t('faltam_dias', { n: dias }) : dias === 1 ? t('amanha') : dias === 0 ? t('hoje_e') : t('realizado')}</div>` : ''}
+      ${ARQ ? `<div class="previa">${t('previa')}</div>` : ''}</div>
     <div class="abas" role="tablist">
-      ${c ? `<button role="tab" aria-selected="${aba === 'prep'}" data-aba="prep">Preparativos<span class="n">(${pend})</span></button>` : ''}
-      <button role="tab" aria-selected="${aba === 'forn'}" data-aba="forn">Fornecedores<span class="n">(${D.fornecedores.length})</span></button>
+      ${c ? `<button role="tab" aria-selected="${aba === 'prep'}" data-aba="prep">${t('aba_prep')}<span class="n">(${pend})</span></button>` : ''}
+      <button role="tab" aria-selected="${aba === 'forn'}" data-aba="forn">${t('aba_forn')}<span class="n">(${D.fornecedores.length})</span></button>
     </div>
-    ${(D.alertas || []).some((a) => a.nivel !== 'info') ? '<div class="card"><h2>Atenção</h2><div id="alertas"></div></div>' : ''}
+    ${(D.alertas || []).some((a) => a.nivel !== 'info') ? `<div class="card"><h2>${t('atencao')}</h2><div id="alertas"></div></div>` : ''}
     <div id="painel">${aba === 'prep' && c ? painelPrep(c) : painelForn()}</div>`;
   const al = document.getElementById('alertas'); if (al) Acomp.alertas(al, D.alertas, { semInfo: true });
   const bd = document.getElementById('bd'); if (bd) Acomp.burndown(bd, D.burndown);
   const kb = document.getElementById('kb');
-  if (kb) Acomp.quadro(kb, { itens: Acomp.itensDoCronograma(c), etapaAtual: Acomp.etapaAtual(c), tagCasal: 'por vocês',
+  if (kb) Acomp.quadro(kb, { itens: Acomp.itensDoCronograma(c), etapaAtual: Acomp.etapaAtual(c), tagCasal: t('tag_voces'),
     onMudar: async (chave, mud) => {
       const it = Acomp.itensDoCronograma(D.cronograma).find((x) => x.chave === chave) || {};
-      const r = await fetch('/api/meu-evento/tarefa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ arquivo: ARQ || undefined, chave, status_atual: it.status || '', ...mud }) });
-      const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível salvar.');
-      D = d; desenhar(); toast(mud.status === 'FINALIZADO' ? 'Atividade concluída ✔' : 'Salvo ✔');
+      const r = await fetch(comArq('/api/meu-evento/tarefa'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arquivo: ARQ || undefined, idioma: I18N.idioma, chave, status_atual: it.status || '', ...mud }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.erro || t('erro_salvar'));
+      D = d; desenhar(); toast(mud.status === 'FINALIZADO' ? t('concluida_ok') : t('salvo'));
     } });
 }
 
 // ---------------- Preparativos ----------------
 function linhaTarefa(i) {
   return `<li class="tarefa ${i.concluida ? 'feita' : ''}" data-chave="${esc(i.chave)}">
-    <div><span class="t">${esc(i.texto)}</span>${i.atrasada && !i.concluida ? '<span class="tag atr">atrasada</span>' : ''}${i.pelo_casal ? '<span class="tag voce" title="Vocês atualizaram esta atividade">por vocês</span>' : ''}
+    <div><span class="t">${esc(i.texto)}</span>${i.atrasada && !i.concluida ? `<span class="tag atr">${t('tag_atrasada')}</span>` : ''}${i.pelo_casal ? `<span class="tag voce" title="${t('tag_voces_tit')}">${t('tag_voces')}</span>` : ''}
       ${i.fornecedor ? `<div class="det">${esc(i.fornecedor)}</div>` : ''}<div class="salvando" aria-live="polite"></div></div>
-    <select class="${classeSt(i.status)}" data-st aria-label="Situação: ${esc(i.texto)}">${D.status_tarefa.map((st) => `<option value="${esc(st)}" ${st === i.status ? 'selected' : ''}>${ROTULO_ST[st] || st}</option>`).join('')}</select>
-    <input data-obs value="${esc(i.obs)}" maxlength="500" placeholder="Observação" aria-label="Observação: ${esc(i.texto)}">
+    <select class="${classeSt(i.status)}" data-st aria-label="${t('situacao')}: ${esc(i.texto)}">${D.status_tarefa.map((st) => `<option value="${esc(st)}" ${st === i.status ? 'selected' : ''}>${esc(I18N.status(st))}</option>`).join('')}</select>
+    <input data-obs value="${esc(i.obs)}" maxlength="500" placeholder="${t('obs')}" aria-label="${t('obs')}: ${esc(i.texto)}">
   </li>`;
 }
 function painelPrep(c) {
   const r = c.ritmo;
   const secoes = c.secoes.filter((s) => s.itens.length);
   const lista = filtro === 'feitas'
-    ? `<ul class="ativs">${c.concluidas.map(linhaTarefa).join('') || '<li class="s">Nenhuma atividade concluída ainda.</li>'}</ul>`
+    ? `<ul class="ativs">${c.concluidas.map(linhaTarefa).join('') || `<li class="s">${t('nenhuma_concluida')}</li>`}</ul>`
     : secoes.map((s) => {
       const atual = s.situacao === 'atual' || s.situacao === 'vencida';
       const aberto = abertos.has(s.rotulo) || (abertos.size === 0 && atual) || filtro === 'todas';
-      return `<details class="etapa" data-sec="${esc(s.rotulo)}" ${aberto ? 'open' : ''}><summary><span class="tit">${esc(s.rotulo)}</span>
-        <span class="s">${s.itens.filter((i) => !i.concluida).length} a fazer${s.inicio ? ` · ${esc(s.inicio)} a ${esc(s.fim)}` : ''}</span></summary>
-        <ul class="ativs">${s.itens.filter((i) => filtro !== 'afazer' || !i.concluida).map(linhaTarefa).join('') || '<li class="s">Tudo feito nesta etapa ✔</li>'}</ul></details>`;
-    }).join('') || '<p class="s">Nenhuma atividade pendente por aqui.</p>';
+      const titulo = s.meses ? I18N.etapa(s.meses) : s.rotulo;
+      return `<details class="etapa" data-sec="${esc(s.rotulo)}" ${aberto ? 'open' : ''}><summary><span class="tit">${esc(titulo.charAt(0).toUpperCase() + titulo.slice(1))}</span>
+        <span class="s">${t('n_a_fazer', { n: s.itens.filter((i) => !i.concluida).length })}${s.inicio ? ` · ${esc(t('periodo', { ini: I18N.data(s.inicio), fim: I18N.data(s.fim) }))}` : ''}</span></summary>
+        <ul class="ativs">${s.itens.filter((i) => filtro !== 'afazer' || !i.concluida).map(linhaTarefa).join('') || `<li class="s">${t('etapa_feita')}</li>`}</ul></details>`;
+    }).join('') || `<p class="s">${t('nada_pendente')}</p>`;
   return `<div class="card">
     <div class="kpis">
-      <div class="kpi"><div class="r">Concluídas</div><div class="v">${r.concluidas} de ${r.total}</div><div class="barra"><i style="width:${r.percentual}%"></i></div></div>
-      <div class="kpi"><div class="r">Em andamento</div><div class="v">${r.em_andamento || 0}</div></div>
-      <div class="kpi"><div class="r">Ritmo</div><div class="v" style="font-size:16px">${r.situacao === 'atrasado' ? 'Precisamos acelerar' : r.situacao === 'adiantado' ? 'Adiantados' : 'Em dia'}</div></div>
+      <div class="kpi"><div class="r">${t('kpi_concluidas')}</div><div class="v">${t('x_de_y', { a: r.concluidas, b: r.total })}</div><div class="barra"><i style="width:${r.percentual}%"></i></div></div>
+      <div class="kpi"><div class="r">${t('kpi_andamento')}</div><div class="v">${r.em_andamento || 0}</div></div>
+      <div class="kpi"><div class="r">${t('kpi_ritmo')}</div><div class="v" style="font-size:16px">${r.situacao === 'atrasado' ? t('ritmo_atrasado') : r.situacao === 'adiantado' ? t('ritmo_adiantado') : t('ritmo_em_dia')}</div></div>
     </div>
-    <p class="s" style="margin:12px 0 0">Atualizem a situação de cada atividade e deixem uma observação para a Tayná. Tudo é salvo na hora.</p>
-    <div class="filtros" role="group" aria-label="Ver como">
-      <button data-visao="lista" aria-pressed="${visao === 'lista'}">☰ Lista</button>
-      <button data-visao="quadro" aria-pressed="${visao === 'quadro'}">▦ Quadro</button>
-      <button data-visao="grafico" aria-pressed="${visao === 'grafico'}">📉 Andamento</button>
+    <p class="s" style="margin:12px 0 0">${t('ajuda_prep')}</p>
+    <div class="filtros" role="group" aria-label="${t('ver_como')}">
+      <button data-visao="lista" aria-pressed="${visao === 'lista'}">☰ ${t('v_lista')}</button>
+      <button data-visao="quadro" aria-pressed="${visao === 'quadro'}">▦ ${t('v_quadro')}</button>
+      <button data-visao="grafico" aria-pressed="${visao === 'grafico'}">📉 ${t('v_grafico')}</button>
     </div>
-    ${visao === 'lista' ? `<div class="filtros" role="group" aria-label="Mostrar">
-      <button data-filtro="afazer" aria-pressed="${filtro === 'afazer'}">A fazer</button>
-      <button data-filtro="todas" aria-pressed="${filtro === 'todas'}">Abrir todas as etapas</button>
-      <button data-filtro="feitas" aria-pressed="${filtro === 'feitas'}">Concluídas (${c.concluidas.length})</button>
+    ${visao === 'lista' ? `<div class="filtros" role="group" aria-label="${t('mostrar')}">
+      <button data-filtro="afazer" aria-pressed="${filtro === 'afazer'}">${t('f_afazer')}</button>
+      <button data-filtro="todas" aria-pressed="${filtro === 'todas'}">${t('f_todas')}</button>
+      <button data-filtro="feitas" aria-pressed="${filtro === 'feitas'}">${t('f_feitas', { n: c.concluidas.length })}</button>
     </div>` : ''}</div>
-    ${visao === 'quadro' ? '<div class="card" style="padding:12px"><p class="s" style="margin:0 0 8px">Arrastem as atividades entre as colunas ou toquem numa atividade para mudar a situação.</p><div id="kb"></div></div>'
-      : visao === 'grafico' ? '<div class="card"><h2>Quantas atividades faltam até o casamento</h2><div id="bd"></div><p class="s" style="margin:10px 0 0">A linha tracejada é o planejado pela Tayná; a linha cheia, o que de fato falta. Se a linha cheia estiver acima da tracejada, é hora de acelerar.</p></div>'
+    ${visao === 'quadro' ? `<div class="card" style="padding:12px"><p class="s" style="margin:0 0 8px">${t('ajuda_quadro')}</p><div id="kb"></div></div>`
+      : visao === 'grafico' ? `<div class="card"><h2>${t('tit_grafico')}</h2><div id="bd"></div><p class="s" style="margin:10px 0 0">${t('ajuda_grafico')}</p></div>`
       : `<div class="card">${lista}</div>`}`;
 }
 
 async function salvarTarefa(li, mudanca) {
-  const aviso = li.querySelector('.salvando'); aviso.textContent = 'Salvando…';
+  const aviso = li.querySelector('.salvando'); aviso.textContent = t('salvando');
   const chave = li.dataset.chave;
   const it = [...D.cronograma.secoes.flatMap((s) => s.itens), ...D.cronograma.concluidas].find((x) => x.chave === chave) || {};
   try {
-    const r = await fetch('/api/meu-evento/tarefa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ arquivo: ARQ || undefined, chave, status_atual: it.status || '', ...mudanca }) });
-    const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível salvar.');
+    const r = await fetch(comArq('/api/meu-evento/tarefa'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arquivo: ARQ || undefined, idioma: I18N.idioma, chave, status_atual: it.status || '', ...mudanca }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.erro || t('erro_salvar'));
     D = d;
-    if (mudanca.status !== undefined) { desenhar(); toast(mudanca.status === 'FINALIZADO' ? 'Atividade concluída ✔' : 'Situação salva ✔'); }
-    else aviso.textContent = 'Salvo ✔';
+    if (mudanca.status !== undefined) { desenhar(); toast(mudanca.status === 'FINALIZADO' ? t('concluida_ok') : t('situacao_ok')); }
+    else aviso.textContent = t('salvo');
   } catch (e) { aviso.textContent = ''; toast(e.message); }
 }
 
 // ---------------- Fornecedores ----------------
 function painelForn() {
-  const t = D.totais;
-  if (!D.fornecedores.length) return '<div class="card"><p class="s" style="margin:0">Ainda não há fornecedores cadastrados. Assim que a Tayná cadastrar, eles aparecem aqui com valores, vencimentos e pagamentos.</p></div>';
+  const tot = D.totais;
+  if (!D.fornecedores.length) return `<div class="card"><p class="s" style="margin:0">${t('forn_vazio')}</p></div>`;
   const atr = D.atrasados || [];
-  return `${t ? `<div class="card"><div class="kpis">
-      <div class="kpi"><div class="r">Contratado</div><div class="v">${moeda(t.contratado)}</div></div>
-      <div class="kpi"><div class="r">Pago</div><div class="v">${moeda(t.pago)}</div><div class="barra"><i style="width:${t.percentual}%"></i></div></div>
-      <div class="kpi"><div class="r">A pagar</div><div class="v">${moeda(t.saldo)}</div></div></div>
-      ${atr.length ? `<div class="alerta atr"><b>${atr.length} parcela(s) vencida(s):</b> ${atr.slice(0, 4).map((v) => `${esc(v.fornecedor)} (${dBr(v.vencimento)})`).join(', ')}${atr.length > 4 ? '…' : ''}</div>` : ''}
-      ${D.proximos.length ? `<h2 style="margin-top:14px">Próximos vencimentos</h2>${D.proximos.map((v) => `<div class="venc"><span>${dBr(v.vencimento)} · ${esc(v.fornecedor)}</span><b>${moeda(v.valor)}</b></div>`).join('')}` : ''}
+  return `${tot ? `<div class="card"><div class="kpis">
+      <div class="kpi"><div class="r">${t('kpi_contratado')}</div><div class="v">${moeda(tot.contratado)}</div></div>
+      <div class="kpi"><div class="r">${t('kpi_pago')}</div><div class="v">${moeda(tot.pago)}</div><div class="barra"><i style="width:${tot.percentual}%"></i></div></div>
+      <div class="kpi"><div class="r">${t('kpi_apagar')}</div><div class="v">${moeda(tot.saldo)}</div></div></div>
+      ${atr.length ? `<div class="alerta atr"><b>${t('parcelas_vencidas', { n: atr.length })}</b> ${atr.slice(0, 4).map((v) => `${esc(v.fornecedor)} (${dBr(v.vencimento)})`).join(', ')}${atr.length > 4 ? '…' : ''}</div>` : ''}
+      ${D.proximos.length ? `<h2 style="margin-top:14px">${t('proximos')}</h2>${D.proximos.map((v) => `<div class="venc"><span>${dBr(v.vencimento)} · ${esc(v.fornecedor)}</span><b>${moeda(v.valor)}</b></div>`).join('')}` : ''}
     </div>` : ''}
     ${D.fornecedores.map(cartaoForn).join('')}`;
 }
 function cartaoForn(f) {
   const aberto = abertos.has(f.id);
-  const st = f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : f.atrasadas ? '<span class="badge b-atr">vencida</span>' : f.status === 'Sem valor' ? '<span class="badge b-p">sem valor</span>' : '<span class="badge b-p">em aberto</span>';
+  const st = f.status === 'Pago' ? `<span class="badge b-ok">${t('b_quitado')}</span>` : f.atrasadas ? `<span class="badge b-atr">${t('b_vencida')}</span>` : f.status === 'Sem valor' ? `<span class="badge b-p">${t('b_sem_valor')}</span>` : `<span class="badge b-p">${t('b_aberto')}</span>`;
   const pct = f.contratado ? Math.min(100, Math.round((f.pago / f.contratado) * 100)) : 0;
   const ct = f.contato || {};
   const whats = String(ct.telefone || '').replace(/\D/g, '');
@@ -263,26 +268,26 @@ function cartaoForn(f) {
     <div class="forn-cab" data-abrir="${esc(f.id)}" role="button" tabindex="0" aria-expanded="${aberto}">
       <div class="esp"><div class="nome">${esc(f.nome)} ${st}</div><div class="s">${esc(f.servico || f.descricao).slice(0, 80)}</div>
         <div class="barra" style="max-width:260px"><i style="width:${pct}%"></i></div></div>
-      <div class="valores">a pagar<b>${f.status === 'Pago' ? '—' : moeda(f.saldo)}</b>${f.proxima ? `próx. ${dBr(f.proxima.vencimento) || '—'}` : ''}</div>
+      <div class="valores">${t('a_pagar_min')}<b>${f.status === 'Pago' ? '—' : moeda(f.saldo)}</b>${f.proxima ? t('prox', { d: dBr(f.proxima.vencimento) || '—' }) : ''}</div>
     </div>
     ${aberto ? `<div class="forn-corpo">
-      <div><h4>Valores</h4>
-        <div class="linha"><span>Contratado</span><b>${moeda(f.contratado)}</b></div>
-        <div class="linha"><span>Pago</span><b>${moeda(f.pago)}</b></div>
-        <div class="linha"><span>A pagar</span><b>${moeda(f.saldo)}</b></div>
-        ${f.entrada.prevista ? `<div class="linha"><span>Entrada</span><span>${moeda(f.entrada.prevista)} · ${f.entrada.paga ? 'paga ✔' : 'a pagar'}</span></div>` : ''}
-        ${f.parcelas.total ? `<div class="linha"><span>Parcelas</span><span>${f.parcelas.pagas} de ${f.parcelas.total}${f.parcelas.valor ? ` × ${moeda(f.parcelas.valor)}` : ''}</span></div>` : ''}
-        ${f.vencimentos.length ? `<div class="s" style="margin-top:6px">${f.vencimentos.map((v) => `${v.numero}ª ${dBr(v.vencimento) || '—'} ${v.paga ? '✔' : v.vencimento && v.vencimento < hojeIso() ? '<b style="color:var(--erro)">vencida</b>' : ''}`).join(' · ')}</div>` : ''}
+      <div><h4>${t('h_valores')}</h4>
+        <div class="linha"><span>${t('kpi_contratado')}</span><b>${moeda(f.contratado)}</b></div>
+        <div class="linha"><span>${t('kpi_pago')}</span><b>${moeda(f.pago)}</b></div>
+        <div class="linha"><span>${t('kpi_apagar')}</span><b>${moeda(f.saldo)}</b></div>
+        ${f.entrada.prevista ? `<div class="linha"><span>${t('l_entrada')}</span><span>${moeda(f.entrada.prevista)} · ${f.entrada.paga ? t('paga_ok') : t('a_pagar_min')}</span></div>` : ''}
+        ${f.parcelas.total ? `<div class="linha"><span>${t('l_parcelas')}</span><span>${t('x_de_y', { a: f.parcelas.pagas, b: f.parcelas.total })}${f.parcelas.valor ? ` × ${moeda(f.parcelas.valor)}` : ''}</span></div>` : ''}
+        ${f.vencimentos.length ? `<div class="s" style="margin-top:6px">${f.vencimentos.map((v) => `${t('ord', { n: v.numero })} ${dBr(v.vencimento) || '—'} ${v.paga ? '✔' : v.vencimento && v.vencimento < hojeIso() ? `<b style="color:var(--erro)">${t('venc_vencida')}</b>` : ''}`).join(' · ')}</div>` : ''}
       </div>
-      <div>${contato.length ? `<h4>Contato</h4><div style="display:flex;flex-direction:column;gap:2px;font-size:14px">${contato.join('')}</div>` : ''}
-        ${f.pagar_com ? `<h4 style="margin-top:${contato.length ? 12 : 0}px">Dados para pagamento</h4><div class="pagar">${esc(f.pagar_com)}</div>` : ''}
-        ${f.descricao && f.servico ? `<h4 style="margin-top:12px">O que está contratado</h4><div style="font-size:14px">${esc(f.descricao)}</div>` : ''}
+      <div>${contato.length ? `<h4>${t('h_contato')}</h4><div style="display:flex;flex-direction:column;gap:2px;font-size:14px">${contato.join('')}</div>` : ''}
+        ${f.pagar_com ? `<h4 style="margin-top:${contato.length ? 12 : 0}px">${t('h_dados')}</h4><div class="pagar">${esc(f.pagar_com)}</div>` : ''}
+        ${f.descricao && f.servico ? `<h4 style="margin-top:12px">${t('h_contratado')}</h4><div style="font-size:14px">${esc(f.descricao)}</div>` : ''}
       </div>
-      <div class="largo" style="grid-column:1/-1"><h4>Pagamentos</h4>
-        ${f.pagamentos.length ? `<div class="pags">${f.pagamentos.map((p) => `<div class="pag"><div><b>${dBr(p.data) || '—'}</b> · ${p.tipo === 'parcela' ? `Parcela${p.numero ? ` ${p.numero}` : ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.forma ? ` · ${esc(p.forma)}` : ''}${p.pelo_casal ? ' <span class="tag voce">enviado por vocês</span>' : ''}</div>
-          <div class="n"><b>${moeda(p.valor)}</b>${p.comprovante ? '<div class="s">comprovante ✔</div>' : ''}</div></div>`).join('')}</div>` : '<p class="s" style="margin:0">Nenhum pagamento registrado.</p>'}
+      <div class="largo" style="grid-column:1/-1"><h4>${t('h_pagamentos')}</h4>
+        ${f.pagamentos.length ? `<div class="pags">${f.pagamentos.map((p) => `<div class="pag"><div><b>${dBr(p.data) || '—'}</b> · ${p.tipo === 'parcela' ? `${t('p_parcela')}${p.numero ? ` ${p.numero}` : ''}` : p.tipo === 'entrada' ? t('p_entrada') : t('p_avulso')}${p.forma ? ` · ${esc(t(`f_${p.forma}`) === `f_${p.forma}` ? p.forma : t(`f_${p.forma}`))}` : ''}${p.pelo_casal ? ` <span class="tag voce">${t('p_voces')}</span>` : ''}</div>
+          <div class="n"><b>${moeda(p.valor)}</b>${p.comprovante ? `<div class="s">${t('comprov_ok')}</div>` : ''}</div></div>`).join('')}</div>` : `<p class="s" style="margin:0">${t('nenhum_pag')}</p>`}
       </div>
-      <div class="acoes">${f.status !== 'Pago' ? `<button class="btn primario" data-pagar="${esc(f.id)}">Enviar pagamento</button>` : ''}</div>
+      <div class="acoes">${f.status !== 'Pago' ? `<button class="btn primario" data-pagar="${esc(f.id)}">${t('enviar_pag')}</button>` : ''}</div>
     </div>` : ''}
   </div>`;
 }
@@ -298,7 +303,7 @@ function abrirPagamento(id) {
   const tipo = e.prevista && !e.paga ? 'entrada' : fornPag.parcelas.total ? 'parcela' : 'avulso';
   formPag.tipo.value = tipo;
   const sugestao = tipo === 'entrada' ? e.prevista : fornPag.proxima ? fornPag.proxima.valor : null;
-  formPag.valor.value = sugestao ? Number(sugestao).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+  formPag.valor.value = sugestao ? Number(sugestao).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';  // o servidor lê no formato brasileiro
   formPag.data.value = hojeIso();
   dlg.showModal();
 }
@@ -307,19 +312,19 @@ formPag.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const arq = formPag.comprovante.files[0];
   const erro = (m) => { erroPag.textContent = m; erroPag.hidden = false; };
-  if (!formPag.valor.value.trim()) return erro('Informe o valor pago.');
-  if (!formPag.data.value) return erro('Informe a data do pagamento.');
-  if (!arq) return erro('Anexe o comprovante (foto ou PDF).');
-  if (arq.size > 15 * 1024 * 1024) return erro('O comprovante passa de 15 MB. Envie uma foto ou PDF menor.');
+  if (!formPag.valor.value.trim()) return erro(t('e_valor'));
+  if (!formPag.data.value) return erro(t('e_data'));
+  if (!arq) return erro(t('e_comp'));
+  if (arq.size > 15 * 1024 * 1024) return erro(t('e_grande'));
   const dados = { id: fornPag.id, tipo: formPag.tipo.value, valor: formPag.valor.value, data: formPag.data.value, forma: formPag.forma.value, obs: formPag.obs.value };
-  const btn = document.getElementById('btnEnviarPag'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const btn = document.getElementById('btnEnviarPag'); btn.disabled = true; btn.textContent = t('enviando');
   try {
     const url = comArq(`/api/meu-evento/pagamento?dados=${encodeURIComponent(JSON.stringify(dados))}`);
     const r = await fetch(url, { method: 'POST', headers: { 'x-nome-arquivo': encodeURIComponent(arq.name) }, body: arq });
-    const d = await r.json(); if (!r.ok) throw new Error(d.erro || 'Não foi possível enviar.');
-    D = d; abertos.add(fornPag.id); dlg.close(); desenhar(); toast('Pagamento enviado ✔ A Tayná já consegue ver.');
+    const d = await r.json(); if (!r.ok) throw new Error(d.erro || t('erro_enviar'));
+    D = d; abertos.add(fornPag.id); dlg.close(); desenhar(); toast(t('pag_ok'));
   } catch (e) { erro(e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Enviar pagamento'; }
+  finally { btn.disabled = false; btn.textContent = t('enviar_pag'); }
 });
 
 // ---------------- eventos da página ----------------
@@ -343,7 +348,7 @@ conteudo.addEventListener('change', (e) => {
 (async () => {
   try {
     const eu = await (await fetch('/api/eu')).json();
-    if (eu.login) document.getElementById('quem').innerHTML = `${esc(eu.nome || eu.email)}<br><a href="/sair">Sair</a>`;
+    if (eu.login) document.getElementById('quem').innerHTML = `${esc(eu.nome || eu.email)}<br><a href="/sair">${t('sair')}</a>`;
     await carregar();
   } catch (e) { conteudo.innerHTML = `<div class="card" style="color:var(--erro)">${esc(e.message)}</div>`; }
 })();
