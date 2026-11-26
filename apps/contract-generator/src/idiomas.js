@@ -21,6 +21,9 @@ function escolher(req, url) {
   if (q) return q;
   const m = /(?:^|;\s*)lotus_idioma=([a-z]{2})/.exec(req.headers.cookie || '');
   if (m && valido(m[1])) return m[1];
+  // idioma do país onde a pessoa está, calculado no navegador (local.js) e guardado nesta sessão
+  const loc = /(?:^|;\s*)lotus_local=([a-z]{2})/.exec(req.headers.cookie || '');
+  if (loc && valido(loc[1])) return loc[1];
   for (const parte of String(req.headers['accept-language'] || '').split(',')) {
     const l = valido(parte.trim());
     if (l) return l;

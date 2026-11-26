@@ -24,8 +24,9 @@
 <link rel="alternate" hreflang="fr" href="https://taynaalvesassessoria.com.br/?lang=fr">
 <link rel="alternate" hreflang="de" href="https://taynaalvesassessoria.com.br/?lang=de">
 <link rel="alternate" hreflang="x-default" href="https://taynaalvesassessoria.com.br/">
+<script src="/local.js?v=1"></script>
 <script>/* idioma: esconde a página só até a tradução entrar (no máximo 1,5 s) */
-(function () { try { var q = new URLSearchParams(location.search); var l = q.get('lang') || q.get('idioma') || localStorage.getItem('lotus_idioma') || ((/(?:^|;\s*)lotus_idioma=([a-z]{2})/.exec(document.cookie) || [])[1]) || (navigator.language || 'pt');
+(function () { try { var q = new URLSearchParams(location.search); var l = q.get('lang') || q.get('idioma') || localStorage.getItem('lotus_idioma') || ((/(?:^|;\s*)lotus_idioma=([a-z]{2})/.exec(document.cookie) || [])[1]) || (window.IdiomaLocal ? IdiomaLocal.detectar().idioma : (navigator.language || 'pt'));
   if (/^(en|es|fr|de)/i.test(l)) { document.documentElement.classList.add('traduzindo'); setTimeout(function () { document.documentElement.classList.remove('traduzindo'); }, 1500); } } catch (e) {} })();</script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"LocalBusiness","name":"Tayná Alves Assessoria e Produção","url":"https://taynaalvesassessoria.com.br/","image":"https://taynaalvesassessoria.com.br/img/compartilhar.jpg","telephone":"+55-81-99676-0320","email":"contatotaynaassessoria@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Recife","addressRegion":"PE","addressCountry":"BR"},"sameAs":["https://www.instagram.com/taynaalvesassessoria/"]}
@@ -302,7 +303,7 @@
 
 <a class="whats-flutuante" href="https://wa.me/5581996760320" target="_blank" rel="noopener" aria-label="Conversar com a Tayná no WhatsApp" data-i18n-aria="wa.aria"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-4A8 8 0 1 1 20 12z"></path></svg></a>
 
-<script src="/idioma.js?v=1"></script>
+<script src="/idioma.js?v=2"></script>
 <script src="/campos.js?v=3" defer></script>
 <script src="/site.js?v=5" defer></script>
 </body>

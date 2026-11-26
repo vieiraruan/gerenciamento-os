@@ -225,7 +225,7 @@ function conferirIdToken(idToken, { clientId, nonce, agora = Math.floor(Date.now
 // ---------------------------------------------------------------------------
 // Permissões por perfil
 // ---------------------------------------------------------------------------
-const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/(movel\.(css|js)|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js)$/, /^GET \/saude$/,
+const PUBLICO = [/^GET \/(entrar|sair|privacidade)$/, /^GET \/auth\/google(\/retorno)?$/, /^POST \/sair$/, /^GET \/marca\/(logo|icone)\.png$/, /^GET \/(movel\.(css|js)|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js|local\.js)$/, /^GET \/saude$/,
   // formulário do site (taynaalvesassessoria.com.br): pedido de orçamento e de horário com a Tayná
   /^GET \/api\/publico\/(servicos|horarios)$/, /^POST \/api\/publico\/(orcamento|agenda)$/];
 const EQUIPE = [
@@ -440,11 +440,21 @@ const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><p
 // mensagem de erro: código conhecido (traduzido) ou texto vindo do login do Google
 const textoErro = (erro, lang) => { const k = `erro.${erro}`; const tr = idiomas.t(lang, k); return tr !== k ? tr : erro; };
 const seletorIdioma = (lang, caminho) => `<div class="idiomas" aria-label="${idiomas.t(lang, 'idioma')}">${idiomas.seletorHtml(lang, caminho)}</div>`;
+// Sem idioma escolhido, a tela segue o país onde a pessoa está (local.js): grava o cookie lotus_local
+// desta sessão e, se a página veio em outro idioma, recarrega uma vez.
+const versaoLocal = () => { try { return Math.round(fs.statSync(path.join(__dirname, '..', 'app', 'local.js')).mtimeMs); } catch { return 0; } };
+const scriptLocal = (lang) => `<script src="/local.js?v=${versaoLocal()}"></script><script>(function(){try{
+var q=new URLSearchParams(location.search);if(q.get('idioma')||/(?:^|;\\s*)lotus_idioma=/.test(document.cookie)||!window.IdiomaLocal)return;
+var l=IdiomaLocal.detectar(${JSON.stringify(idiomas.IDIOMAS)}).idioma;
+var dom=/(^|\\.)taynaalvesassessoria\\.com\\.br$/.test(location.hostname)?'; Domain=.taynaalvesassessoria.com.br':'';
+document.cookie='lotus_local='+l+'; Path=/; SameSite=Lax'+dom+(location.protocol==='https:'?'; Secure':'');
+if(l!=='${lang}'&&!sessionStorage.getItem('lotus_local_ok')){sessionStorage.setItem('lotus_local_ok','1');location.reload();}
+}catch(e){}})();</script>`;
 function paginaEntrar(erro, email, voltar = '/', lang = 'pt') {
   const t = (k) => idiomas.t(lang, k);
   const htmlLang = idiomas.LOCALE[lang] || 'pt-BR';
   return `<!DOCTYPE html><html lang="${htmlLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${t('entrar.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
+<title>${t('entrar.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}${scriptLocal(lang)}</head><body><div class="caixa">
 ${seletorIdioma(lang, '/entrar')}
 <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>Lotus</h1><div class="sub">${t('entrar.sub')}</div>
 ${erro ? `<div class="erro" role="alert">${esc(textoErro(erro, lang))}</div>` : ''}
@@ -462,7 +472,7 @@ ${erro ? `<div class="erro" role="alert">${esc(textoErro(erro, lang))}</div>` : 
 function paginaNovaSenha(pend, erro, lang = 'pt') {
   const t = (k) => idiomas.t(lang, k);
   return `<!DOCTYPE html><html lang="${idiomas.LOCALE[lang] || 'pt-BR'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${t('nova.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}</head><body><div class="caixa">
+<title>${t('nova.titulo')} · Lotus</title><link rel="icon" type="image/png" href="/marca/icone.png">${ESTILO}${scriptLocal(lang)}</head><body><div class="caixa">
 ${seletorIdioma(lang, '/auth/nova-senha')}
 <img src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção"><h1>${t('nova.bemvindos')}</h1>
 <div class="sub">${esc(pend.nome || t('nova.area'))}</div>

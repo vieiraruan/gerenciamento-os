@@ -1212,11 +1212,12 @@ async function atender(req, res, url) {
         .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`)
         .replace(/\/acompanhamento\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'acompanhamento.js')).mtimeMs)}`)
         .replace(/\/motivo\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'motivo.js')).mtimeMs)}`)
-        .replace(/\/idioma\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'idioma.js')).mtimeMs)}`);
+        .replace(/\/idioma\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'idioma.js')).mtimeMs)}`)
+        .replace(/\/local\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'local.js')).mtimeMs)}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     // ajustes de celular comuns a todas as telas
-    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js)$/.exec(url.pathname);
+    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js|motivo\.js|idioma\.js|local\.js)$/.exec(url.pathname);
     if (req.method === 'GET' && comum) {
       res.writeHead(200, { 'Content-Type': comum[1].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'app', comum[1])));

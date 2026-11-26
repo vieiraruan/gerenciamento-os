@@ -60,6 +60,21 @@ function unidade() {
   assert.ok(chaves.size > 100);
   ok(`site: ${chaves.size} textos marcados, todos traduzidos em en/es/fr/de`);
 
+  // idioma pelo país onde a pessoa está (fuso horário do aparelho)
+  const sitelocal = fs.readFileSync(path.join(RAIZ, '..', '..', 'site', 'local.js'), 'utf8');
+  assert.strictEqual(sitelocal, fs.readFileSync(path.join(RAIZ, 'app', 'local.js'), 'utf8'), 'site/local.js igual a app/local.js');
+  const L = require('../app/local.js'); const SUP = idiomas.IDIOMAS;
+  const casos = [
+    ['America/Recife', ['en-US'], 'pt'], ['America/Sao_Paulo', ['de-DE'], 'pt'], ['Brazil/East', [], 'pt'],
+    ['Europe/Berlin', ['en-GB'], 'de'], ['Europe/Vienna', ['pt-BR'], 'de'], ['Europe/Paris', ['de'], 'fr'], ['Europe/Madrid', ['en'], 'es'],
+    ['Europe/Lisbon', ['en'], 'pt'], ['America/Argentina/Buenos_Aires', ['en'], 'es'], ['America/Buenos_Aires', ['en'], 'es'], ['America/Mexico_City', ['en-US'], 'es'],
+    ['Europe/Zurich', ['fr-CH'], 'fr'], ['Europe/Zurich', ['it-CH'], 'de'], ['America/Toronto', ['fr-CA'], 'fr'], ['America/Toronto', ['es'], 'en'],
+    ['America/New_York', ['es-US'], 'es'], ['America/New_York', ['de'], 'en'], ['Europe/London', ['fr'], 'fr'], ['Europe/Rome', ['it-IT'], 'en'],
+    ['Asia/Tokyo', ['ja'], 'en'], ['UTC', ['de-DE'], 'de'], ['', ['it'], 'pt'], ['', [], 'pt'],
+  ];
+  for (const [tz, nav, esperado] of casos) assert.strictEqual(L.escolher(tz, nav, SUP).idioma, esperado, `${tz} + ${nav}`);
+  ok(`idioma pelo país (fuso do aparelho): ${casos.length} casos — Brasil em português mesmo com navegador em inglês, Alemanha em alemão, Suíça/Canadá pelo navegador, outros países em inglês`);
+
   // orçamento do site em alemão
   assert.throws(() => pedidos.validar({ nome: 'Anna und Peter', email: 'x', servico: 'essencial', consentimento: true, idioma: 'de' }), /gültige E-Mail/);
   const v = pedidos.validar({ nome: 'Anna und Peter', email: 'a@b.de', servico: 'essencial', convidados: 220, fora: true, consentimento: true, idioma: 'de', data: '2027-09-18' });
@@ -114,10 +129,14 @@ async function servidor() {
     assert.match(r.j, /Bereich für das Brautpaar/); assert.match(r.j, /lang="de-DE"/); assert.match(String(r.h['set-cookie']), /lotus_idioma=de/);
     r = await pedir('GET', '/entrar', { headers: { 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.5' } }); assert.match(r.j, /Espace des mariés/);
     r = await pedir('GET', '/entrar', { headers: { Cookie: 'lotus_idioma=es', 'Accept-Language': 'fr' } }); assert.match(r.j, /Área de la pareja/, 'o cookie vale mais que o navegador');
+    r = await pedir('GET', '/entrar', { headers: { Cookie: 'lotus_local=de', 'Accept-Language': 'en' } }); assert.match(r.j, /Bereich für das Brautpaar/, 'o país (lotus_local) vale mais que o navegador');
+    r = await pedir('GET', '/entrar', { headers: { Cookie: 'lotus_local=de; lotus_idioma=fr' } }); assert.match(r.j, /Espace des mariés/, 'a escolha da pessoa vale mais que o país');
+    assert.match(r.j, /<script src="\/local\.js\?v=\d+"><\/script>/); assert.match(r.j, /IdiomaLocal\.detectar/);
+    r = await pedir('GET', '/local.js'); assert.match(r.j, /IdiomaLocal/); assert.match(String(r.h['content-type']), /javascript/);
     r = await pedir('GET', '/entrar?erro=tentativas', { headers: { Cookie: 'lotus_idioma=en' } }); assert.match(r.j, /Too many attempts/);
     r = await pedir('GET', '/entrar?erro=<script>x</script>'); assert.ok(!/<script>x/.test(r.j), 'mensagem de erro sempre escapada');
     r = await pedir('POST', '/auth/senha', { form: { email: 'ana@exemplo.com', senha: '000' } }); assert.match(r.h.location, /erro=credenciais/);
-    ok('tela de entrar do casal: ?idioma, cookie e idioma do navegador; erros por código e traduzidos');
+    ok('tela de entrar do casal: ?idioma, cookie, país (lotus_local) e idioma do navegador; erros por código e traduzidos');
 
     r = await pedir('GET', '/api/meu-evento?idioma=en', { cookie: CASAL });
     assert.strictEqual(r.j.idioma, 'en');

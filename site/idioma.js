@@ -1,5 +1,6 @@
 /* Site Tayná Alves Assessoria · idiomas: português (o texto da página), inglês, espanhol, francês e alemão.
  * Elementos marcados com data-i18n (texto), data-i18n-html, data-i18n-ph (placeholder), data-i18n-alt, data-i18n-aria.
+ * Sem escolha feita, vale o país onde a pessoa está (local.js), depois o idioma do navegador.
  * A escolha fica no navegador e no cookie lotus_idioma (vale também para a área do casal no Lotus). */
 (function () {
   'use strict';
@@ -280,6 +281,12 @@
     var s = null; try { s = valido(localStorage.getItem('lotus_idioma')); } catch (e) { /* ok */ }
     if (s) return s;
     var m = /(?:^|;\s*)lotus_idioma=([a-z]{2})/.exec(document.cookie || ''); if (m && valido(m[1])) return m[1];
+    // sem escolha feita: pelo país onde a pessoa está (local.js); guardado só nesta sessão do navegador
+    if (window.IdiomaLocal) {
+      var loc = window.IdiomaLocal.detectar(['pt', 'en', 'es', 'fr', 'de']);
+      document.cookie = 'lotus_local=' + loc.idioma + '; Path=/; SameSite=Lax' + DOMINIO + (location.protocol === 'https:' ? '; Secure' : '');
+      return loc.idioma;
+    }
     var nav = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'pt'];
     for (var i = 0; i < nav.length; i++) { var v = valido(nav[i]); if (v) return v; }
     return 'pt';

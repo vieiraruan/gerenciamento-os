@@ -1,5 +1,6 @@
 /* Lotus · idiomas da área do casal: português, inglês, espanhol, francês e alemão.
  * I18N.t('chave', {n: 2}) — valores em lista = [singular, plural] (escolhe por params.n).
+ * Sem escolha feita, vale o país onde a pessoa está (local.js), depois o idioma do navegador.
  * A escolha fica no navegador (localStorage) e no cookie lotus_idioma (usado pela tela de entrar). */
 (function () {
   'use strict';
@@ -264,6 +265,13 @@
     var s = null; try { s = valido(localStorage.getItem('lotus_idioma')); } catch (e) { /* sem storage */ }
     if (s) return s;
     var c = valido(lerCookie()); if (c) return c;
+    // sem escolha feita: pelo país onde a pessoa está (local.js), guardado só nesta sessão
+    if (window.IdiomaLocal) {
+      var loc = window.IdiomaLocal.detectar(Object.keys(D));
+      var dom = /(^|\.)taynaalvesassessoria\.com\.br$/.test(location.hostname) ? '; Domain=.taynaalvesassessoria.com.br' : '';
+      document.cookie = 'lotus_local=' + loc.idioma + '; Path=/; SameSite=Lax' + dom + (location.protocol === 'https:' ? '; Secure' : '');
+      return loc.idioma;
+    }
     var nav = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'pt']);
     for (var i = 0; i < nav.length; i++) { var v = valido(nav[i]); if (v) return v; }
     return 'pt';
