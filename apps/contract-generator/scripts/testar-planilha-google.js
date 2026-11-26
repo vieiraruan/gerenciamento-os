@@ -103,7 +103,7 @@ async function principal() {
   ok('"Atualizar a planilha" reenvia para o Google');
 
   fs.unlinkSync(path.join(dados, 'integracoes', 'google-planilhas.json'));
-  const pg4 = await enviar('remover-pagamento', { id: it.j.item_id, pagamento_id: (await pedir('GET', '/api/financeiro?arquivo=ana-e-bia.txt')).j.itens[0].pagamentos.slice(-1)[0].id });
+  const pg4 = await enviar('remover-pagamento', { id: it.j.item_id, pagamento_id: (await pedir('GET', '/api/financeiro?arquivo=ana-e-bia.txt')).j.itens[0].pagamentos.slice(-1)[0].id, motivo: 'Lançamento de teste' });
   assert.strictEqual(pg4.status, 200);
   assert.ok(pg4.j.planilha_google_escrita.pendente, 'sem conexão configurada: fica para o gatilho de 10 min');
   ok('sem conexão direta configurada: continua como antes (até 10 min)');

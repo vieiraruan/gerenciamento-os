@@ -104,6 +104,7 @@
   ul.etapas li .d { flex: 1; }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
+<script src="/motivo.js"></script>
 </head>
 <body>
 <header>
@@ -120,6 +121,7 @@
     <a href="#pagamentos" data-aba="pagamentos">Pagamentos dos casais <span class="n" id="nPag" hidden></span></a>
     <a href="#casais" data-aba="casais">Casais</a>
     <a href="#financeiro" data-aba="financeiro">Financeiro dos casais</a>
+    <a href="#registro" data-aba="registro">Registro de alterações</a>
   </nav>
 
   <!-- ===================== Visão geral ===================== -->
@@ -155,6 +157,15 @@
 
   <!-- ===================== Casais ===================== -->
   <section class="aba" id="aba-casais"><div class="carregando">Carregando…</div></section>
+  <section class="aba" id="aba-registro"><div class="card">
+    <div class="filtros" style="align-items:center">
+      <h2 style="margin:0;flex:1;min-width:200px">Registro de alterações</h2>
+      <select id="regMes" aria-label="Mês" style="padding:7px 10px;border:1px solid var(--borda);border-radius:8px;font:inherit;font-size:13px"></select>
+      <input id="regBusca" placeholder="Buscar pessoa, casal, motivo…" style="min-width:220px">
+    </div>
+    <p class="ajuda">Tudo o que é gravado no Lotus: quem fez, quando, o que mudou (antes → depois) e o motivo. Correções e exclusões só são confirmadas com motivo. Clique numa linha para ver os detalhes.</p>
+    <div class="wrap"><table class="t" id="regTabela"><tbody><tr><td class="vazio">Carregando…</td></tr></tbody></table></div>
+  </div></section>
   <section class="aba" id="aba-financeiro"><iframe id="frameFin" title="Financeiro dos casais" style="display:block;width:100%;border:0;border-radius:12px;background:#fff;height:calc(100dvh - 200px);min-height:520px"></iframe></section>
 </main>
 
@@ -224,6 +235,40 @@ function mostrarAba() {
   document.querySelectorAll('nav.abas a').forEach((a) => a.classList.toggle('on', a.dataset.aba === aba));
   document.querySelectorAll('section.aba').forEach((s) => s.classList.toggle('on', s.id === `aba-${aba}`));
   if (aba === 'financeiro') abrirFinanceiro();
+  if (aba === 'registro') carregarRegistro();
+}
+// ---------------- registro de alterações ----------------
+let REG = null; const regAbertos = new Set();
+async function carregarRegistro(mes) {
+  try {
+    const q = new URLSearchParams(); if (mes) q.set('mes', mes);
+    const r = await fetch(`/api/registro?${q}`); REG = await r.json(); if (!r.ok) throw new Error(REG.erro || 'Erro');
+    const sel = document.getElementById('regMes');
+    sel.innerHTML = (REG.meses.length ? REG.meses : [REG.mes || '']).map((m) => `<option value="${m}" ${m === REG.mes ? 'selected' : ''}>${m ? `${MESES[Number(m.slice(5)) - 1]}/${m.slice(0, 4)}` : 'sem registros'}</option>`).join('');
+    sel.onchange = () => carregarRegistro(sel.value);
+    document.getElementById('regBusca').oninput = desenharRegistro;
+    desenharRegistro();
+  } catch (e) { document.getElementById('regTabela').innerHTML = `<tbody><tr><td style="color:var(--erro)">${esc(e.message)}</td></tr></tbody>`; }
+}
+const valorReg = (v) => v === null || v === undefined || v === '' ? '—' : typeof v === 'object' ? esc(JSON.stringify(v)) : esc(v);
+function difReg(e) {
+  const a = e.antes || {}; const d = e.depois || {};
+  const chaves = [...new Set([...Object.keys(a), ...Object.keys(d)])].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(d[k]));
+  if (!e.antes && !e.depois) return e.dados ? `<pre style="white-space:pre-wrap;font-size:12px;margin:0">${esc(JSON.stringify(e.dados, null, 1))}</pre>` : '<span class="s">sem detalhes</span>';
+  if (!e.antes) return `<pre style="white-space:pre-wrap;font-size:12px;margin:0">${esc(JSON.stringify(e.depois, null, 1))}</pre>`;
+  if (!e.depois) return `<div class="s">Como estava:</div><pre style="white-space:pre-wrap;font-size:12px;margin:0">${esc(JSON.stringify(e.antes, null, 1))}</pre>`;
+  return chaves.length ? `<table class="t" style="font-size:12.5px;width:auto"><tr><th>Campo</th><th>Antes</th><th>Depois</th></tr>${chaves.map((k) => `<tr><td>${esc(k)}</td><td>${valorReg(a[k])}</td><td><b>${valorReg(d[k])}</b></td></tr>`).join('')}</table>` : '<span class="s">nenhum valor mudou</span>';
+}
+function desenharRegistro() {
+  const q = document.getElementById('regBusca').value.trim().toLowerCase();
+  const itens = (REG.itens || []).filter((e) => !q || `${e.quem} ${e.resumo} ${e.casal} ${e.motivo} ${e.acao}`.toLowerCase().includes(q));
+  document.getElementById('regTabela').innerHTML = `<thead><tr><th>Quando</th><th>Quem</th><th>O que mudou</th><th>Casal</th><th>Motivo</th></tr></thead><tbody>${itens.map((e, i) => {
+    const id = `${e.em}|${i}`;
+    return `<tr class="clic" data-reg="${esc(id)}"><td style="white-space:nowrap">${new Date(e.em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+      <td>${esc(e.quem || '—')}${e.papel && e.papel !== 'admin' ? ` <span class="s">(${esc(e.papel)})</span>` : ''}</td><td>${esc(e.resumo)}</td><td class="s">${esc(e.casal)}</td>
+      <td>${e.motivo ? esc(e.motivo) : '<span class="s">—</span>'}</td></tr>${regAbertos.has(id) ? `<tr class="det"><td colspan="5">${difReg(e)}<div class="s" style="margin-top:6px">${esc(e.acao)} · ${esc(e.origem || '')}</div></td></tr>` : ''}`;
+  }).join('') || '<tr><td colspan="5" class="vazio">Nenhuma alteração registrada neste mês.</td></tr>'}</tbody>`;
+  document.querySelectorAll('#regTabela [data-reg]').forEach((tr) => tr.onclick = () => { const id = tr.dataset.reg; regAbertos.has(id) ? regAbertos.delete(id) : regAbertos.add(id); desenharRegistro(); });
 }
 window.addEventListener('hashchange', mostrarAba);
 
@@ -349,8 +394,10 @@ function desenharTabelaRec() {
   document.querySelectorAll('#recTabela [data-edrec]').forEach((b) => b.onclick = () => { const [a, pid] = b.dataset.edrec.split('|'); abrirRecebimento(a, pid); });
   document.querySelectorAll('#recTabela [data-rmrec]').forEach((b) => b.onclick = async () => {
     const [a, pid] = b.dataset.rmrec.split('|'); const it = REC.itens.find((x) => x.arquivo === a); const p = it && it.pagamentos.find((x) => x.id === pid);
-    if (!p || !confirm(`Remover o recebimento de ${moeda(p.valor)} (${data(p.data) || 'sem data'}) de ${it.casal}? A planilha do casal é atualizada junto.`)) return;
-    try { await enviarOp(a, 'remover-pagamento', { id: it.item_id, pagamento_id: pid }); abertos.add(a); await carregar(); } catch (e) { alert(e.message); }
+    if (!p) return;
+    const motivo = await pedirMotivo({ titulo: 'Remover recebimento', texto: `${it.casal}: ${moeda(p.valor)} de ${data(p.data) || 'sem data'}. A planilha do casal é atualizada junto.`, botao: 'Remover', perigo: true });
+    if (!motivo) return;
+    try { await enviarOp(a, 'remover-pagamento', { id: it.item_id, pagamento_id: pid, motivo }); abertos.add(a); await carregar(); } catch (e) { alert(e.message); }
   });
 }
 function detalheRec(i) {
@@ -413,7 +460,11 @@ document.getElementById('formRec').addEventListener('submit', async (e) => {
     obs: document.getElementById('recObs').value,
   };
   try {
-    if (recEditando) await enviarOp(recAtual.arquivo, 'editar-pagamento', { ...dados, id: recAtual.item_id, pagamento_id: recEditando.id, numero: recEditando.numero }, arq);
+    if (recEditando) {
+      const motivo = await pedirMotivo({ titulo: 'Corrigir recebimento', texto: `${recAtual.casal}: ${moeda(recEditando.valor)} de ${data(recEditando.data) || 'sem data'} → ${dados.valor} em ${data(dados.data)}` });
+      if (!motivo) { btn.disabled = false; return; }
+      await enviarOp(recAtual.arquivo, 'editar-pagamento', { ...dados, id: recAtual.item_id, pagamento_id: recEditando.id, numero: recEditando.numero, motivo }, arq);
+    }
     else await enviarOp(recAtual.arquivo, 'recebimento', dados, arq);
     dlg.close();
     abertos.add(recAtual.arquivo);

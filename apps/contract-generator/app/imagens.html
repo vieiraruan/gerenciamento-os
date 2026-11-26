@@ -76,6 +76,7 @@
   }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script>
+<script src="/motivo.js"></script>
 </head>
 <body>
 <header>
@@ -159,8 +160,9 @@ function desenhar() {
       : !pastas.length && !arqs.length ? '<div class="vazio">Nada encontrado com essa busca.</div>' : '');
   const ap = $('#apagarPasta');
   if (ap) ap.onclick = async () => {
-    if (!confirm(`Apagar a pasta vazia "${D.trilha[D.trilha.length - 1].nome}"?`)) return;
-    try { await api('/api/imagens/excluir', { caminho: pasta }); carregar(D.trilha.length > 1 ? D.trilha[D.trilha.length - 2].caminho : '', true); } catch (e) { alert(e.message); }
+    const motivo = await pedirMotivo({ titulo: 'Apagar pasta', texto: `Apagar a pasta vazia "${D.trilha[D.trilha.length - 1].nome}".`, botao: 'Apagar', perigo: true });
+    if (!motivo) return;
+    try { await api('/api/imagens/excluir', { caminho: pasta, motivo }); carregar(D.trilha.length > 1 ? D.trilha[D.trilha.length - 2].caminho : '', true); } catch (e) { alert(e.message); }
   };
 }
 document.addEventListener('click', (e) => {
@@ -252,8 +254,10 @@ $('#palco').addEventListener('touchend', (e) => {
 });
 $('#verApagar').onclick = async () => {
   const a = D.arquivos[idx];
-  if (!a || !confirm(`Apagar "${a.nome}"? Ele vai para a lixeira do Google Drive.`)) return;
-  try { await api('/api/imagens/excluir', { caminho: a.caminho }); fecharVer(); carregar(pasta); } catch (e) { alert(e.message); }
+  if (!a) return;
+  const motivo = await pedirMotivo({ titulo: 'Apagar arquivo', texto: `"${a.nome}" vai para a lixeira do Google Drive.`, botao: 'Apagar', perigo: true });
+  if (!motivo) return;
+  try { await api('/api/imagens/excluir', { caminho: a.caminho, motivo }); fecharVer(); carregar(pasta); } catch (e) { alert(e.message); }
 };
 
 carregar(pasta);

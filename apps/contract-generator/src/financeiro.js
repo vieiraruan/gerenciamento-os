@@ -388,7 +388,7 @@ function registrarPagamento(fin, pastaCasal, id, dados, comprovante) {
  * Corrige um lançamento já feito (pela Tayná ou pelo casal): valor, data, tipo, nº da parcela, forma, observação,
  * troca do comprovante e até o fornecedor certo (mover_para). Tudo fica no histórico dos dois fornecedores.
  */
-function editarPagamento(fin, pastaCasal, id, pagamentoId, dados = {}, comprovante = null, quem = '') {
+function editarPagamento(fin, pastaCasal, id, pagamentoId, dados = {}, comprovante = null, quem = '', motivo = '') {
   const item = fin.itens.find((i) => i.id === id);
   if (!item) throw new Error('Fornecedor não encontrado.');
   const pg = (item.pagamentos || []).find((p) => p.id === pagamentoId);
@@ -430,23 +430,25 @@ function editarPagamento(fin, pastaCasal, id, pagamentoId, dados = {}, comprovan
   if ((antes.obs || '') !== (pg.obs || '')) mudou.push('observação alterada');
   if (comprovante) mudou.push('comprovante substituído');
   const hoje = dataBr(hojeIso());
+  const mot = motivo ? ` Motivo: ${motivo}` : '';
+  if (motivo) pg.motivo_correcao = motivo;
   if (destino !== item) {
-    item.historico.push(`${hoje} - Lançamento de ${rot(antes)} movido para ${destino.nome}.`);
-    destino.historico.push(`${hoje} - Lançamento de ${rot(pg)} recebido de ${item.nome} (correção).${mudou.length ? ` ${mudou.join('; ')}.` : ''}`);
+    item.historico.push(`${hoje} - Lançamento de ${rot(antes)} movido para ${destino.nome}.${mot}`);
+    destino.historico.push(`${hoje} - Lançamento de ${rot(pg)} recebido de ${item.nome} (correção).${mudou.length ? ` ${mudou.join('; ')}.` : ''}${mot}`);
   } else if (mudou.length) {
-    item.historico.push(`${hoje} - Lançamento corrigido: ${mudou.join('; ')}.${antes.lancado_por ? ' (enviado pelo casal)' : ''}`);
+    item.historico.push(`${hoje} - Lançamento corrigido: ${mudou.join('; ')}.${antes.lancado_por ? ' (enviado pelo casal)' : ''}${mot}`);
   }
   item.atualizado_em = agora(); destino.atualizado_em = agora();
   return { item: destino, pagamento: pg };
 }
 
-function removerPagamento(fin, id, pagamentoId) {
+function removerPagamento(fin, id, pagamentoId, motivo = '') {
   const item = fin.itens.find((i) => i.id === id);
   if (!item) throw new Error('Fornecedor não encontrado.');
   const pg = item.pagamentos.find((p) => p.id === pagamentoId);
   if (!pg) throw new Error('Pagamento não encontrado.');
   item.pagamentos = item.pagamentos.filter((p) => p.id !== pagamentoId);
-  item.historico.push(`${dataBr(hojeIso())} - Lançamento de ${moeda(pg.valor)} (${dataBr(pg.data)}) removido${pg.comprovante ? '; o comprovante continua na pasta' : ''}.`);
+  item.historico.push(`${dataBr(hojeIso())} - Lançamento de ${moeda(pg.valor)} (${dataBr(pg.data)}) removido${pg.comprovante ? '; o comprovante continua na pasta' : ''}.${motivo ? ` Motivo: ${motivo}` : ''}`);
   return item;
 }
 

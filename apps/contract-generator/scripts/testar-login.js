@@ -130,7 +130,8 @@ async function entrar(email, opcoes = {}) {
       for (const p of ['/api/contratos', '/api/evento?arquivo=ana-e-bia.txt', '/checklist']) assert.strictEqual((await pedir('GET', p, { cookie: casal })).status, 403, p);
     });
     await t('trocar o perfil derruba a sessão na hora', async () => {
-      await pedir('POST', '/api/usuarios', { cookie: admin, corpo: { email: 'equipe@exemplo.com', papel: 'casal', casal: 'ana-e-bia.txt' } });
+      assert.strictEqual((await pedir('POST', '/api/usuarios', { cookie: admin, corpo: { email: 'equipe@exemplo.com', papel: 'casal', casal: 'ana-e-bia.txt' } })).status, 400, 'mudar acesso existente pede motivo');
+      assert.strictEqual((await pedir('POST', '/api/usuarios', { cookie: admin, corpo: { email: 'equipe@exemplo.com', papel: 'casal', casal: 'ana-e-bia.txt', motivo: 'Teste de troca de perfil' } })).status, 200);
       assert.strictEqual((await pedir('GET', '/api/eu', { cookie: equipe })).status, 401);
     });
     await t('cookie adulterado não vale', async () => {

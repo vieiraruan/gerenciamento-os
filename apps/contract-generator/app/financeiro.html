@@ -178,6 +178,7 @@
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
 <script>if (new URLSearchParams(location.search).get('embutido')) document.documentElement.classList.add('embutido');</script>
 <style>.embutido body > header { display: none !important; } .embutido body { background: transparent; } .embutido .layout { padding: 4px 2px !important; }</style>
+<script src="/motivo.js"></script>
 </head>
 <body>
 <header>
@@ -447,9 +448,12 @@ function render() {
   document.querySelectorAll('[data-abrir]').forEach((a) => a.onclick = () => abrir(D.pasta + sep(D.pasta) + a.dataset.abrir));
   document.querySelectorAll('[data-edpag]').forEach((b) => b.onclick = () => { const [id, pid] = b.dataset.edpag.split('|'); abrirPagamento(id, null, pid); });
   document.querySelectorAll('[data-rmpag]').forEach((b) => b.onclick = async () => {
-    if (!confirm('Remover este lançamento? O comprovante continua na pasta do fornecedor.')) return;
     const [id, pid] = b.dataset.rmpag.split('|');
-    await enviar('remover-pagamento', { id, pagamento_id: pid }); selecionar(atual);
+    const it = D.itens.find((x) => x.id === id); const p = it && (it.pagamentos || []).find((x) => x.id === pid);
+    const motivo = await pedirMotivo({ titulo: 'Remover lançamento', texto: `${it ? it.nome : ''}: ${p ? `${brl(p.valor)} de ${dBr(p.data)}` : ''}${p && p.lancado_por ? ' (enviado pelo casal)' : ''}.\nO comprovante continua na pasta do fornecedor e a planilha é atualizada.`, botao: 'Remover', perigo: true });
+    if (!motivo) return;
+    try { await enviar('remover-pagamento', { id, pagamento_id: pid, motivo }); } catch (e) { alert(e.message); }
+    selecionar(atual);
   });
   document.querySelectorAll('[data-rmitem]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); retirarFornecedor(b.dataset.rmitem); });
 }
@@ -507,8 +511,10 @@ function ligarVencimentos() {
       id: tr.dataset.id, restantes: tr.querySelector('[data-c=restantes]').value,
       a_partir: tr.querySelector('[data-c=a_partir]').value, valor: tr.querySelector('[data-c=valor]').value,
     }));
+    const motivo = await pedirMotivo({ titulo: 'Alterar vencimentos', texto: 'Novas datas/valores das parcelas que faltam pagar.' });
+    if (!motivo) return;
     s.disabled = true;
-    try { await api('/api/financeiro/vencimentos', { arquivo: atual, itens }); vencAberto = false; await selecionar(atual); }
+    try { await api('/api/financeiro/vencimentos', { arquivo: atual, itens, motivo }); vencAberto = false; await selecionar(atual); }
     catch (e) { $('#vencMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; s.disabled = false; }
   };
 }
@@ -561,8 +567,9 @@ async function enviar(op, dados, arquivo) {
 }
 
 async function reimportar() {
-  if (!confirm('Substituir o financeiro deste casal pelo que está hoje na aba FINANCEIRO da planilha? Lançamentos feitos aqui serão perdidos (os arquivos continuam nas pastas).')) return;
-  try { await api('/api/financeiro/importar', { arquivo: atual, substituir: true }); selecionar(atual); } catch (e) { alert(e.message); }
+  const motivo = await pedirMotivo({ titulo: 'Reimportar da planilha', texto: 'O financeiro deste casal será substituído pelo que está hoje na aba FINANCEIRO da planilha. Lançamentos feitos aqui serão perdidos (os arquivos continuam nas pastas).', botao: 'Substituir', perigo: true });
+  if (!motivo) return;
+  try { await api('/api/financeiro/importar', { arquivo: atual, substituir: true, motivo }); selecionar(atual); } catch (e) { alert(e.message); }
 }
 
 // ---- Diálogo do fornecedor ----
@@ -628,9 +635,11 @@ async function retirarFornecedor(id) {
   return new Promise((resolve) => {
     $('#drOk').onclick = async () => {
       const apagar = radioApagar.checked;
+      const motivo = await pedirMotivo({ titulo: 'Retirar fornecedor', texto: `${item.nome}${apagar ? ' (e apagar a pasta do Drive)' : ''}`, botao: 'Retirar', perigo: true });
+      if (!motivo) return;
       $('#drOk').disabled = true;
       try {
-        await enviar('remover', { id, apagar_arquivos: apagar });
+        await enviar('remover', { id, apagar_arquivos: apagar, motivo });
         dlg.close(); await selecionar(atual); resolve(true);
       } catch (e) { $('#drMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; $('#drOk').disabled = false; }
     };
@@ -672,9 +681,11 @@ async function salvarFornecedor() {
   try {
     let novoId = null;
     if (editando) {
-      await api('/api/fornecedores', { fornecedor });
-      await enviar('editar', { id: editando.id, ...item, fornecedor_id: fornecedor.id || editando.fornecedor_id });
-      if (arq) await enviar('contrato', { id: editando.id }, arq);
+      const motivo = await pedirMotivo({ titulo: 'Alterar fornecedor', texto: `${editando.nome}: dados e valores do fornecedor deste casal${arq && editando.contrato ? '\nO contrato anexado será substituído.' : ''}` });
+      if (!motivo) return;
+      await api('/api/fornecedores', { fornecedor, motivo });
+      await enviar('editar', { id: editando.id, ...item, fornecedor_id: fornecedor.id || editando.fornecedor_id, motivo });
+      if (arq) await enviar('contrato', { id: editando.id, motivo }, arq);
     } else {
       const r = await enviar('item', { fornecedor, item }, arq);
       novoId = r.item_id;
@@ -723,10 +734,13 @@ function abrirPagamento(id, tipo, pagamentoId) {
 async function salvarPagamento() {
   const arq = $('#dpArq').files[0];
   if (pagEditando) {
+    const destino = D.itens.find((i) => i.id === $('#dpMover').value);
+    const motivo = await pedirMotivo({ titulo: 'Corrigir pagamento', texto: `${pagItem.nome}: ${brl(pagEditando.valor)} de ${dBr(pagEditando.data)} → ${$('#dpValor').value} em ${dBr($('#dpData').value)}${destino && destino.id !== pagItem.id ? `\nMuda para: ${destino.nome}` : ''}${pagEditando.lancado_por ? '\n(lançamento enviado pelo casal)' : ''}` });
+    if (!motivo) return;
     const b = $('#dpSalvar'); b.disabled = true; b.textContent = D.planilha_google ? 'Salvando e atualizando a planilha…' : 'Salvando…';
     try {
       const r = await enviar('editar-pagamento', { id: pagItem.id, pagamento_id: pagEditando.id, tipo: $('#dpTipo').value, numero: $('#dpNum').value,
-        valor: $('#dpValor').value, data: $('#dpData').value, forma: $('#dpForma').value, obs: $('#dpObs').value, mover_para: $('#dpMover').value }, arq);
+        valor: $('#dpValor').value, data: $('#dpData').value, forma: $('#dpForma').value, obs: $('#dpObs').value, mover_para: $('#dpMover').value, motivo }, arq);
       $('#dlgPag').close(); aberto.add(r.item_id || pagItem.id); selecionar(atual);
     } catch (e) { $('#dpMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; b.textContent = 'Salvar correção'; }
     return;
@@ -753,10 +767,12 @@ $('#colOk').onclick = async () => {
   const texto = $('#txtColar').value;
   if (!texto.trim()) { $('#colMsg').innerHTML = '<div class="aviso erro">Cole o conteúdo da aba FINANCEIRO.</div>'; return; }
   const temLancamentos = D && D.itens.some((i) => !i.importado || (i.pagamentos || []).some((p) => !p.importado));
-  if (temLancamentos && !confirm('Este casal já tem lançamentos feitos no sistema. Substituir pelo que foi colado?')) return;
   const b = $('#colOk'); b.disabled = true;
   try {
-    const r = await api('/api/financeiro/importar', { arquivo: atual, texto, substituir: true });
+    const lancado = temLancamentos;
+    const motivo = lancado ? await pedirMotivo({ titulo: 'Substituir pelo que foi colado', texto: 'Já há lançamentos feitos no Lotus para este casal; eles serão substituídos pelo que você colou.', botao: 'Substituir', perigo: true }) : '';
+    if (lancado && !motivo) { b.disabled = false; return; }
+    const r = await api('/api/financeiro/importar', { arquivo: atual, texto, substituir: true, motivo });
     $('#dlgColar').close(); await selecionar(atual);
     $('#principal').querySelector('.card').insertAdjacentHTML('beforeend', `<div class="aviso ok">${r.itens} linha(s) importada(s) da aba FINANCEIRO.</div>`);
   } catch (e) { $('#colMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }

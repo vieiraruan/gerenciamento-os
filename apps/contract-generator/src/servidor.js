@@ -31,6 +31,14 @@ const gestao = require('./gestao');
 const acomp = require('./acompanhamento');
 const avisos = require('./avisos');
 const imagens = require('./imagens');
+const registro = require('./registro');
+const { AsyncLocalStorage } = require('async_hooks');
+
+// Registro de alterações: cada pedido que grava algo anota aqui o que fez (e o motivo, quando exigido)
+const CTX = new AsyncLocalStorage();
+const anotar = (info) => { const c = CTX.getStore(); if (c) Object.assign(c, info); };
+/** Corrigir ou apagar o que já existe pede um motivo (fica no registro e no histórico/planilha). */
+const motivoObrigatorio = (texto) => { const m = registro.exigirMotivo(texto); anotar({ motivo: m }); return m; };
 const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
 const { criarAuth } = require('./auth');
@@ -190,6 +198,16 @@ async function enviarFinanceiro(q, arquivoEnviado, usuario = null) {
   const f = fin.carregar(DADOS, arquivo) || fin.novoFinanceiro();
   const op = q.get('op');
   let resposta = {};
+  const quem = usuario ? (usuario.papel === 'casal' ? 'casal' : usuario.nome || usuario.email) : '';
+  const nomeItem = (id) => ((f.itens || []).find((i) => i.id === id) || {}).nome || 'fornecedor';
+  const fotoItem = (id) => { const i = (f.itens || []).find((x) => x.id === id); return i ? JSON.parse(JSON.stringify({ nome: i.nome, descricao: i.descricao, valor_contratado: i.valor_contratado, entrada: i.entrada, parcelas: i.parcelas, pix: i.pix })) : null; };
+  const fotoPag = (id, pid) => { const i = (f.itens || []).find((x) => x.id === id); const p = i && (i.pagamentos || []).find((x) => x.id === pid); return p ? { fornecedor: i.nome, tipo: p.tipo, numero: p.numero, valor: p.valor, data: p.data, forma: p.forma, obs: p.obs || '', enviado_pelo_casal: Boolean(p.lancado_por) } : null; };
+  const { motivo: _m, ...dadosSemMotivo } = dados;
+  anotar({ acao: `financeiro:${op}`, casal: `${campos.numero_os || ''} · ${campos.evento_nomes || ''}`, dados: dadosSemMotivo });
+  let motivo = '';
+  if (['editar', 'editar-pagamento', 'remover-pagamento', 'remover'].includes(op)
+    || (op === 'contrato' && (f.itens.find((i) => i.id === dados.id) || {}).contrato)) motivo = motivoObrigatorio(dados.motivo);
+  const comMotivo = (txt) => `${txt}${motivo ? ` Motivo: ${motivo}` : ''}${quem && !/casal/.test(txt) ? ` (${quem})` : ''}`;
   if (op === 'item') {
     // cadastro geral do fornecedor (fica salvo para outros casais)
     let cad = null;
@@ -199,43 +217,58 @@ async function enviarFinanceiro(q, arquivoEnviado, usuario = null) {
       pix: dados.item?.pix || (cad ? fin.textoPagamento(cad.pagamento) : ''),
     }, arquivoEnviado);
     resposta = { item_id: item.id, pasta: item.pasta };
+    anotar({ resumo: `Fornecedor cadastrado: ${item.nome}`, depois: fotoItem(item.id) });
   } else if (op === 'editar') {
+    const antes = fotoItem(dados.id);
     fin.atualizarItem(f, dados.id, dados);
+    const depois = fotoItem(dados.id);
+    const item = f.itens.find((i) => i.id === dados.id);
+    item.historico.push(comMotivo(`${fin.dataBr(new Date().toISOString().slice(0, 10))} - Dados do fornecedor alterados.`));
+    anotar({ resumo: `Fornecedor alterado: ${item.nome}`, antes, depois });
   } else if (op === 'contrato') {
     const item = f.itens.find((i) => i.id === dados.id);
     if (!item || !arquivoEnviado) throw new Error('Escolha o arquivo do contrato.');
+    const tinha = item.contrato;
     item.contrato = fin.gravarArquivo(pasta, item, `CONTRATO ASSINADO - ${item.nome}`, arquivoEnviado.nome, arquivoEnviado.conteudo, f);
-    item.historico.push(`${fin.dataBr(new Date().toISOString().slice(0, 10))} - Contrato assinado salvo na pasta do fornecedor.`);
+    item.historico.push(comMotivo(`${fin.dataBr(new Date().toISOString().slice(0, 10))} - Contrato assinado ${tinha ? 'substituído' : 'salvo'} na pasta do fornecedor.`));
+    anotar({ resumo: `Contrato ${tinha ? 'substituído' : 'anexado'}: ${item.nome}`, antes: tinha ? { contrato: tinha } : undefined, depois: { contrato: item.contrato } });
   } else if (op === 'pagamento') {
     const r = fin.registrarPagamento(f, pasta, dados.id, dados, arquivoEnviado);
     resposta = { comprovante: r.pagamento.comprovante };
+    anotar({ resumo: `Pagamento lançado: ${fin.moeda(r.pagamento.valor)} para ${r.item.nome}${dados.lancado_por ? ' (enviado pelo casal)' : ''}`, depois: fotoPag(r.item.id, r.pagamento.id) });
   } else if (op === 'recebimento') {
     // recebimento da Tayná (contrato de assessoria/cerimonial): cria a linha da Tayná no financeiro se faltar
     const item = gestao.garantirItemTayna(f, pasta, campos);
     const r = fin.registrarPagamento(f, pasta, item.id, { ...dados, sem_comprovante: !arquivoEnviado }, arquivoEnviado);
     resposta = { item_id: item.id, comprovante: r.pagamento.comprovante };
+    anotar({ resumo: `Recebimento lançado: ${fin.moeda(r.pagamento.valor)} (assessoria)`, depois: fotoPag(item.id, r.pagamento.id) });
   } else if (op === 'editar-pagamento') {
-    const r = fin.editarPagamento(f, pasta, dados.id, dados.pagamento_id, dados, arquivoEnviado, usuario && usuario.email);
+    const antes = fotoPag(dados.id, dados.pagamento_id);
+    const r = fin.editarPagamento(f, pasta, dados.id, dados.pagamento_id, dados, arquivoEnviado, usuario && usuario.email, motivo);
     resposta = { item_id: r.item.id, comprovante: r.pagamento.comprovante };
+    anotar({ resumo: `Pagamento corrigido: ${r.item.nome}${antes && antes.enviado_pelo_casal ? ' (enviado pelo casal)' : ''}`, antes, depois: fotoPag(r.item.id, r.pagamento.id) });
   } else if (op === 'remover-pagamento') {
-    fin.removerPagamento(f, dados.id, dados.pagamento_id);
+    const antes = fotoPag(dados.id, dados.pagamento_id);
+    fin.removerPagamento(f, dados.id, dados.pagamento_id, motivo);
+    anotar({ resumo: `Pagamento removido: ${nomeItem(dados.id)}${antes ? ` · ${fin.moeda(antes.valor)}` : ''}`, antes });
   } else if (op === 'remover') {
     const item = f.itens.find((i) => i.id === dados.id);
     if (!item) throw new Error('Fornecedor não encontrado.');
     const hoje = fin.dataBr(new Date().toISOString().slice(0, 10));
+    anotar({ resumo: `Fornecedor retirado: ${item.nome}${dados.apagar_arquivos ? ' (pasta apagada do Drive)' : ''}`, antes: fotoItem(item.id) });
     if (dados.apagar_arquivos) {
       // apaga a pasta do fornecedor no Drive (vai para a lixeira do Google Drive)
       const alvo = pastaDoFornecedor(pasta, item);
       if (alvo) {
         const n = listarArquivos(alvo).length;
         fs.rmSync(alvo, { recursive: true, force: true });
-        item.historico.push(`${hoje} - Fornecedor retirado; pasta "${item.pasta}" apagada do Drive (${n} arquivo(s)).`);
+        item.historico.push(comMotivo(`${hoje} - Fornecedor retirado; pasta "${item.pasta}" apagada do Drive (${n} arquivo(s)).`));
         resposta = { apagados: n, pasta: item.pasta };
       }
       item.pasta = null; item.contrato = null;
       (item.pagamentos || []).forEach((p) => { p.comprovante = null; });
     } else {
-      item.historico.push(`${hoje} - Fornecedor retirado do financeiro (pasta e arquivos mantidos no Drive).`);
+      item.historico.push(comMotivo(`${hoje} - Fornecedor retirado do financeiro (pasta e arquivos mantidos no Drive).`));
     }
     fin.atualizarItem(f, dados.id, { removido: true });
   } else {
@@ -476,6 +509,9 @@ function marcarTarefa(pedidoArquivo, corpo, usuario) {
   const feito = CONCLUIDO.has(novo.status);
   novo.concluida_em = feito ? (antes.concluida_em || new Date().toISOString()) : '';
   tarefas[chaveT] = novo;
+  anotar({ acao: 'cronograma:tarefa', casal: `${campos.numero_os || ''} · ${campos.evento_nomes || ''}`,
+    resumo: `Atividade: ${chaveT.slice(0, 80)}${novo.status !== antes.status ? ` → ${novo.status || 'A FAZER'}` : ' (observação)'}`,
+    antes: { status: antes.status || '', obs: antes.obs || '' }, depois: { status: novo.status || '', obs: novo.obs || '' } });
   ev.salvarEvento(DADOS, arquivo, { ...evento, tarefas });
   const salvo = ev.carregarEvento(DADOS, arquivo, campos, cliente);
   return montarChecklist(campos, vertenteDe(salvo, campos), undefined, salvo);
@@ -604,8 +640,16 @@ const rotas = {
   // ---- Imagens compartilhadas (equipe e admin) ----
   'GET /api/imagens': (q, c, u) => ({ ...imagens.listar(DIR_IMAGENS, q.get('pasta') || ''), nome_raiz: imagens.NOME_PASTA,
     pode_apagar: !u || u.papel === 'admin' }),
-  'POST /api/imagens/pasta': (q, corpo) => imagens.criarPasta(DIR_IMAGENS, corpo.pasta || '', corpo.nome),
-  'POST /api/imagens/excluir': (q, corpo) => imagens.excluir(DIR_IMAGENS, corpo.caminho),
+  'POST /api/imagens/pasta': (q, corpo) => { const r = imagens.criarPasta(DIR_IMAGENS, corpo.pasta || '', corpo.nome); anotar({ resumo: `Imagens: pasta criada "${r.caminho}"` }); return r; },
+  'POST /api/imagens/excluir': (q, corpo) => {
+    motivoObrigatorio(corpo.motivo);
+    const r = imagens.excluir(DIR_IMAGENS, corpo.caminho);
+    anotar({ resumo: `Imagens: ${r.pasta ? 'pasta' : 'arquivo'} apagado "${r.apagado}" (lixeira do Drive)` });
+    return r;
+  },
+
+  // ---- Registro de alterações (admin) ----
+  'GET /api/registro': (q) => registro.listar(DADOS, { mes: q.get('mes'), busca: q.get('busca') || '', limite: 2000 }),
 
   // ---- Avisos no celular da Tayná (pedidos do site) ----
   'GET /api/avisos': () => avisos.publico(avisos.configuracao(DADOS)),
@@ -770,7 +814,10 @@ const rotas = {
     const { arquivo } = contratoDe(corpo.arquivo);
     const f = fin.carregar(DADOS, arquivo);
     if (!f) throw new Error('Este casal ainda não tem financeiro.');
+    motivoObrigatorio(corpo.motivo);
+    const antes = JSON.parse(JSON.stringify(f.vencimentos || {}));
     fin.definirVencimentos(f, corpo.itens || []);
+    anotar({ resumo: 'Vencimentos do saldo alterados', casal: arquivo, antes, depois: f.vencimentos || {} });
     fin.salvar(DADOS, arquivo, f);
     limparCacheFin();
     return { ok: true, ...fin.resumo(f) };
@@ -808,6 +855,11 @@ const rotas = {
     casais: listarTxt(DADOS).filter((c) => c.campos.numero_os).map((c) => ({ arquivo: c.arquivo, numero_os: c.campos.numero_os, casal: c.campos.evento_nomes || c.arquivo })),
   }),
   'POST /api/usuarios': (q, corpo, u) => {
+    const existente = AUTH.usuarios.listar().find((x) => x.email === String(corpo.email || '').trim().toLowerCase());
+    if (['remover', 'zerar-senha'].includes(corpo.acao) || (!corpo.acao && existente)) motivoObrigatorio(corpo.motivo);
+    anotar({ acao: `usuarios:${corpo.acao || (existente ? 'alterar' : 'incluir')}`, antes: existente || undefined,
+      resumo: corpo.acao === 'remover' ? `Usuário removido: ${corpo.email}` : corpo.acao === 'zerar-senha' ? `Senha do casal zerada: ${corpo.email}`
+        : corpo.acao === 'encerrar' ? `Sessões encerradas: ${corpo.email}` : `${existente ? 'Usuário alterado' : 'Usuário incluído'}: ${corpo.email} (${corpo.papel || ''})` });
     if (corpo.acao === 'remover') {
       if (corpo.email && u && corpo.email.toLowerCase() === u.email) throw new Error('Você não pode remover o próprio acesso.');
       AUTH.usuarios.remover(corpo.email);
@@ -821,14 +873,24 @@ const rotas = {
   },
 
   'GET /api/fornecedores': () => fin.listarFornecedores(DADOS),
-  'POST /api/fornecedores': (q, corpo) => fin.salvarFornecedor(DADOS, corpo.fornecedor || {}),
+  'POST /api/fornecedores': (q, corpo) => {
+    const f = corpo.fornecedor || {};
+    const antes = f.id ? fin.obterFornecedor(DADOS, f.id) : null;
+    if (antes) motivoObrigatorio(corpo.motivo);
+    const r = fin.salvarFornecedor(DADOS, f);
+    anotar({ resumo: `${antes ? 'Cadastro de fornecedor alterado' : 'Fornecedor cadastrado'}: ${r.nome}`, antes: antes || undefined, depois: r });
+    return r;
+  },
 
   // reimporta da planilha (descarta o que foi lançado no sistema para este casal — só com confirmação)
   'POST /api/financeiro/importar': (q, corpo) => {
     const { arquivo, campos } = contratoDe(corpo.arquivo);
     const { pasta, existe } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
     const atual = fin.carregar(DADOS, arquivo);
-    if (atual && atual.itens.some((i) => !i.importado || (i.pagamentos || []).some((p) => !p.importado)) && !corpo.substituir) {
+    const temLancamentos = atual && atual.itens.some((i) => !i.importado || (i.pagamentos || []).some((p) => !p.importado));
+    anotar({ resumo: temLancamentos ? 'Financeiro substituído pelo da planilha' : 'Financeiro importado da planilha', casal: arquivo });
+    if (temLancamentos && corpo.substituir) motivoObrigatorio(corpo.motivo);
+    if (temLancamentos && !corpo.substituir) {
       throw new Error('Já há lançamentos feitos no sistema para este casal. Confirme para substituir pelo que está na planilha.');
     }
     const pl = ev.localizarPlanilha(pasta);
@@ -1088,8 +1150,34 @@ const rotas = {
   },
 };
 
-const servidor = http.createServer(async (req, res) => {
+// o que não entra no registro: site público (os pedidos já ficam guardados), ações do computador e prévias
+const NAO_REGISTRAR = /^\/api\/(publico\/|abrir$|encerrar$|previa$|avisos\/teste$)/;
+const ROTULOS = {
+  '/api/gerar': 'Contrato gerado', '/api/planilha/criar': 'Planilha do casal criada', '/api/evento': 'Dados do evento (checklist) salvos',
+  '/api/evento/importar': 'Dados do evento importados da planilha', '/api/checklist/gerar': 'Checklist do dia gerado',
+  '/api/pedidos/acao': 'Pedido do site atualizado', '/api/avisos': 'Avisos no celular configurados', '/api/gestao/relatorio-ir': 'Relatório do IR gerado',
+  '/api/financeiro/escrever-planilha': 'Planilha do casal reescrita com o financeiro do Lotus', '/api/meu-evento/tarefa': 'Atividade atualizada pelo casal',
+  '/api/meu-evento/pagamento': 'Pagamento enviado pelo casal',
+};
+function registrarAlteracao(req, res, url, ctx) {
+  if (req.method !== 'POST' || res.statusCode >= 400 || !url.pathname.startsWith('/api/') || NAO_REGISTRAR.test(url.pathname)) return;
+  const u = req.usuario;
+  const corpo = ctx.corpo || {};
+  registro.registrar(DADOS, {
+    quem: u ? u.email || u.nome : (AUTH.ativo ? '' : 'computador'), papel: u ? u.papel : 'admin',
+    acao: ctx.acao || url.pathname.replace(/^\/api\//, ''),
+    resumo: ctx.resumo || ROTULOS[url.pathname] || url.pathname,
+    casal: ctx.casal || corpo.arquivo || url.searchParams.get('arquivo') || '',
+    motivo: ctx.motivo || '', antes: ctx.antes, depois: ctx.depois, dados: ctx.dados || (Object.keys(corpo).length ? corpo : undefined),
+  });
+}
+const servidor = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  const ctx = {};
+  res.on('finish', () => { try { registrarAlteracao(req, res, url, ctx); } catch (e) { console.error('Registro de alterações:', e.message); } });
+  CTX.run(ctx, () => atender(req, res, url));
+});
+async function atender(req, res, url) {
   try {
     if (req.method === 'GET' && url.pathname === '/saude') return responder(res, 200, { ok: true, versao: VERSAO });
     // login (no computador, sem LOTUS_LOGIN, todo mundo é admin e nada muda)
@@ -1115,11 +1203,12 @@ const servidor = http.createServer(async (req, res) => {
         .replace(/\/marca\/(logo|icone)\.png/g, (m, n) => `${m}?v=${versao(n)}`)
         .replace(/\/movel\.(css|js)/g, (m, ext) => `${m}?v=${versaoMovel(ext)}`)
         .replace(/\/campos\.js/g, (m) => `${m}?v=${versaoCampos}`)
-        .replace(/\/acompanhamento\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'acompanhamento.js')).mtimeMs)}`);
+        .replace(/\/acompanhamento\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'acompanhamento.js')).mtimeMs)}`)
+        .replace(/\/motivo\.js/g, (m) => `${m}?v=${Math.round(fs.statSync(path.join(RAIZ, 'app', 'motivo.js')).mtimeMs)}`);
       return responder(res, 200, html, 'text/html; charset=utf-8');
     }
     // ajustes de celular comuns a todas as telas
-    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js)$/.exec(url.pathname);
+    const comum = /^\/(movel\.css|movel\.js|campos\.js|acompanhamento\.js|motivo\.js)$/.exec(url.pathname);
     if (req.method === 'GET' && comum) {
       res.writeHead(200, { 'Content-Type': comum[1].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'app', comum[1])));
@@ -1145,7 +1234,9 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/imagens/enviar') {
       if (!imagens.disponivel(DIR_IMAGENS)) return responder(res, 404, { erro: 'Pasta de imagens indisponível.' });
       const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
-      return responder(res, 200, await imagens.receber(DIR_IMAGENS, url.searchParams.get('pasta') || '', nomeArq, req));
+      const r = await imagens.receber(DIR_IMAGENS, url.searchParams.get('pasta') || '', nomeArq, req);
+      anotar({ acao: 'imagens:enviar', resumo: `Imagens: arquivo enviado "${r.caminho}"` });
+      return responder(res, 200, r);
     }
     // envio de arquivo (contrato assinado / comprovante): corpo = bytes do arquivo; dados no endereço
     if (req.method === 'POST' && url.pathname === '/api/financeiro/enviar') {
@@ -1168,6 +1259,7 @@ const servidor = http.createServer(async (req, res) => {
     const rota = rotas[`${req.method} ${url.pathname}`];
     if (!rota) return responder(res, 404, { erro: 'Não encontrado' });
     const corpo = req.method === 'POST' ? await lerCorpo(req) : {};
+    if (req.method === 'POST') anotar({ corpo });
     let resposta = await rota(url.searchParams, corpo, req.usuario, req);
     // equipe não vê valores dos contratos
     if (req.usuario && req.usuario.papel !== 'admin' && url.pathname === '/api/contratos' && Array.isArray(resposta)) {
@@ -1178,7 +1270,7 @@ const servidor = http.createServer(async (req, res) => {
     const detalhes = e.properties?.errors?.map((x) => x.properties.explanation).join(' · ');
     return responder(res, 400, { erro: detalhes ? `${e.message}: ${detalhes}` : e.message });
   }
-});
+}
 
 /** Instalações antigas: o atalho "Tayna Alves Assessoria" da Área de Trabalho passa a se chamar "Lotus". */
 function renomearAtalho() {

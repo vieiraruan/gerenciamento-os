@@ -81,7 +81,10 @@ const linha = (nome) => (planilha['AS-0999'] || []).find((l) => l.Fornecedor ===
     let F = (await pedir('GET', '/api/financeiro?arquivo=ana-e-bia.txt', { cookie: ADMIN })).j;
     const pg = F.itens.find((i) => i.id === buffet).pagamentos[0];
     assert.ok(pg.lancado_por);
-    r = await fin('editar-pagamento', { id: buffet, pagamento_id: pg.id, valor: '3.000,00', data: `${ano - 1}-11-21`, tipo: 'parcela', numero: 1, forma: 'Transferência', obs: 'casal digitou 30000' });
+    r = await fin('editar-pagamento', { id: buffet, pagamento_id: pg.id, valor: '3.000,00' });
+    assert.strictEqual(r.status, 400); assert.match(r.j.erro, /motivo/, 'sem motivo não corrige');
+    assert.strictEqual(linha('Buffet Sabores')['Valor Pago'], 30000, 'nada mudou sem o motivo');
+    r = await fin('editar-pagamento', { id: buffet, pagamento_id: pg.id, valor: '3.000,00', data: `${ano - 1}-11-21`, tipo: 'parcela', numero: 1, forma: 'Transferência', obs: 'casal digitou 30000', motivo: 'Casal digitou um zero a mais' });
     assert.strictEqual(r.status, 200, JSON.stringify(r.j));
     assert.strictEqual(linha('Buffet Sabores')['Valor Pago'], 3000, 'planilha corrigida na hora');
     assert.strictEqual(linha('Buffet Sabores')['Data do Pagamento da Parcela'], `21/11/${ano - 1}`);
@@ -89,17 +92,18 @@ const linha = (nome) => (planilha['AS-0999'] || []).find((l) => l.Fornecedor ===
     const b = F.itens.find((i) => i.id === buffet);
     assert.strictEqual(b.pagamentos[0].valor, 3000); assert.strictEqual(b.pagamentos[0].forma, 'Transferência'); assert.ok(b.pagamentos[0].editado_em);
     assert.ok(b.pagamentos[0].lancado_por, 'continua marcado como enviado pelo casal');
-    assert.ok(b.historico.some((h) => /Lançamento corrigido: de R\$\s?30\.000,00/.test(h)), b.historico.join(' | '));
+    assert.ok(b.historico.some((h) => /Lançamento corrigido: de R\$\s?30\.000,00.*Motivo: Casal digitou um zero a mais/.test(h)), b.historico.join(' | '));
+    assert.match(linha('Buffet Sabores')['Observação'], /Motivo: Casal digitou um zero a mais/, 'o motivo aparece na planilha (Observação)');
     ok('Tayná corrige o valor que o casal enviou errado; Lotus e planilha ficam iguais (R$ 3.000)');
 
-    r = await fin('editar-pagamento', { id: buffet, pagamento_id: pg.id, mover_para: foto });
+    r = await fin('editar-pagamento', { id: buffet, pagamento_id: pg.id, mover_para: foto, motivo: 'Era o pagamento da fotografia' });
     F = (await pedir('GET', '/api/financeiro?arquivo=ana-e-bia.txt', { cookie: ADMIN })).j;
     assert.strictEqual(F.itens.find((i) => i.id === buffet).pagamentos.length, 0);
     assert.strictEqual(F.itens.find((i) => i.id === foto).pagamentos[0].valor, 3000);
     assert.ok(!linha('Buffet Sabores')['Valor Pago'] && linha('Foto Luz')['Valor Pago'] === 3000, 'planilha: pagamento mudou de fornecedor');
     ok('pagamento lançado no fornecedor errado vai para o certo (e na planilha também)');
 
-    r = await fin('editar-pagamento', { id: foto, pagamento_id: pg.id, valor: '0' });
+    r = await fin('editar-pagamento', { id: foto, pagamento_id: pg.id, valor: '0', motivo: 'teste de valor' });
     assert.strictEqual(r.status, 400); assert.match(r.j.erro, /valor/);
     assert.strictEqual((await fin('editar-pagamento', { id: foto, pagamento_id: pg.id, valor: '1' }, EQUIPE)).status, 403);
     assert.strictEqual((await fin('editar-pagamento', { id: foto, pagamento_id: pg.id, valor: '1' }, CASAL)).status, 403);
@@ -111,10 +115,11 @@ const linha = (nome) => (planilha['AS-0999'] || []).find((l) => l.Fornecedor ===
     let rec = (await pedir('GET', '/api/gestao/recebimentos', { cookie: ADMIN })).j;
     let ri = rec.itens.find((i) => i.arquivo === 'ana-e-bia.txt');
     assert.strictEqual(ri.recebido, 2000); assert.strictEqual(ri.item_id, tay);
-    await fin('editar-pagamento', { id: tay, pagamento_id: ri.pagamentos[0].id, valor: '1800', tipo: 'entrada' });
+    await fin('editar-pagamento', { id: tay, pagamento_id: ri.pagamentos[0].id, valor: '1800', tipo: 'entrada', motivo: 'Desconto combinado' });
     rec = (await pedir('GET', '/api/gestao/recebimentos', { cookie: ADMIN })).j; ri = rec.itens.find((i) => i.arquivo === 'ana-e-bia.txt');
     assert.strictEqual(ri.recebido, 1800); assert.ok(ri.pagamentos[0].editado);
-    await fin('remover-pagamento', { id: tay, pagamento_id: ri.pagamentos[0].id });
+    assert.strictEqual((await fin('remover-pagamento', { id: tay, pagamento_id: ri.pagamentos[0].id })).status, 400, 'remover pede motivo');
+    await fin('remover-pagamento', { id: tay, pagamento_id: ri.pagamentos[0].id, motivo: 'Lançado em duplicidade' });
     rec = (await pedir('GET', '/api/gestao/recebimentos', { cookie: ADMIN })).j; ri = rec.itens.find((i) => i.arquivo === 'ana-e-bia.txt');
     assert.strictEqual(ri.recebido, 0);
     ok('recebimento da Tayná: corrigir (R$ 2.000 → 1.800) e remover');
@@ -156,10 +161,29 @@ const linha = (nome) => (planilha['AS-0999'] || []).find((l) => l.Fornecedor ===
     assert.strictEqual((await pedir('GET', '/api/imagens', { cookie: CASAL })).status, 403);
     assert.strictEqual((await pedir('GET', '/imagens', { cookie: CASAL })).status, 403);
     assert.strictEqual((await pedir('POST', '/api/imagens/excluir', { cookie: EQUIPE, corpo: { caminho: 'capa.jpg' } })).status, 403);
-    r = await pedir('POST', '/api/imagens/excluir', { cookie: ADMIN, corpo: { caminho: 'capa.jpg' } }); assert.strictEqual(r.status, 200);
+    assert.strictEqual((await pedir('POST', '/api/imagens/excluir', { cookie: ADMIN, corpo: { caminho: 'capa.jpg' } })).status, 400, 'apagar pede motivo');
+    r = await pedir('POST', '/api/imagens/excluir', { cookie: ADMIN, corpo: { caminho: 'capa.jpg', motivo: 'Foto repetida' } }); assert.strictEqual(r.status, 200);
     assert.ok(!fs.existsSync(path.join(raizImg, 'capa.jpg')));
-    assert.strictEqual((await pedir('POST', '/api/imagens/excluir', { cookie: ADMIN, corpo: { caminho: '' } })).status, 400);
-    ok('nada fora da pasta nem oculto; casal sem acesso; só admin apaga (nunca a pasta principal)');
+    assert.strictEqual((await pedir('POST', '/api/imagens/excluir', { cookie: ADMIN, corpo: { caminho: '', motivo: 'tentar apagar tudo' } })).status, 400);
+    ok('nada fora da pasta nem oculto; casal sem acesso; só admin apaga, com motivo (nunca a pasta principal)');
+
+    // ---------- registro de alterações ----------
+    assert.strictEqual((await pedir('GET', '/api/registro', { cookie: EQUIPE })).status, 403);
+    const R = (await pedir('GET', '/api/registro', { cookie: ADMIN })).j;
+    const acha = (re) => R.itens.find((e) => re.test(e.resumo));
+    const cor = acha(/^Pagamento corrigido: Buffet Sabores \(enviado pelo casal\)/);
+    assert.ok(cor, R.itens.map((e) => e.resumo).join(' | '));
+    assert.strictEqual(cor.quem, 'tayna@exemplo.com'); assert.strictEqual(cor.motivo, 'Casal digitou um zero a mais');
+    assert.strictEqual(cor.antes.valor, 30000); assert.strictEqual(cor.depois.valor, 3000); assert.match(cor.casal, /AS-0999/);
+    const doCasal = acha(/^Pagamento lançado: R\$\s?30\.000,00 para Buffet Sabores \(enviado pelo casal\)/);
+    assert.ok(doCasal && doCasal.quem === 'casal@exemplo.com' && doCasal.papel === 'casal');
+    assert.ok(acha(/^Pagamento removido/).motivo === 'Lançado em duplicidade');
+    assert.ok(acha(/^Imagens: arquivo apagado "capa.jpg"/).motivo === 'Foto repetida');
+    assert.ok(acha(/^Imagens: arquivo enviado "Casamentos 2026\/mesa posta.png"/).quem === 'equipe@exemplo.com');
+    assert.ok(!R.itens.some((e) => e.resumo === 'Pagamento corrigido' && !e.motivo), 'nenhuma correção sem motivo');
+    const bruto = fs.readdirSync(path.join(dados, 'registro')).map((f) => fs.readFileSync(path.join(dados, 'registro', f), 'utf8')).join('');
+    assert.ok(!/comprovante %PDF|"senha"|"chave"/.test(bruto), 'sem arquivos nem segredos no registro');
+    ok(`registro: ${R.total} alterações com quem, quando, antes → depois e motivo (casal e equipe também)`);
   } catch (e) { console.error(log.slice(-2500)); throw e; } finally { app.kill(); google.close(); }
   console.log(`\n✓ imagens e correções do financeiro: ${n} verificações passaram`);
 })().catch((e) => { console.error(e); process.exit(1); });

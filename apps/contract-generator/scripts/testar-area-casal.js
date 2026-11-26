@@ -139,7 +139,7 @@ async function principal() {
   assert.match(decodeURIComponent(loc(await pedir('POST', '/auth/senha', { form: { email: 'ana@hotmail.com', senha: 'nosso-casamento' } }))), /Muitas tentativas/);
   ok('5 senhas erradas bloqueiam por 15 minutos');
 
-  r = await pedir('POST', '/api/usuarios', { cookie: ADMIN, corpo: { acao: 'zerar-senha', email: 'ana@hotmail.com' } });
+  r = await pedir('POST', '/api/usuarios', { cookie: ADMIN, corpo: { acao: 'zerar-senha', email: 'ana@hotmail.com', motivo: 'Casal esqueceu a senha' } });
   assert.strictEqual(r.status, 200);
   assert.strictEqual((await pedir('GET', '/api/meu-evento', { cookie: sessaoAna })).status, 401, 'zerar a senha encerra a sessão');
   ok('Tayná zera a senha (o próximo acesso volta a ser com o CPF) e a sessão aberta cai');

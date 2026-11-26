@@ -34,6 +34,7 @@
   .msg { font-size: 13px; margin-top: 8px; } .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
+<script src="/motivo.js"></script>
 </head>
 <body>
 <header>
@@ -93,14 +94,16 @@ function render() {
     const u = D.usuarios.find((x) => x.email === sel.dataset.papel);
     let casalSel = u.casal;
     if (sel.value === 'casal' && !casalSel) { alert('Para o perfil Casal, remova e libere de novo escolhendo o casal.'); sel.value = u.papel; return; }
-    await acao({ ...u, papel: sel.value, casal: casalSel });
+    const motivo = await pedirMotivo({ titulo: 'Mudar o perfil', texto: `${u.email}: ${u.papel} → ${sel.value}` });
+    if (!motivo) { sel.value = u.papel; return; }
+    await acao({ ...u, papel: sel.value, casal: casalSel, motivo });
   });
   document.querySelectorAll('[data-acao]').forEach((b) => b.onclick = async () => {
     const u = D.usuarios.find((x) => x.email === b.dataset.email);
-    if (b.dataset.acao === 'remover') { if (!confirm(`Remover o acesso de ${u.email}?`)) return; await acao({ acao: 'remover', email: u.email }); }
+    if (b.dataset.acao === 'remover') { const motivo = await pedirMotivo({ titulo: 'Remover acesso', texto: `Remover o acesso de ${u.email}.`, botao: 'Remover', perigo: true }); if (!motivo) return; await acao({ acao: 'remover', email: u.email, motivo }); }
     else if (b.dataset.acao === 'encerrar') await acao({ acao: 'encerrar', email: u.email }, 'Sessões encerradas.');
-    else if (b.dataset.acao === 'zerar-senha') { if (!confirm(`Zerar a senha de ${u.email}? O próximo acesso será com o CPF do contrato.`)) return; await acao({ acao: 'zerar-senha', email: u.email }, 'Senha zerada: o próximo acesso é com o CPF do contrato.'); }
-    else await acao({ ...u, bloqueado: b.dataset.acao === 'bloquear' });
+    else if (b.dataset.acao === 'zerar-senha') { const motivo = await pedirMotivo({ titulo: 'Zerar senha', texto: `Zerar a senha de ${u.email}. O próximo acesso será com o CPF do contrato.`, botao: 'Zerar senha' }); if (!motivo) return; await acao({ acao: 'zerar-senha', email: u.email, motivo }, 'Senha zerada: o próximo acesso é com o CPF do contrato.'); }
+    else { const bloq = b.dataset.acao === 'bloquear'; const motivo = await pedirMotivo({ titulo: bloq ? 'Bloquear acesso' : 'Desbloquear acesso', texto: u.email }); if (!motivo) return; await acao({ ...u, bloqueado: bloq, motivo }); }
   });
 }
 async function acao(corpo, ok) {
@@ -111,7 +114,10 @@ $('#nPapel').onchange = () => { $('#boxCasal').hidden = $('#nPapel').value !== '
 $('#formNovo').onsubmit = async (e) => {
   e.preventDefault();
   try {
-    const r = await api('/api/usuarios', { email: $('#nEmail').value, nome: $('#nNome').value, papel: $('#nPapel').value, casal: $('#nPapel').value === 'casal' ? $('#nCasal').value : '' });
+    const existe = D.usuarios.find((x) => x.email === $('#nEmail').value.trim().toLowerCase());
+    const motivo = existe ? await pedirMotivo({ titulo: 'Alterar acesso existente', texto: `${existe.email} já tem acesso (${existe.papel}). Os dados serão substituídos.` }) : '';
+    if (existe && !motivo) return;
+    const r = await api('/api/usuarios', { email: $('#nEmail').value, nome: $('#nNome').value, papel: $('#nPapel').value, casal: $('#nPapel').value === 'casal' ? $('#nCasal').value : '', motivo });
     D.usuarios = r.usuarios; render(); $('#formNovo').reset(); $('#boxCasal').hidden = true;
     $('#msgNovo').className = 'msg ok'; $('#msgNovo').textContent = 'Acesso liberado.';
   } catch (err) { $('#msgNovo').className = 'msg erro'; $('#msgNovo').textContent = err.message; }
