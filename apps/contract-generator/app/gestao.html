@@ -86,6 +86,7 @@
 
   button.btn { font: inherit; font-size: 13px; border-radius: 8px; border: 1px solid var(--marca); padding: 6px 11px; cursor: pointer; background: #fff; color: var(--marca); font-weight: 600; white-space: nowrap; }
   button.btn:hover { background: #f3ece7; }
+  button.btn.mini { padding: 1px 8px; font-size: 12px; margin-left: 4px; border-color: var(--borda); }
   button.btn.primario { background: var(--marca); color: #fff; } button.btn.primario:hover { background: #6c3a2b; }
   button.btn:disabled { opacity: .5; cursor: default; }
 
@@ -118,6 +119,7 @@
     <a href="#recebimentos" data-aba="recebimentos">Recebimentos da Tayná <span class="n" id="nRec" hidden></span></a>
     <a href="#pagamentos" data-aba="pagamentos">Pagamentos dos casais <span class="n" id="nPag" hidden></span></a>
     <a href="#casais" data-aba="casais">Casais</a>
+    <a href="#financeiro" data-aba="financeiro">Financeiro dos casais</a>
   </nav>
 
   <!-- ===================== Visão geral ===================== -->
@@ -153,11 +155,12 @@
 
   <!-- ===================== Casais ===================== -->
   <section class="aba" id="aba-casais"><div class="carregando">Carregando…</div></section>
+  <section class="aba" id="aba-financeiro"><iframe id="frameFin" title="Financeiro dos casais" style="display:block;width:100%;border:0;border-radius:12px;background:#fff;height:calc(100dvh - 200px);min-height:520px"></iframe></section>
 </main>
 
 <dialog id="dlgRec">
   <form method="dialog" id="formRec">
-    <h3>Registrar recebimento</h3>
+    <h3 id="recTit">Registrar recebimento</h3>
     <div class="s" id="recCasal"></div>
     <div class="linha">
       <div><label>Referente a</label>
@@ -190,7 +193,21 @@ const mesRot = (k) => { const m = /^(\d{4})-(\d{2})$/.exec(k); return m ? `${MES
 const quando = (dias) => (dias === null || dias === undefined ? '' : dias === 0 ? 'hoje' : dias > 0 ? `em ${dias} dia${dias > 1 ? 's' : ''}` : `há ${-dias} dia${dias < -1 ? 's' : ''}`);
 const BADGE = { Quitado: 'b-ok', 'Em dia': 'b-neutro', Atrasado: 'b-erro', 'Sem lançamento': 'b-aviso', 'Sem valor': 'b-neutro' };
 const CRONO = { atrasado: ['Atrasado', 'b-erro'], em_dia: ['Em dia', 'b-ok'], adiantado: ['Adiantado', 'b-adiantado'] };
-const lkFin = (arquivo, txt) => `<a class="lk" href="/financeiro?casal=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
+const lkFin = (arquivo, txt) => `<a class="lk" href="?casal=${encodeURIComponent(arquivo)}#financeiro" data-fin="${esc(arquivo)}">${esc(txt)}</a>`;
+// Financeiro dos casais (lançamentos de fornecedores) dentro do painel: a mesma tela, embutida
+let finCasal = new URLSearchParams(location.search).get('casal') || '';
+function abrirFinanceiro(casal) {
+  const fr = document.getElementById('frameFin');
+  if (casal !== undefined) finCasal = casal;
+  const src = `/financeiro?embutido=1${finCasal ? `&casal=${encodeURIComponent(finCasal)}` : ''}`;
+  if (fr.dataset.src !== src) { fr.dataset.src = src; fr.src = src; }
+  fr.style.height = `calc(100dvh - ${Math.round(fr.getBoundingClientRect().top + scrollY) + 12}px)`;
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-fin]'); if (!a) return;
+  e.preventDefault(); abrirFinanceiro(a.dataset.fin);
+  history.replaceState(null, '', `?casal=${encodeURIComponent(a.dataset.fin)}#financeiro`); dispatchEvent(new HashChangeEvent('hashchange'));
+});
 const lkCk = (arquivo, txt) => `<a class="lk" href="/cronograma?casal=${encodeURIComponent(arquivo)}">${esc(txt)}</a>`;
 const barra = (p) => `<div class="barra"><i style="width:${Math.max(0, Math.min(100, p || 0))}%"></i></div>`;
 
@@ -206,6 +223,7 @@ function mostrarAba() {
   const aba = (location.hash || '#visao').slice(1);
   document.querySelectorAll('nav.abas a').forEach((a) => a.classList.toggle('on', a.dataset.aba === aba));
   document.querySelectorAll('section.aba').forEach((s) => s.classList.toggle('on', s.id === `aba-${aba}`));
+  if (aba === 'financeiro') abrirFinanceiro();
 }
 window.addEventListener('hashchange', mostrarAba);
 
@@ -328,12 +346,19 @@ function desenharTabelaRec() {
     const a = tr.dataset.a; abertos.has(a) ? abertos.delete(a) : abertos.add(a); desenharTabelaRec();
   });
   document.querySelectorAll('#recTabela [data-rec]').forEach((b) => b.onclick = () => abrirRecebimento(b.dataset.rec));
+  document.querySelectorAll('#recTabela [data-edrec]').forEach((b) => b.onclick = () => { const [a, pid] = b.dataset.edrec.split('|'); abrirRecebimento(a, pid); });
+  document.querySelectorAll('#recTabela [data-rmrec]').forEach((b) => b.onclick = async () => {
+    const [a, pid] = b.dataset.rmrec.split('|'); const it = REC.itens.find((x) => x.arquivo === a); const p = it && it.pagamentos.find((x) => x.id === pid);
+    if (!p || !confirm(`Remover o recebimento de ${moeda(p.valor)} (${data(p.data) || 'sem data'}) de ${it.casal}? A planilha do casal é atualizada junto.`)) return;
+    try { await enviarOp(a, 'remover-pagamento', { id: it.item_id, pagamento_id: pid }); abertos.add(a); await carregar(); } catch (e) { alert(e.message); }
+  });
 }
 function detalheRec(i) {
   const etapas = i.etapas.map((e) => `<li><span class="d">${esc(e.descricao)}${e.vencimento ? ` <span class="s">· vence ${data(e.vencimento)}</span>` : ''}</span>
     <span class="n">${moeda(e.valor)}</span>
     <span class="badge ${e.quitada ? 'b-ok' : e.atrasada ? 'b-erro' : e.pago > 0 ? 'b-aviso' : 'b-neutro'}">${e.quitada ? 'recebida' : e.atrasada ? 'atrasada' : e.pago > 0 ? `parcial ${moeda(e.pago)}` : 'a receber'}</span></li>`).join('');
-  const pags = i.pagamentos.length ? i.pagamentos.map((p) => `<li><span class="d">${data(p.data) || 'sem data'} · ${esc(p.tipo)}${p.forma ? ` (${esc(p.forma)})` : ''}${p.importado ? ' <span class="s">· da planilha</span>' : ''}${p.comprovante ? ' · 📎 comprovante' : ''}</span><span class="n">${moeda(p.valor)}</span></li>`).join('')
+  const pags = i.pagamentos.length ? i.pagamentos.map((p) => `<li><span class="d">${data(p.data) || 'sem data'} · ${esc(p.tipo)}${p.numero ? ` ${p.numero}` : ''}${p.forma ? ` (${esc(p.forma)})` : ''}${p.importado ? ' <span class="s">· da planilha</span>' : ''}${p.editado ? ' <span class="s">· corrigido</span>' : ''}${p.comprovante ? ' · 📎 comprovante' : ''}${p.obs ? `<div class="s">${esc(p.obs)}</div>` : ''}</span><span class="n">${moeda(p.valor)}</span>
+      <span style="white-space:nowrap"><button class="btn mini" data-edrec="${esc(i.arquivo)}|${p.id}" title="Corrigir este recebimento">✎</button><button class="btn mini" data-rmrec="${esc(i.arquivo)}|${p.id}" title="Remover este recebimento">×</button></span></li>`).join('')
     : '<li class="s">Nenhum recebimento registrado.</li>';
   return `<div class="duas" style="gap:24px"><div><b>Plano do contrato</b><ul class="etapas">${etapas}</ul></div>
     <div><b>Recebimentos</b><ul class="etapas">${pags}</ul>
@@ -342,12 +367,22 @@ function detalheRec(i) {
 }
 
 // ---- diálogo de recebimento ----
-let recAtual = null;
+let recAtual = null; let recEditando = null;
 const dlg = document.getElementById('dlgRec');
+async function enviarOp(arquivo, op, dados, arq) {
+  const url = `/api/financeiro/enviar?arquivo=${encodeURIComponent(arquivo)}&op=${op}&dados=${encodeURIComponent(JSON.stringify(dados))}`;
+  const r = await fetch(url, { method: 'POST', headers: arq ? { 'X-Nome-Arquivo': encodeURIComponent(arq.name) } : {}, body: arq || '' });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
 document.getElementById('recForma').innerHTML = FORMAS.map((f) => `<option>${f}</option>`).join('');
-function abrirRecebimento(arquivo) {
+function abrirRecebimento(arquivo, pagamentoId) {
   recAtual = REC.itens.find((i) => i.arquivo === arquivo);
   if (!recAtual) return;
+  recEditando = pagamentoId ? recAtual.pagamentos.find((p) => p.id === pagamentoId) || null : null;
+  document.getElementById('recTit').textContent = recEditando ? 'Corrigir recebimento' : 'Registrar recebimento';
+  document.getElementById('recOk').textContent = recEditando ? 'Salvar correção' : 'Registrar';
   document.getElementById('recCasal').textContent = `${recAtual.numero_os} · ${recAtual.casal} — a receber ${moeda(recAtual.a_receber)}`;
   const prox = recAtual.proxima;
   const tipo = !prox ? 'avulso' : /^Entrada/.test(prox.descricao) ? 'entrada' : /^Parcela/.test(prox.descricao) ? 'parcela' : 'avulso';
@@ -357,6 +392,14 @@ function abrirRecebimento(arquivo) {
   document.getElementById('recArq').value = '';
   document.getElementById('recObs').value = '';
   document.getElementById('recErro').textContent = '';
+  if (recEditando) {
+    const p = recEditando;
+    document.getElementById('recTipo').value = p.tipo || 'avulso';
+    document.getElementById('recValor').value = Number(p.valor || 0).toFixed(2).replace('.', ',');
+    document.getElementById('recData').value = p.data || '';
+    document.getElementById('recForma').value = p.forma || 'PIX';
+    document.getElementById('recObs').value = p.obs || '';
+  }
   dlg.showModal();
 }
 document.getElementById('recCancelar').onclick = () => dlg.close();
@@ -370,10 +413,8 @@ document.getElementById('formRec').addEventListener('submit', async (e) => {
     obs: document.getElementById('recObs').value,
   };
   try {
-    const url = `/api/financeiro/enviar?arquivo=${encodeURIComponent(recAtual.arquivo)}&op=recebimento&dados=${encodeURIComponent(JSON.stringify(dados))}`;
-    const r = await fetch(url, { method: 'POST', headers: arq ? { 'X-Nome-Arquivo': encodeURIComponent(arq.name) } : {}, body: arq || '' });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.erro || 'Erro');
+    if (recEditando) await enviarOp(recAtual.arquivo, 'editar-pagamento', { ...dados, id: recAtual.item_id, pagamento_id: recEditando.id, numero: recEditando.numero }, arq);
+    else await enviarOp(recAtual.arquivo, 'recebimento', dados, arq);
     dlg.close();
     abertos.add(recAtual.arquivo);
     await carregar();

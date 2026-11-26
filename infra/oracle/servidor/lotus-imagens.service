@@ -1,0 +1,27 @@
+# Monta a pasta IMAGENS COMPARTILHADAS (raiz do Meu Drive da empresa) em /srv/drive/IMAGENS COMPARTILHADAS (rclone).
+# Usa a mesma credencial do lotus-drive (/etc/lotus/rclone.conf, remote "drive"). No Lotus: app "Imagens compartilhadas"
+# (só equipe e admin). Cache próprio em disco para as fotos já vistas não descerem do Google de novo.
+[Unit]
+Description=Lotus - Imagens compartilhadas do Google Drive (rclone)
+Wants=network-online.target
+After=network-online.target
+Before=docker.service
+
+[Service]
+Type=simple
+ExecStartPre=-/bin/fusermount3 -uz "/srv/drive/IMAGENS COMPARTILHADAS"
+ExecStartPre=/bin/mkdir -p "/srv/drive/IMAGENS COMPARTILHADAS" /var/cache/lotus-rclone-imagens
+ExecStart=/usr/bin/rclone mount "drive:IMAGENS COMPARTILHADAS" "/srv/drive/IMAGENS COMPARTILHADAS" \
+  --config /etc/lotus/rclone.conf \
+  --allow-other --uid 1000 --gid 1000 --umask 002 \
+  --vfs-cache-mode full --vfs-cache-max-size 8G --vfs-cache-max-age 2160h --cache-dir /var/cache/lotus-rclone-imagens \
+  --dir-cache-time 1000h --poll-interval 30s --vfs-write-back 2s \
+  --drive-export-formats docx,link.html --log-level INFO
+ExecStartPost=/bin/sh -c 'for i in $(seq 1 90); do mountpoint -q "/srv/drive/IMAGENS COMPARTILHADAS" && exit 0; sleep 1; done; exit 1'
+ExecStop=/bin/fusermount3 -uz "/srv/drive/IMAGENS COMPARTILHADAS"
+Restart=on-failure
+TimeoutStartSec=180
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

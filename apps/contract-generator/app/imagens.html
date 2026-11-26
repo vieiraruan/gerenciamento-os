@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imagens compartilhadas · Lotus</title>
+<link rel="icon" type="image/png" href="/marca/icone.png">
+<style>
+  :root { --marca: #824634; --marca-2: #a8705c; --fundo: #f8f3ef; --borda: #eadcd4; --texto: #2b2220; --suave: #6f625d; --ok: #2f7a4f; --erro: #b3261e; --raio: 12px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); background: var(--fundo); }
+  header { background: #fffdfb; color: var(--marca); padding: 8px 24px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(130,70,52,.06); }
+  header img.logo { height: 58px; display: block; }
+  header .sep { width: 1px; align-self: stretch; background: var(--borda); margin: 6px 0; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--suave); font-size: 13px; }
+  header .esp { flex: 1; }
+  header a.voltar { color: var(--marca); font-weight: 600; text-decoration: none; padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 60px; }
+  .barra { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .trilha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 15px; flex: 1; min-width: 220px; }
+  .trilha a { color: var(--marca); font-weight: 600; text-decoration: none; padding: 4px 6px; border-radius: 6px; } .trilha a:hover { background: #f3ece7; }
+  .trilha .at { font-weight: 700; padding: 4px 6px; } .trilha .sep2 { color: #c7b8b0; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--borda); background: #fff; color: var(--marca); border-radius: 10px; padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 40px; text-decoration: none; }
+  .btn:hover { background: #fbf6f3; } .btn.pri { background: var(--marca); border-color: var(--marca); color: #fff; } .btn.pri:hover { background: #6c3a2b; }
+  .btn.perigo { color: var(--erro); border-color: #f0c9c4; }
+  input.busca { font: inherit; border: 1px solid var(--borda); border-radius: 10px; padding: 8px 12px; min-height: 40px; width: 220px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .pasta { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; color: inherit; text-decoration: none; font-weight: 600; min-height: 56px; }
+  .pasta:hover, .pasta:focus-visible { border-color: var(--marca-2); box-shadow: 0 4px 14px rgba(130,70,52,.1); outline: none; }
+  .pasta svg { flex: none; color: var(--marca-2); }
+  .pasta span { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
+  .arq { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; padding: 0; font: inherit; color: inherit; }
+  .arq:hover, .arq:focus-visible { border-color: var(--marca-2); box-shadow: 0 4px 14px rgba(130,70,52,.12); outline: none; }
+  .arq .foto { aspect-ratio: 1; background: #f1e9e4; display: grid; place-items: center; overflow: hidden; position: relative; }
+  .arq .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .arq .foto .ic { font-size: 34px; color: var(--marca-2); }
+  .arq .foto .play { position: absolute; inset: 0; display: grid; place-items: center; font-size: 36px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .arq .nome { padding: 7px 10px 8px; font-size: 12.5px; line-height: 1.3; word-break: break-word; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .arq .nome small { display: block; color: var(--suave); font-size: 11px; }
+  h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--suave); margin: 18px 0 10px; }
+  .vazio { background: #fff; border: 1px dashed var(--borda); border-radius: var(--raio); padding: 34px; text-align: center; color: var(--suave); }
+  .aviso { background: #fff7e6; border: 1px solid #f0dcae; border-radius: var(--raio); padding: 14px 16px; color: #6b4a00; }
+  /* envio */
+  .solte { position: fixed; inset: 0; background: rgba(130,70,52,.18); border: 4px dashed var(--marca); z-index: 40; display: none; place-items: center; font-size: 22px; font-weight: 700; color: var(--marca); }
+  .solte.on { display: grid; }
+  .fila { position: fixed; right: 16px; bottom: 16px; width: min(380px, calc(100vw - 32px)); background: #fff; border: 1px solid var(--borda); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 30; max-height: 50vh; display: flex; flex-direction: column; }
+  .fila[hidden] { display: none; }
+  .fila .cab { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--borda); font-weight: 700; font-size: 14px; }
+  .fila .cab button { border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--suave); }
+  .fila ul { list-style: none; margin: 0; padding: 6px 14px 10px; overflow-y: auto; }
+  .fila li { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5eee9; }
+  .fila li .n { display: flex; justify-content: space-between; gap: 8px; } .fila li .n span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fila .prog { height: 5px; background: #f1e7e1; border-radius: 99px; overflow: hidden; margin-top: 4px; } .fila .prog i { display: block; height: 100%; background: var(--marca-2); width: 0; transition: width .2s; }
+  .fila .ok { color: var(--ok); } .fila .erro { color: var(--erro); }
+  /* visualizador */
+  dialog.ver { border: 0; padding: 0; margin: 0; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; background: rgba(20,14,12,.94); color: #fff; }
+  dialog.ver::backdrop { background: rgba(20,14,12,.94); }
+  .ver .topo { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: linear-gradient(rgba(0,0,0,.55), transparent); z-index: 2; }
+  .ver .topo .t { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ver .topo .t small { display: block; color: #d8cbc5; font-size: 12px; }
+  .ver .topo a, .ver .topo button { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 9px; padding: 7px 12px; font: inherit; font-size: 13.5px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+  .ver .topo button.fechar { font-size: 20px; line-height: 1; padding: 5px 12px; }
+  .ver .palco { position: absolute; inset: 0; display: grid; place-items: center; padding: 60px 56px 24px; }
+  .ver .palco img, .ver .palco video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+  .ver .palco iframe { width: 100%; height: 100%; border: 0; background: #fff; border-radius: 6px; }
+  .ver .palco .outro { text-align: center; color: #e9dfda; }
+  .ver .nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; background: rgba(255,255,255,.14); border: 0; color: #fff; width: 46px; height: 64px; border-radius: 12px; font-size: 28px; cursor: pointer; }
+  .ver .nav.ant { left: 8px; } .ver .nav.prox { right: 8px; } .ver .nav[hidden] { display: none; }
+  @media (max-width: 700px) {
+    header { padding: 8px 12px; gap: 10px; } header img.logo { height: 40px; } header .sub { display: none; }
+    main { padding: 12px; } .grade { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; } .grade.pastas { grid-template-columns: 1fr 1fr; }
+    .arq .nome { font-size: 11.5px; padding: 5px 7px 6px; } .arq .nome small { display: none; }
+    input.busca { width: 100%; order: 5; } .barra .btn { flex: 1; justify-content: center; }
+    .ver .palco { padding: 58px 4px 8px; } .ver .nav { width: 38px; height: 52px; } .ver .topo .lbl { display: none; }
+  }
+</style>
+<link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script>
+</head>
+<body>
+<header>
+  <img class="logo" src="/marca/logo.png" alt="Tayná Alves Assessoria e Produção">
+  <div class="sep"></div>
+  <div><h1>Imagens compartilhadas</h1><div class="sub">Pasta IMAGENS COMPARTILHADAS do Drive · só para a equipe</div></div>
+  <div class="esp"></div>
+  <a class="voltar" href="/">← Início</a>
+</header>
+<main>
+  <div class="barra">
+    <nav class="trilha" id="trilha" aria-label="Pastas"></nav>
+    <input class="busca" id="busca" type="search" placeholder="Buscar nesta pasta" aria-label="Buscar nesta pasta">
+    <button class="btn" id="btnPasta" type="button">＋ Nova pasta</button>
+    <label class="btn pri" for="inpArq" style="margin:0">⬆ Enviar arquivos</label>
+    <input type="file" id="inpArq" multiple hidden>
+  </div>
+  <div id="conteudo"><div class="vazio">Carregando…</div></div>
+</main>
+<div class="solte" id="solte">Solte os arquivos para enviar para esta pasta</div>
+<div class="fila" id="fila" hidden><div class="cab"><span id="filaTit">Enviando</span><button type="button" id="filaFechar" aria-label="Fechar">×</button></div><ul id="filaLista"></ul></div>
+<dialog class="ver" id="ver" aria-label="Visualizar arquivo">
+  <div class="topo"><div class="t" id="verNome"></div>
+    <a id="verBaixar" href="#" title="Baixar">⬇ <span class="lbl">Baixar</span></a>
+    <a id="verOriginal" href="#" target="_blank" rel="noopener" title="Abrir original">↗ <span class="lbl">Original</span></a>
+    <button type="button" id="verApagar" title="Apagar" hidden>🗑 <span class="lbl">Apagar</span></button>
+    <button type="button" class="fechar" id="verFechar" aria-label="Fechar">×</button></div>
+  <button class="nav ant" id="verAnt" aria-label="Anterior">‹</button><button class="nav prox" id="verProx" aria-label="Próxima">›</button>
+  <div class="palco" id="palco"></div>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tam = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace('.', ',')} MB`;
+const dt = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+const url = (c, extra = '') => `/api/imagens/arquivo?caminho=${encodeURIComponent(c)}${extra}`;
+const IC = { video: '🎬', pdf: '📄', outro: '📎', imagem: '🖼' };
+const PASTA_SVG = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4l2 2.5h7A2.5 2.5 0 0 1 21 9v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" opacity=".85"/></svg>';
+let D = null; let pasta = new URLSearchParams(location.search).get('pasta') || ''; let busca = '';
+
+async function api(u, corpo) {
+  const r = await fetch(u, corpo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+async function carregar(p = pasta, empilhar = false) {
+  try {
+    D = await api(`/api/imagens?pasta=${encodeURIComponent(p)}`);
+    pasta = D.pasta || '';
+    if (empilhar) history.pushState({ pasta }, '', pasta ? `?pasta=${encodeURIComponent(pasta)}` : '/imagens');
+    desenhar();
+  } catch (e) { $('#conteudo').innerHTML = `<div class="aviso">${esc(e.message)}</div>`; }
+}
+addEventListener('popstate', () => { pasta = new URLSearchParams(location.search).get('pasta') || ''; busca = ''; $('#busca').value = ''; carregar(pasta); });
+
+function desenhar() {
+  const raiz = D.nome_raiz || 'IMAGENS COMPARTILHADAS';
+  $('#trilha').innerHTML = [`${D.trilha.length ? `<a href="?" data-ir="">${esc(raiz)}</a>` : `<span class="at">${esc(raiz)}</span>`}`,
+    ...D.trilha.map((t, i) => i === D.trilha.length - 1 ? `<span class="at">${esc(t.nome)}</span>` : `<a href="?pasta=${encodeURIComponent(t.caminho)}" data-ir="${esc(t.caminho)}">${esc(t.nome)}</a>`)]
+    .join('<span class="sep2">›</span>');
+  if (!D.disponivel) {
+    $('#conteudo').innerHTML = `<div class="aviso">A pasta <b>${esc(raiz)}</b> não está disponível aqui. Ela precisa existir na raiz do <b>Meu Drive</b> (ao lado da pasta CONTRATOS) e estar sincronizada.</div>`;
+    return;
+  }
+  const q = busca.trim().toLowerCase();
+  const pastas = D.pastas.filter((p) => !q || p.nome.toLowerCase().includes(q));
+  const arqs = D.arquivos.filter((a) => !q || a.nome.toLowerCase().includes(q));
+  const vazia = !D.pastas.length && !D.arquivos.length;
+  $('#conteudo').innerHTML = (pastas.length ? `<h2 class="sec">Pastas (${pastas.length})</h2><div class="grade pastas">${pastas.map((p) =>
+      `<a class="pasta" href="?pasta=${encodeURIComponent(p.caminho)}" data-ir="${esc(p.caminho)}">${PASTA_SVG}<span>${esc(p.nome)}</span></a>`).join('')}</div>` : '')
+    + (arqs.length ? `<h2 class="sec">Arquivos (${arqs.length})</h2><div class="grade">${arqs.map((a) => {
+      const i = D.arquivos.indexOf(a);
+      const capa = a.mostra ? `<img loading="lazy" decoding="async" src="${url(a.caminho, D.miniaturas ? '&tam=mini' : '')}" alt="">`
+        : `<span class="ic">${IC[a.tipo] || IC.outro}</span>`;
+      return `<button type="button" class="arq" data-i="${i}" title="${esc(a.nome)}"><div class="foto">${capa}${a.tipo === 'video' ? '<span class="play">▶</span>' : ''}</div>
+        <div class="nome">${esc(a.nome)}<small>${tam(a.tamanho)} · ${dt(a.modificado)}</small></div></button>`;
+    }).join('')}</div>` : '')
+    + (vazia ? `<div class="vazio">Pasta vazia. Arraste fotos para cá ou use <b>Enviar arquivos</b>.${D.trilha.length && D.pode_apagar ? '<br><br><button class="btn perigo" id="apagarPasta">Apagar esta pasta vazia</button>' : ''}</div>`
+      : !pastas.length && !arqs.length ? '<div class="vazio">Nada encontrado com essa busca.</div>' : '');
+  const ap = $('#apagarPasta');
+  if (ap) ap.onclick = async () => {
+    if (!confirm(`Apagar a pasta vazia "${D.trilha[D.trilha.length - 1].nome}"?`)) return;
+    try { await api('/api/imagens/excluir', { caminho: pasta }); carregar(D.trilha.length > 1 ? D.trilha[D.trilha.length - 2].caminho : '', true); } catch (e) { alert(e.message); }
+  };
+}
+document.addEventListener('click', (e) => {
+  const ir = e.target.closest('[data-ir]');
+  if (ir && !e.ctrlKey && !e.metaKey) { e.preventDefault(); busca = ''; $('#busca').value = ''; carregar(ir.dataset.ir, true); return; }
+  const a = e.target.closest('.arq[data-i]'); if (a) abrir(Number(a.dataset.i));
+});
+$('#busca').oninput = (e) => { busca = e.target.value; desenhar(); };
+
+// ---------- nova pasta ----------
+$('#btnPasta').onclick = async () => {
+  const nome = prompt('Nome da nova pasta:');
+  if (!nome || !nome.trim()) return;
+  try { const r = await api('/api/imagens/pasta', { pasta, nome }); carregar(r.caminho, true); } catch (e) { alert(e.message); }
+};
+
+// ---------- envio (botão ou arrastar e soltar) ----------
+const fila = []; let enviando = 0; let destino = '';
+function enfileirar(arquivos) {
+  if (!D || !D.disponivel) return;
+  destino = pasta;
+  const lista = $('#filaLista');
+  for (const f of arquivos) {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="n"><span>${esc(f.name)}</span><span class="st">${tam(f.size)}</span></div><div class="prog"><i></i></div>`;
+    lista.appendChild(li); fila.push({ f, li, pasta: destino });
+  }
+  $('#fila').hidden = false; atualizarTitulo(); proximo(); proximo();
+}
+function atualizarTitulo() {
+  const tot = $('#filaLista').children.length; const feitos = $('#filaLista').querySelectorAll('.ok,.erro').length;
+  $('#filaTit').textContent = feitos < tot ? `Enviando ${feitos + 1} de ${tot}…` : `${$('#filaLista').querySelectorAll('.ok').length} de ${tot} enviado(s)`;
+}
+function proximo() {
+  const job = fila.shift(); if (!job) return;
+  enviando++;
+  const x = new XMLHttpRequest();
+  x.open('POST', `/api/imagens/enviar?pasta=${encodeURIComponent(job.pasta)}`);
+  x.setRequestHeader('X-Nome-Arquivo', encodeURIComponent(job.f.name));
+  x.upload.onprogress = (e) => { if (e.lengthComputable) job.li.querySelector('i').style.width = `${Math.round((e.loaded / e.total) * 100)}%`; };
+  x.onload = x.onerror = () => {
+    enviando--;
+    let j = {}; try { j = JSON.parse(x.responseText); } catch {}
+    const st = job.li.querySelector('.st');
+    if (x.status === 200) { st.textContent = '✔'; st.className = 'st ok'; job.li.querySelector('i').style.width = '100%'; }
+    else { st.textContent = j.erro || 'falhou'; st.className = 'st erro'; }
+    atualizarTitulo();
+    if (!fila.length && !enviando && job.pasta === pasta) carregar(pasta);
+    proximo();
+  };
+  x.send(job.f);
+}
+$('#inpArq').onchange = (e) => { enfileirar([...e.target.files]); e.target.value = ''; };
+$('#filaFechar').onclick = () => { if (enviando) return; $('#fila').hidden = true; $('#filaLista').innerHTML = ''; };
+let arrastando = 0;
+addEventListener('dragenter', (e) => { if (![...e.dataTransfer.types].includes('Files')) return; arrastando++; $('#solte').classList.add('on'); });
+addEventListener('dragleave', () => { arrastando = Math.max(0, arrastando - 1); if (!arrastando) $('#solte').classList.remove('on'); });
+addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+addEventListener('drop', (e) => { e.preventDefault(); arrastando = 0; $('#solte').classList.remove('on'); if (e.dataTransfer.files.length) enfileirar([...e.dataTransfer.files]); });
+
+// ---------- visualizador ----------
+let idx = -1;
+function abrir(i) {
+  const lista = D.arquivos; if (!lista[i]) return;
+  idx = i; const a = lista[i];
+  $('#verNome').innerHTML = `${esc(a.nome)}<small>${tam(a.tamanho)} · ${dt(a.modificado)} · ${i + 1} de ${lista.length}</small>`;
+  $('#verBaixar').href = url(a.caminho, '&baixar=1'); $('#verOriginal').href = url(a.caminho);
+  $('#verApagar').hidden = !D.pode_apagar;
+  const palco = $('#palco');
+  if (a.tipo === 'imagem' && a.mostra) palco.innerHTML = `<img src="${url(a.caminho, D.miniaturas ? '&tam=grande' : '')}" alt="${esc(a.nome)}">`;
+  else if (a.tipo === 'video') palco.innerHTML = `<video src="${url(a.caminho)}" controls playsinline preload="metadata"></video>`;
+  else if (a.tipo === 'pdf') palco.innerHTML = `<iframe src="${url(a.caminho)}" title="${esc(a.nome)}"></iframe>`;
+  else palco.innerHTML = `<div class="outro"><div style="font-size:48px">${IC[a.tipo] || IC.outro}</div><p>Este arquivo não abre no navegador.</p><a class="btn" href="${url(a.caminho, '&baixar=1')}">⬇ Baixar</a></div>`;
+  $('#verAnt').hidden = i <= 0; $('#verProx').hidden = i >= lista.length - 1;
+  // pré-carrega a próxima foto
+  const n = lista[i + 1]; if (n && n.tipo === 'imagem' && n.mostra) { const im = new Image(); im.src = url(n.caminho, D.miniaturas ? '&tam=grande' : ''); }
+  if (!$('#ver').open) $('#ver').showModal();
+}
+const fecharVer = () => { $('#palco').innerHTML = ''; $('#ver').close(); };
+$('#verFechar').onclick = fecharVer;
+$('#ver').addEventListener('close', () => { $('#palco').innerHTML = ''; });
+$('#verAnt').onclick = () => abrir(idx - 1); $('#verProx').onclick = () => abrir(idx + 1);
+$('#ver').addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' && idx > 0) abrir(idx - 1); if (e.key === 'ArrowRight' && idx < D.arquivos.length - 1) abrir(idx + 1); });
+let toqueX = null;
+$('#palco').addEventListener('touchstart', (e) => { toqueX = e.touches[0].clientX; }, { passive: true });
+$('#palco').addEventListener('touchend', (e) => {
+  if (toqueX === null) return; const dx = e.changedTouches[0].clientX - toqueX; toqueX = null;
+  if (dx > 60 && idx > 0) abrir(idx - 1); else if (dx < -60 && idx < D.arquivos.length - 1) abrir(idx + 1);
+});
+$('#verApagar').onclick = async () => {
+  const a = D.arquivos[idx];
+  if (!a || !confirm(`Apagar "${a.nome}"? Ele vai para a lixeira do Google Drive.`)) return;
+  try { await api('/api/imagens/excluir', { caminho: a.caminho }); fecharVer(); carregar(pasta); } catch (e) { alert(e.message); }
+};
+
+carregar(pasta);
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@
     "gerar": "node src/index.js",
     "modelo-exemplo": "python3 scripts/criar_modelo_exemplo.py",
     "app": "node src/servidor.js",
-    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js && node scripts/testar-pedidos.js && node scripts/testar-cronograma.js && node scripts/testar-area-casal.js && node scripts/testar-painel-casais.js"
+    "test": "node scripts/verificar-importacoes.js && node scripts/testar-login.js && node scripts/testar-planilha-google.js && node scripts/testar-pedidos.js && node scripts/testar-cronograma.js && node scripts/testar-area-casal.js && node scripts/testar-painel-casais.js && node scripts/testar-imagens-financeiro.js"
   },
   "keywords": [],
   "author": "",
@@ -24,5 +24,8 @@
   "private": true,
   "engines": {
     "node": ">=22.20"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.34.5"
   }
 }

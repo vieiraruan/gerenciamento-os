@@ -15,6 +15,12 @@ if ! timeout 25 ls "$DADOS" >/dev/null 2>&1; then
   exit 0
 fi
 
+# imagens compartilhadas: se a montagem travar, reinicia só ela (o resto do Lotus não depende dela)
+if systemctl is-enabled -q lotus-imagens 2>/dev/null && ! timeout 25 ls "/srv/drive/IMAGENS COMPARTILHADAS" >/dev/null 2>&1; then
+  log "Imagens compartilhadas sem resposta: reiniciando lotus-imagens"
+  systemctl restart lotus-imagens
+fi
+
 if ! docker compose --project-directory "$AQUI" exec -T lotus node -e \
   "fetch('http://127.0.0.1:3210/saude',{signal:AbortSignal.timeout(15000)}).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" >/dev/null 2>&1; then
   sleep 30  # pode estar só iniciando

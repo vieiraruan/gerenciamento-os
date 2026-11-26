@@ -232,6 +232,8 @@ const EQUIPE = [
   /^GET \/api\/contratos$/, /^GET \/api\/sincronizacao$/,
   /^GET \/api\/checklist\/(vertentes|previa)$/, /^GET \/api\/evento$/, /^POST \/api\/evento(\/importar)?$/, /^POST \/api\/checklist\/gerar$/,
   /^GET \/cronograma$/, /^GET \/api\/cronograma(\/casal)?$/, /^POST \/api\/cronograma\/tarefa$/,
+  // imagens compartilhadas: equipe vê, baixa, envia e cria pastas (apagar: só admin)
+  /^GET \/imagens$/, /^GET \/api\/imagens(\/arquivo)?$/, /^POST \/api\/imagens\/(enviar|pasta)$/,
 ];
 const CASAL = [/^GET \/(inicio)?$/, /^GET \/api\/eu$/, /^GET \/meu-evento$/, /^GET \/api\/meu-evento$/,
   /^POST \/api\/meu-evento\/(tarefa|pagamento)$/];

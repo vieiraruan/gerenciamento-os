@@ -384,6 +384,62 @@ function registrarPagamento(fin, pastaCasal, id, dados, comprovante) {
   return { item, pagamento: pg };
 }
 
+/**
+ * Corrige um lançamento já feito (pela Tayná ou pelo casal): valor, data, tipo, nº da parcela, forma, observação,
+ * troca do comprovante e até o fornecedor certo (mover_para). Tudo fica no histórico dos dois fornecedores.
+ */
+function editarPagamento(fin, pastaCasal, id, pagamentoId, dados = {}, comprovante = null, quem = '') {
+  const item = fin.itens.find((i) => i.id === id);
+  if (!item) throw new Error('Fornecedor não encontrado.');
+  const pg = (item.pagamentos || []).find((p) => p.id === pagamentoId);
+  if (!pg) throw new Error('Pagamento não encontrado.');
+  const antes = { ...pg };
+  if (dados.valor !== undefined) {
+    const v = valorDe(dados.valor);
+    if (!v || v <= 0) throw new Error('Informe o valor pago.');
+    pg.valor = v;
+  }
+  if (dados.data !== undefined) {
+    const d = dataDe(dados.data);
+    if (!d) throw new Error('Informe a data do pagamento.');
+    pg.data = d;
+  }
+  if (dados.tipo !== undefined && TIPOS_PAGAMENTO[dados.tipo]) pg.tipo = dados.tipo;
+  if (pg.tipo === 'parcela') pg.numero = Number(dados.numero ?? pg.numero) || pg.numero || 1; else pg.numero = null;
+  if (dados.forma !== undefined) pg.forma = String(dados.forma || '').slice(0, 40);
+  if (dados.obs !== undefined) pg.obs = String(dados.obs || '').trim().slice(0, 300);
+  let destino = item;
+  if (dados.mover_para && dados.mover_para !== id) {
+    destino = fin.itens.find((i) => i.id === dados.mover_para && !i.removido);
+    if (!destino) throw new Error('Fornecedor de destino não encontrado.');
+    item.pagamentos = item.pagamentos.filter((p) => p.id !== pagamentoId);
+    destino.pagamentos = destino.pagamentos || [];
+    destino.pagamentos.push(pg);
+    destino.historico = destino.historico || [];
+  }
+  if (comprovante) {
+    const rotulo = pg.tipo === 'parcela' ? `PARCELA ${pg.numero}` : TIPOS_PAGAMENTO[pg.tipo].toUpperCase();
+    pg.comprovante = gravarArquivo(pastaCasal, destino, `COMPROVANTE - ${rotulo} - ${dataBr(pg.data).replace(/\//g, '-')}`, comprovante.nome, comprovante.conteudo, fin);
+  }
+  pg.editado_em = agora();
+  if (quem) pg.editado_por = String(quem);
+  delete pg.importado; // corrigido no sistema: deixa de ser só o que veio da planilha
+  const rot = (p) => `${moeda(p.valor)} em ${dataBr(p.data)} (${p.tipo === 'parcela' ? `parcela ${p.numero}` : TIPOS_PAGAMENTO[p.tipo].toLowerCase()}${p.forma ? `, ${p.forma}` : ''})`;
+  const mudou = [];
+  if (antes.valor !== pg.valor || antes.data !== pg.data || antes.tipo !== pg.tipo || antes.numero !== pg.numero || (antes.forma || '') !== (pg.forma || '')) mudou.push(`de ${rot(antes)} para ${rot(pg)}`);
+  if ((antes.obs || '') !== (pg.obs || '')) mudou.push('observação alterada');
+  if (comprovante) mudou.push('comprovante substituído');
+  const hoje = dataBr(hojeIso());
+  if (destino !== item) {
+    item.historico.push(`${hoje} - Lançamento de ${rot(antes)} movido para ${destino.nome}.`);
+    destino.historico.push(`${hoje} - Lançamento de ${rot(pg)} recebido de ${item.nome} (correção).${mudou.length ? ` ${mudou.join('; ')}.` : ''}`);
+  } else if (mudou.length) {
+    item.historico.push(`${hoje} - Lançamento corrigido: ${mudou.join('; ')}.${antes.lancado_por ? ' (enviado pelo casal)' : ''}`);
+  }
+  item.atualizado_em = agora(); destino.atualizado_em = agora();
+  return { item: destino, pagamento: pg };
+}
+
 function removerPagamento(fin, id, pagamentoId) {
   const item = fin.itens.find((i) => i.id === id);
   if (!item) throw new Error('Fornecedor não encontrado.');
@@ -512,6 +568,6 @@ module.exports = {
   listarFornecedores, obterFornecedor, salvarFornecedor, textoPagamento,
   carregar, salvar, novoFinanceiro, calcular, resumo, aplicarVencimentos, definirVencimentos,
   acharPastaExistente, garantirPasta, gravarArquivo,
-  adicionarItem, atualizarItem, registrarPagamento, removerPagamento,
+  adicionarItem, atualizarItem, registrarPagamento, editarPagamento, removerPagamento,
   importarLinhas, linhasParaGoogle, gravarParaGoogle,
 };

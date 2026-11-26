@@ -70,7 +70,7 @@ function recebimentoCasal(arquivo, c, finCasal, hoje = hojeIso()) {
   if (item) {
     recebido = fin.calcular(item, hoje).pago;
     fonte = (item.pagamentos || []).some((p) => !p.importado) ? 'sistema' : 'planilha';
-    pagamentos.push(...(item.pagamentos || []).map((p) => ({ id: p.id, tipo: p.tipo, valor: p.valor, data: p.data, forma: p.forma, comprovante: p.comprovante, importado: Boolean(p.importado) })));
+    pagamentos.push(...(item.pagamentos || []).map((p) => ({ id: p.id, tipo: p.tipo, numero: p.numero || null, valor: p.valor, data: p.data, forma: p.forma, obs: p.obs || '', comprovante: p.comprovante, importado: Boolean(p.importado), editado: Boolean(p.editado_em) })));
   } else if (/quitad/i.test(c.situacao_financeira || '')) {
     recebido = plano.total; fonte = 'contrato (quitado)';
   }

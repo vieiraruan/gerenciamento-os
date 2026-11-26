@@ -186,7 +186,7 @@ function desenharPainel() {
       ${dias !== null ? `<div class="info"><b style="color:var(--marca)">${contagem(dias)}</b></div>` : ''}</div>
       <div class="acoes">
         <a class="btn" href="/meu-evento?arquivo=${enc}" target="_blank" rel="noopener">👁 Área do casal</a>
-        <a class="btn" href="/financeiro?casal=${enc}">Financeiro</a>
+        <a class="btn" href="/gestao?casal=${enc}#financeiro">Financeiro</a>
         ${c ? `<a class="btn" href="/cronograma?casal=${enc}">Cronograma</a>` : ''}
         <a class="btn" href="/checklist?contrato=${enc}">Checklist do dia</a>
       </div></div>
@@ -246,7 +246,7 @@ function abaQuadro(el) {
 }
 function abaForn(el) {
   const t = P.totais;
-  if (!P.fornecedores.length) { el.innerHTML = `<div class="card"><p class="s" style="margin:0">Nenhum fornecedor lançado. <a class="lk" href="/financeiro?casal=${encodeURIComponent(P.arquivo)}">Abrir o Financeiro</a></p></div>`; return; }
+  if (!P.fornecedores.length) { el.innerHTML = `<div class="card"><p class="s" style="margin:0">Nenhum fornecedor lançado. <a class="lk" href="/gestao?casal=${encodeURIComponent(P.arquivo)}#financeiro">Abrir o Financeiro</a></p></div>`; return; }
   const st = (f) => f.status === 'Pago' ? '<span class="badge b-ok">quitado</span>' : f.atrasadas ? `<span class="badge b-atr">${f.atrasadas} vencida(s)</span>` : f.status === 'Sem valor' ? '<span class="badge b-p">sem valor</span>' : '<span class="badge b-p">em aberto</span>';
   el.innerHTML = `<div class="card"><div class="tabela"><table>
     <thead><tr><th>Fornecedor</th><th>Situação</th><th class="n">Contratado</th><th class="n">Pago</th><th class="n">A pagar</th><th>Próximo vencimento</th><th>Contato</th></tr></thead>
@@ -257,7 +257,7 @@ function abaForn(el) {
       <td>${f.proxima ? `${dBr(f.proxima.vencimento)} · ${moeda(f.proxima.valor)}` : '—'}</td>
       <td class="s">${[f.contato.responsavel, f.contato.telefone].filter(Boolean).map(esc).join('<br>') || '—'}</td></tr>`).join('')}</tbody>
     ${t ? `<tfoot><tr><td colspan="2"><b>Total</b></td><td class="n"><b>${moeda(t.contratado)}</b></td><td class="n"><b>${moeda(t.pago)}</b></td><td class="n"><b>${moeda(t.saldo)}</b></td><td colspan="2"></td></tr></tfoot>` : ''}
-  </table></div><p style="margin:12px 0 0"><a class="lk" href="/financeiro?casal=${encodeURIComponent(P.arquivo)}">Lançar pagamentos no Financeiro →</a></p></div>`;
+  </table></div><p style="margin:12px 0 0"><a class="lk" href="/gestao?casal=${encodeURIComponent(P.arquivo)}#financeiro">Lançar pagamentos no Financeiro →</a></p></div>`;
 }
 function abaContrato(el) {
   const ct = P.contrato, r = P.recebimento, ev = P.evento;

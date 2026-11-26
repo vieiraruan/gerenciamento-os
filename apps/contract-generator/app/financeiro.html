@@ -176,6 +176,8 @@
   .arquivo.ok { border-color: var(--ok); color: var(--ok); }
 </style>
 <link rel="stylesheet" href="/movel.css"><script src="/movel.js" defer></script><script src="/campos.js" defer></script>
+<script>if (new URLSearchParams(location.search).get('embutido')) document.documentElement.classList.add('embutido');</script>
+<style>.embutido body > header { display: none !important; } .embutido body { background: transparent; } .embutido .layout { padding: 4px 2px !important; }</style>
 </head>
 <body>
 <header>
@@ -267,6 +269,8 @@
       <div class="c4"><label class="l">Data do pagamento *</label><input id="dpData" type="date"></div>
       <div class="c4"><label class="l">Forma</label><select id="dpForma"></select></div>
       <div class="c4"><label class="l">Observação</label><input id="dpObs"></div>
+      <div class="c12" id="dpMoverBox" hidden><label class="l">Fornecedor deste pagamento</label><select id="dpMover"></select>
+        <p class="salvo" style="margin:4px 0 0">Se o casal lançou no fornecedor errado, escolha o certo: o pagamento muda de linha (e de saldo).</p></div>
       <div class="c12"><label class="arquivo" id="dpArqBox"><input type="file" id="dpArq" accept=".pdf,image/*" style="display:none">
         <span id="dpArqTxt">Clique para anexar o comprovante de pagamento *</span></label></div>
     </div>
@@ -441,6 +445,7 @@ function render() {
   document.querySelectorAll('[data-pagar]').forEach((b) => b.onclick = () => abrirPagamento(b.dataset.pagar));
   document.querySelectorAll('[data-editar]').forEach((b) => b.onclick = () => abrirFornecedor(b.dataset.editar));
   document.querySelectorAll('[data-abrir]').forEach((a) => a.onclick = () => abrir(D.pasta + sep(D.pasta) + a.dataset.abrir));
+  document.querySelectorAll('[data-edpag]').forEach((b) => b.onclick = () => { const [id, pid] = b.dataset.edpag.split('|'); abrirPagamento(id, null, pid); });
   document.querySelectorAll('[data-rmpag]').forEach((b) => b.onclick = async () => {
     if (!confirm('Remover este lançamento? O comprovante continua na pasta do fornecedor.')) return;
     const [id, pid] = b.dataset.rmpag.split('|');
@@ -523,10 +528,10 @@ function linhaItem(i) {
     html += `<tr class="detalhe"><td></td><td colspan="8"><div class="caixa">
       <div><h4>Pagamentos</h4>
         <table class="pags"><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Forma</th><th>Comprovante</th><th></th></tr>
-        ${(i.pagamentos || []).map((p) => `<tr><td>${dBr(p.data) || '—'}</td><td>${p.tipo === 'parcela' ? `Parcela ${p.numero || ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.importado ? ' <span class="salvo">(planilha)</span>' : ''}${p.lancado_por ? ' <span class="salvo" title="Enviado pelo casal na área do casal">(casal)</span>' : ''}</td>
+        ${(i.pagamentos || []).map((p) => `<tr><td>${dBr(p.data) || '—'}</td><td>${p.tipo === 'parcela' ? `Parcela ${p.numero || ''}` : p.tipo === 'entrada' ? 'Entrada' : 'Avulso'}${p.importado ? ' <span class="salvo">(planilha)</span>' : ''}${p.lancado_por ? ' <span class="salvo" title="Enviado pelo casal na área do casal">(casal)</span>' : ''}${p.editado_em ? ' <span class="salvo" title="Corrigido no Lotus">(corrigido)</span>' : ''}${p.obs ? `<div class="salvo">${esc(p.obs)}</div>` : ''}</td>
           <td>${brl(p.valor)}</td><td>${esc(p.forma || '')}</td>
           <td>${p.comprovante ? `<a class="lnk" data-abrir="${esc(p.comprovante)}">abrir</a>` : '<span class="salvo">—</span>'}</td>
-          <td><button class="x" title="Remover lançamento" data-rmpag="${i.id}|${p.id}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="salvo">Nenhum pagamento lançado.</td></tr>'}
+          <td style="white-space:nowrap"><button class="x" title="Corrigir este lançamento" data-edpag="${i.id}|${p.id}">✎</button><button class="x" title="Remover lançamento" data-rmpag="${i.id}|${p.id}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="salvo">Nenhum pagamento lançado.</td></tr>'}
         </table>
         ${c.vencimentos.length ? `<h4 style="margin-top:12px">Parcelas</h4><div style="font-size:12.5px">${c.vencimentos.map((v) => `<span class="st ${v.paga ? 'Pago' : (v.vencimento < hoje() ? 'atr' : 'Pendente')}" style="display:inline-block;margin:0 4px 4px 0">${v.numero}ª · ${dBr(v.vencimento)} · ${brl(v.valor)}</span>`).join('')}</div>` : ''}
       </div>
@@ -681,10 +686,15 @@ async function salvarFornecedor() {
 }
 
 // ---- Diálogo de pagamento ----
-function abrirPagamento(id, tipo) {
+let pagEditando = null;
+function abrirPagamento(id, tipo, pagamentoId) {
   pagItem = D.itens.find((i) => i.id === id);
+  pagEditando = pagamentoId ? (pagItem.pagamentos || []).find((p) => p.id === pagamentoId) || null : null;
   const c = pagItem.calc;
-  $('#dpTitulo').textContent = `Registrar pagamento – ${pagItem.nome}`;
+  $('#dpTitulo').textContent = `${pagEditando ? 'Corrigir pagamento' : 'Registrar pagamento'} – ${pagItem.nome}`;
+  $('#dpSalvar').textContent = pagEditando ? 'Salvar correção' : 'Registrar e dar baixa';
+  $('#dpMoverBox').hidden = !pagEditando;
+  if (pagEditando) $('#dpMover').innerHTML = D.itens.filter((i) => !i.removido).map((i) => `<option value="${i.id}" ${i.id === pagItem.id ? 'selected' : ''}>${esc(i.nome)}</option>`).join('');
   $('#dpForma').innerHTML = FORMAS();
   const t = tipo || (c.entrada_prevista && !c.entrada_paga ? 'entrada' : 'parcela');
   $('#dpTipo').value = t;
@@ -698,12 +708,29 @@ function abrirPagamento(id, tipo) {
   };
   $('#dpTipo').onchange = ajustar; ajustar();
   $('#dpData').value = hoje(); $('#dpObs').value = ''; $('#dpMsg').innerHTML = '';
-  $('#dpInfo').textContent = `Contratado ${brl(c.contratado)} · pago ${brl(c.pago)} · restante ${brl(c.saldo)}${pagItem.pix ? ` · ${pagItem.pix}` : ''}`;
-  $('#dpArq').value = ''; arquivoEscolhido($('#dpArq'), $('#dpArqBox'), $('#dpArqTxt'), 'Clique para anexar o comprovante de pagamento *'); $('#dpArq').onchange();
+  if (pagEditando) {
+    const p = pagEditando;
+    $('#dpTipo').value = p.tipo || 'parcela'; $('#dpNum').disabled = $('#dpTipo').value !== 'parcela'; $('#dpNum').value = p.numero || '';
+    $('#dpValor').value = Number(p.valor || 0).toFixed(2).replace('.', ','); $('#dpData').value = p.data || ''; $('#dpForma').value = p.forma || ''; $('#dpObs').value = p.obs || '';
+    $('#dpTipo').onchange = () => { $('#dpNum').disabled = $('#dpTipo').value !== 'parcela'; };
+  }
+  $('#dpInfo').textContent = `Contratado ${brl(c.contratado)} · pago ${brl(c.pago)} · restante ${brl(c.saldo)}${pagItem.pix ? ` · ${pagItem.pix}` : ''}`
+    + (pagEditando && pagEditando.lancado_por ? ' · lançado pelo casal' : '');
+  $('#dpArq').value = '';
+  arquivoEscolhido($('#dpArq'), $('#dpArqBox'), $('#dpArqTxt'), pagEditando ? (pagEditando.comprovante ? 'Comprovante já anexado. Clique para trocar (opcional)' : 'Clique para anexar o comprovante (opcional)') : 'Clique para anexar o comprovante de pagamento *'); $('#dpArq').onchange();
   $('#dlgPag').showModal();
 }
 async function salvarPagamento() {
   const arq = $('#dpArq').files[0];
+  if (pagEditando) {
+    const b = $('#dpSalvar'); b.disabled = true; b.textContent = D.planilha_google ? 'Salvando e atualizando a planilha…' : 'Salvando…';
+    try {
+      const r = await enviar('editar-pagamento', { id: pagItem.id, pagamento_id: pagEditando.id, tipo: $('#dpTipo').value, numero: $('#dpNum').value,
+        valor: $('#dpValor').value, data: $('#dpData').value, forma: $('#dpForma').value, obs: $('#dpObs').value, mover_para: $('#dpMover').value }, arq);
+      $('#dlgPag').close(); aberto.add(r.item_id || pagItem.id); selecionar(atual);
+    } catch (e) { $('#dpMsg').innerHTML = `<div class="aviso erro">${esc(e.message)}</div>`; } finally { b.disabled = false; b.textContent = 'Salvar correção'; }
+    return;
+  }
   if (!arq) { $('#dpMsg').innerHTML = '<div class="aviso erro">Anexe o comprovante de pagamento.</div>'; return; }
   const b = $('#dpSalvar'); b.disabled = true;
   const rotulo = b.textContent;

@@ -30,6 +30,7 @@ const fin = require('./financeiro');
 const gestao = require('./gestao');
 const acomp = require('./acompanhamento');
 const avisos = require('./avisos');
+const imagens = require('./imagens');
 const { escreverFinanceiroXlsx } = require('./xlsxFinanceiro');
 const { gerarRelatorioIR } = require('./relatorioIR');
 const { criarAuth } = require('./auth');
@@ -48,6 +49,7 @@ const DIR_CLIENTES = PASTAS.clientes;
 const DIR_GERADOS = PASTAS.saida;
 const ARQ_SEQ = PASTAS.sequencias;
 const ARQ_EMPRESA = PASTAS.empresa;
+const DIR_IMAGENS = imagens.pastaRaiz(PASTAS);
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -181,7 +183,7 @@ function lerCorpo(req) {
  *   op=item (novo fornecedor do casal + contrato), op=editar, op=pagamento (+ comprovante), op=remover-pagamento,
  *   op=contrato (anexar/substituir o contrato), op=remover (tirar a linha).
  */
-async function enviarFinanceiro(q, arquivoEnviado) {
+async function enviarFinanceiro(q, arquivoEnviado, usuario = null) {
   const { arquivo, campos } = contratoDe(q.get('arquivo'));
   const dados = JSON.parse(q.get('dados') || '{}');
   const { pasta } = acharPastaCasal(DIR_GERADOS, campos.numero_os, campos.evento_nomes);
@@ -212,6 +214,9 @@ async function enviarFinanceiro(q, arquivoEnviado) {
     const item = gestao.garantirItemTayna(f, pasta, campos);
     const r = fin.registrarPagamento(f, pasta, item.id, { ...dados, sem_comprovante: !arquivoEnviado }, arquivoEnviado);
     resposta = { item_id: item.id, comprovante: r.pagamento.comprovante };
+  } else if (op === 'editar-pagamento') {
+    const r = fin.editarPagamento(f, pasta, dados.id, dados.pagamento_id, dados, arquivoEnviado, usuario && usuario.email);
+    resposta = { item_id: r.item.id, comprovante: r.pagamento.comprovante };
   } else if (op === 'remover-pagamento') {
     fin.removerPagamento(f, dados.id, dados.pagamento_id);
   } else if (op === 'remover') {
@@ -595,6 +600,12 @@ const rotas = {
     }
     return { ok: true, rotulo: pedidos.rotuloHorario(corpo.inicio) };
   },
+
+  // ---- Imagens compartilhadas (equipe e admin) ----
+  'GET /api/imagens': (q, c, u) => ({ ...imagens.listar(DIR_IMAGENS, q.get('pasta') || ''), nome_raiz: imagens.NOME_PASTA,
+    pode_apagar: !u || u.papel === 'admin' }),
+  'POST /api/imagens/pasta': (q, corpo) => imagens.criarPasta(DIR_IMAGENS, corpo.pasta || '', corpo.nome),
+  'POST /api/imagens/excluir': (q, corpo) => imagens.excluir(DIR_IMAGENS, corpo.caminho),
 
   // ---- Avisos no celular da Tayná (pedidos do site) ----
   'GET /api/avisos': () => avisos.publico(avisos.configuracao(DADOS)),
@@ -1088,8 +1099,13 @@ const servidor = http.createServer(async (req, res) => {
     if (req.usuario && req.usuario.papel === 'casal' && req.method === 'GET' && (url.pathname === '/' || url.pathname === '/inicio')) {
       res.writeHead(302, { Location: '/meu-evento' }); return res.end();
     }
+    // o Financeiro dos casais agora é uma aba do Painel de gestão (links antigos continuam funcionando)
+    if (req.method === 'GET' && url.pathname === '/financeiro' && !url.searchParams.get('embutido')) {
+      const casal = url.searchParams.get('casal') || url.searchParams.get('arquivo');
+      res.writeHead(302, { Location: `/gestao${casal ? `?casal=${encodeURIComponent(casal)}` : ''}#financeiro` }); return res.end();
+    }
     // Tela inicial (painel de aplicativos) e aplicativos
-    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/casais': 'casais.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html', '/privacidade': 'privacidade.html' };
+    const paginas = { '/': 'inicio.html', '/inicio': 'inicio.html', '/contratos': 'index.html', '/index.html': 'index.html', '/checklist': 'checklist.html', '/financeiro': 'financeiro.html', '/gestao': 'gestao.html', '/usuarios': 'usuarios.html', '/meu-evento': 'meu-evento.html', '/casais': 'casais.html', '/imagens': 'imagens.html', '/pedidos': 'pedidos.html', '/cronograma': 'cronograma.html', '/privacidade': 'privacidade.html' };
     if (req.method === 'GET' && paginas[url.pathname]) {
       // versão no endereço da logo/ícone: quando a marca muda, o navegador busca a nova
       const versao = (n) => Math.round(fs.statSync(path.join(RAIZ, 'templates', 'marca', `${n}.png`)).mtimeMs);
@@ -1113,11 +1129,29 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
       return res.end(fs.readFileSync(path.join(RAIZ, 'templates', 'marca', `${marca[1]}.png`)));
     }
+    // imagens compartilhadas: arquivo/miniatura e envio (direto para a pasta, sem passar tudo pela memória)
+    if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/api/imagens/arquivo') {
+      if (!imagens.disponivel(DIR_IMAGENS)) return responder(res, 404, { erro: 'Pasta de imagens indisponível.' });
+      let alvo;
+      try { alvo = imagens.resolver(DIR_IMAGENS, url.searchParams.get('caminho')); } catch (e) { return responder(res, 400, { erro: e.message }); }
+      if (!fs.existsSync(alvo.abs) || !fs.statSync(alvo.abs).isFile()) return responder(res, 404, { erro: 'Arquivo não encontrado.' });
+      const larg = { mini: 480, grande: 1600 }[url.searchParams.get('tam')];
+      if (larg) {
+        const m = await imagens.miniatura(DIR_IMAGENS, alvo.rel, larg);
+        if (m) return imagens.servir(req, res, m, { nome: `${path.parse(alvo.abs).name}.webp`, tipo: 'image/webp', cache: 'private, max-age=86400' });
+      }
+      return imagens.servir(req, res, alvo.abs, { baixar: url.searchParams.get('baixar') === '1' });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/imagens/enviar') {
+      if (!imagens.disponivel(DIR_IMAGENS)) return responder(res, 404, { erro: 'Pasta de imagens indisponível.' });
+      const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
+      return responder(res, 200, await imagens.receber(DIR_IMAGENS, url.searchParams.get('pasta') || '', nomeArq, req));
+    }
     // envio de arquivo (contrato assinado / comprovante): corpo = bytes do arquivo; dados no endereço
     if (req.method === 'POST' && url.pathname === '/api/financeiro/enviar') {
       const conteudo = await lerBinario(req);
       const nomeArq = decodeURIComponent(String(req.headers['x-nome-arquivo'] || ''));
-      return responder(res, 200, await enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null));
+      return responder(res, 200, await enviarFinanceiro(url.searchParams, conteudo.length ? { nome: nomeArq, conteudo } : null, req.usuario));
     }
     if (req.method === 'POST' && url.pathname === '/api/meu-evento/pagamento') {
       const conteudo = await lerBinario(req, 15 * 1024 * 1024);

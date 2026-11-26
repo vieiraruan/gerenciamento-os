@@ -21,6 +21,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now lotus-drive
 for i in $(seq 1 30); do [ -d "/srv/drive/CONTRATOS/CONTRATOS GERADOS" ] && break; sleep 2; done
 ls "/srv/drive/CONTRATOS/CONTRATOS GERADOS/_DADOS DO SISTEMA" >/dev/null
+# Imagens compartilhadas (pasta na raiz do Meu Drive; criada se ainda não existir)
+sudo rclone --config /etc/lotus/rclone.conf mkdir "drive:IMAGENS COMPARTILHADAS"
+sudo install -m 644 "$AQUI/lotus-imagens.service" /etc/systemd/system/lotus-imagens.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now lotus-imagens
 
 # Aplicativo
 [ -f "$AQUI/.env" ] || { echo "Falta $AQUI/.env (modelo: .env.exemplo)."; exit 1; }
